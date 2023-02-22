@@ -1,0 +1,87 @@
+site_name: TGB
+
+nav:
+  - Overview: index.md
+  - About: about.md
+  - API:
+    - tgb.dataset: api/tgb.dataset.md
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline 
+        name: Switch to dark mode
+      primary: orange
+      accent: purple 
+    - scheme: slate 
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode    
+      primary: orange
+      accent: lime
+
+extra:
+  social:
+    - icon: fontawesome/brands/github-alt
+      link: https://github.com/shenyangHuang/TGB
+    - icon: fontawesome/solid/envelope
+      link: shenyang.huang@mail.mcgill.ca
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/shenyangHuang
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/shenyang-huang/
+
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+
+plugins:
+  - search
+
+  - mkdocstrings:
+      watch:
+        - tgb/
+      handlers:
+        python:
+          setup_commands:
+            - import sys
+            - sys.path.append("docs")
+            - sys.path.append("tgb")
+          selection:
+            new_path_syntax: true
+          rendering:
+            show_root_heading: false
+            heading_level: 3
+            show_root_full_path: false
+
+  # - mkdocs-jupyter:
+  #     execute: false
+  #     # kernel_name: python3
