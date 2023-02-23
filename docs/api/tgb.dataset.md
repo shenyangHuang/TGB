@@ -1,3 +1,0 @@
-# `tgb.dataset`
-
-::: tgb.dataset
