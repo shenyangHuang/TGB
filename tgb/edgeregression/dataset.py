@@ -1,9 +1,5 @@
-from typing import Optional
-from typing import cast
-from typing import Union
-from typing import List
-from typing import overload
-from typing import Literal
+from typing import Optional, cast, Union, List, overload, Literal
+
 
 class EdgeRegressionDataset(object):
     def __init__(

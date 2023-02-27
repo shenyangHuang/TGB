@@ -2,6 +2,50 @@
 Temporal Graph Benchmark project repo 
 
 
+
+### Install dependency
+
+```
+pip install -r requirements.txt
+```
+
+
+### Instruction for tracking new documentation and running mkdocs locally
+
+1. first run the mkdocs server locally in your terminal 
+```
+mkdocs serve
+```
+
+2. go to the local hosted web address similar to
+```
+[14:18:13] Browser connected: http://127.0.0.1:8000/
+```
+
+Example: to track documentation of a new hi.py file in tgb/edgeregression/hi.py
+
+
+3. create docs/api/tgb.hi.md and add the following
+```
+# `tgb.edgeregression`
+
+::: tgb.edgeregression.hi
+```
+
+4. edit mkdocs.yml 
+```
+nav:
+  - Overview: index.md
+  - About: about.md
+  - API:
+    - tgb.edgeregression: api/tgb.edgeregression.md
+	- tgb.edgeregression: api/tgb.hi.md
+```
+
+
+
+
+
 Data format for CTDG methods (TGAT, TGN, CAWN, and probably any other model that is built upon TGAT):
 
 - The raw data format (ref: https://github.com/srijankr/jodie):
