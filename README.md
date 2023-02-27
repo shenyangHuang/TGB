@@ -38,7 +38,7 @@ nav:
   - Overview: index.md
   - About: about.md
   - API:
-    - tgb.edgeregression: api/tgb.edgeregression.md
+	other *.md files 
 	- tgb.edgeregression: api/tgb.hi.md
 ```
 
