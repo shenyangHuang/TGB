@@ -1,7 +1,7 @@
 from typing import Optional, cast, Union, List, overload, Literal
 import os.path as osp
 import numpy as np
-from tgb import info
+from tgb.info import PROJ_DIR
 
 class EdgeRegressionDataset(object):
     def __init__(
@@ -20,7 +20,7 @@ class EdgeRegressionDataset(object):
             preprocess: whether to pre-process the dataset
         """
         self.name = name ## original name
-        self.original_root = root
+        root = PROJ_DIR + root
 
         if meta_dict is None:
             self.dir_name = '_'.join(name.split('-')) ## replace hyphen with underline
@@ -29,7 +29,15 @@ class EdgeRegressionDataset(object):
             self.dir_name = meta_dict['dir_name']
         self.root = osp.join(root, self.dir_name)
         self.meta_dict = meta_dict
-        self.meta_dict["fname"] = self.root
+        if ("fname" not in self.meta_dict):
+            self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+
+        #check if the root directory exists, if not create it
+        if osp.isdir(self.root):
+            print("Dataset directory is ", self.root)
+        else:
+            raise FileNotFoundError(f"Directory not found at {self.root}")
+
 
         #TODO Andy: add url logic here from info.py to manage the urls in a centralized file
 
@@ -46,13 +54,16 @@ class EdgeRegressionDataset(object):
             'ml_<network>_node.npy': contains the node features; this is a numpy array that each element specify the features of one node where the node-id is equal to the element index.
         """
 
-        raise NotImplementedError
+        #check if path to file is valid 
+        if not osp.exists(self.meta_dict['fname']):
+            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
+        
     
 
 
 
 def main():
-    dataset = EdgeRegressionDataset(name="test", root="datasets")
+    dataset = EdgeRegressionDataset(name="un_trade", root="datasets")
 
 if __name__ == "__main__":
     main()

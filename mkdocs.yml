@@ -4,6 +4,7 @@ nav:
   - Overview: index.md
   - About: about.md
   - API:
+    - tgb: api/tgb.md
     - tgb.edgeregression: api/tgb.edgeregression.md
 
 theme:
