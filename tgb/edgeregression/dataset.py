@@ -1,7 +1,12 @@
 from typing import Optional, cast, Union, List, overload, Literal
 import os.path as osp
 import numpy as np
+import pandas as pd
+
+
 from tgb.info import PROJ_DIR
+from tgb.utils.pre_process import _to_pd_data, reindex
+
 
 class EdgeRegressionDataset(object):
     def __init__(
@@ -58,12 +63,41 @@ class EdgeRegressionDataset(object):
         if not osp.exists(self.meta_dict['fname']):
             raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
         
+        #output file names 
+        OUT_DF = self.root + '/' + 'ml_{}.csv'.format(self.name)
+        OUT_FEAT = self.root + '/' + 'ml_{}.npy'.format(self.name)
+        OUT_NODE_FEAT =  self.root + '/' + 'ml_{}_node.npy'.format(self.name)
+
+        #check if the output files already exist, if so, skip the pre-processing
+        if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
+            print ("pre-processed files found, skipping file generation")
+        else:
+            df, feat = _to_pd_data(self.meta_dict['fname'])
+            df = reindex(df, bipartite=False)
+            empty = np.zeros(feat.shape[1])[np.newaxis, :]
+            feat = np.vstack([empty, feat])
+
+            max_idx = max(df.u.max(), df.i.max())
+            rand_feat = np.zeros((max_idx + 1, 172))
+
+            df.to_csv(OUT_DF)
+            np.save(OUT_FEAT, feat)
+            np.save(OUT_NODE_FEAT, rand_feat)
+
+
+
+
+    
+   
+    
+
+        
     
 
 
 
 def main():
-    dataset = EdgeRegressionDataset(name="un_trade", root="datasets")
+    dataset = EdgeRegressionDataset(name="un_trade", root="datasets", preprocess=True)
 
 if __name__ == "__main__":
     main()
