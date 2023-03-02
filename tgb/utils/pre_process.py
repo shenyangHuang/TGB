@@ -4,32 +4,32 @@ import pandas as pd
 
 
 # TODO cleaning the un trade csv with countries with comma in the name, to remove this function
-# def clean_rows(
-#         fname: str,
-#         outname: str,
-#     ):
-#     outf = open(outname, "w")
+def clean_rows(
+        fname: str,
+        outname: str,
+    ):
+    outf = open(outname, "w")
 
-#     with open(fname) as f:
-#         s = next(f)
-#         outf.write(s)
-#         for idx, line in enumerate(f):
-#             strs = ['China, Taiwan Province of', 'China, mainland'] 
-#             for str in strs:
-#                     line = line.replace('China, Taiwan Province of', "Taiwan Province of China")
-#                     line = line.replace('China, mainland', "China mainland")
-#                     line = line.replace('China, Hong Kong SAR', "China Hong Kong SAR")
-#                     line = line.replace('China, Macao SAR', "China Macao SAR")
-#                     line = line.replace('Saint Helena, Ascension and Tristan da Cunha', 'Saint Helena Ascension and Tristan da Cunha')
+    with open(fname) as f:
+        s = next(f)
+        outf.write(s)
+        for idx, line in enumerate(f):
+            strs = ['China, Taiwan Province of', 'China, mainland'] 
+            for str in strs:
+                    line = line.replace('China, Taiwan Province of', "Taiwan Province of China")
+                    line = line.replace('China, mainland', "China mainland")
+                    line = line.replace('China, Hong Kong SAR', "China Hong Kong SAR")
+                    line = line.replace('China, Macao SAR', "China Macao SAR")
+                    line = line.replace('Saint Helena, Ascension and Tristan da Cunha', 'Saint Helena Ascension and Tristan da Cunha')
                     
             
-#             e = line.strip().split(',')
-#             if (len(e) > 4):
-#                 print (e)
-#                 raise ValueError("line has more than 4 elements")
-#             outf.write(line)
+            e = line.strip().split(',')
+            if (len(e) > 4):
+                print (e)
+                raise ValueError("line has more than 4 elements")
+            outf.write(line)
 
-#     outf.close()
+    outf.close()
 
 
 
@@ -119,3 +119,7 @@ def reindex(
 
     return new_df
 
+# if __name__ == "__main__":
+#     fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade.csv"
+#     outname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade_cleaned.csv"
+#     clean_rows(fname, outname)
