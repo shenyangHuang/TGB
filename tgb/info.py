@@ -2,8 +2,6 @@ import os.path as osp
 r"""
 General space to store global information used elsewhere such as url links, evaluation metrics etc.
 """
-
-
 # from torchmetrics import MeanSquaredError
 PROJ_DIR = osp.dirname(osp.abspath(__file__)) + "/"
 

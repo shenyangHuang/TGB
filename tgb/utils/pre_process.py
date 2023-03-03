@@ -8,6 +8,13 @@ def clean_rows(
         fname: str,
         outname: str,
     ):
+    r'''
+    clean the rows with comma in the name
+    args:
+        fname: the path to the raw data
+        outname: the path to the cleaned data
+    '''
+
     outf = open(outname, "w")
 
     with open(fname) as f:
@@ -48,6 +55,7 @@ def _to_pd_data(
     u_list, i_list, ts_list, label_list = [], [], [], []
     feat_l = []
     idx_list = []
+    w_list = []
 
     with open(fname) as f:
         s = next(f)
@@ -80,12 +88,14 @@ def _to_pd_data(
             label_list.append(label)
             idx_list.append(idx)
             feat_l.append(feat)
+            w_list.append(w)
     
     return pd.DataFrame({'u': u_list,
                         'i': i_list,
                         'ts': ts_list,
                         'label': label_list,
-                        'idx': idx_list}), np.array(feat_l)
+                        'idx': idx_list,
+                        'w':w_list}), np.array(feat_l)
 
 
 

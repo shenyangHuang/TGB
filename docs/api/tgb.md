@@ -1,3 +1,0 @@
-# `tgb`
-
-::: tgb.info
