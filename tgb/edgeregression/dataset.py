@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import os.path as osp
 import numpy as np
 import pandas as pd
@@ -92,6 +92,7 @@ class EdgeRegressionDataset(object):
                     feat_dim=172):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
+        generates self.full_data, self.train_data, self.val_data, self.test_data
         Parameters:
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
@@ -103,7 +104,6 @@ class EdgeRegressionDataset(object):
         df, feat = _to_pd_data(self.meta_dict['fname'])  
         df = reindex(df, bipartite=False)
 
-        #self.node_feat = feat
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
         sources = np.array(df['u'])
@@ -120,19 +120,68 @@ class EdgeRegressionDataset(object):
             'y': y
         }
         self._full_data = full_data
+        _train_data, _val_data, _test_data = self.generate_splits(full_data)
+        self._train_data = _train_data
+        self._val_data = _val_data
+        self._test_data = _test_data
+
+
 
 
     def generate_splits(self,
-                        full_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+                        full_data: Dict[str, Any],
+                        val_ratio=0.15, 
+                        test_ratio=0.15,
+                        ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         r"""Generates train, validation, and test splits from the full dataset
         Args:
             full_data: dictionary containing the full dataset
+            val_ratio: ratio of validation data
+            test_ratio: ratio of test data
         Returns:
             train_data: dictionary containing the training dataset
             val_data: dictionary containing the validation dataset
             test_data: dictionary containing the test dataset
         """
-        print ("hi")
+        val_time, test_time = list(np.quantile(full_data['timestamps'], [(1 - val_ratio - test_ratio), (1 - test_ratio)]))
+        timestamps = full_data['timestamps']
+        sources = full_data['sources']
+        destinations = full_data['destinations']
+        edge_idxs = full_data['edge_idxs']
+        y = full_data['y']
+        
+        train_mask = timestamps <= val_time
+        val_mask = np.logical_and(timestamps <= test_time, timestamps > val_time)
+        test_mask = timestamps > test_time
+
+        
+        train_data = {
+            'sources': sources[train_mask],
+            'destinations': destinations[train_mask],
+            'timestamps': timestamps[train_mask],
+            'edge_idxs': edge_idxs[train_mask],
+            'y': y[train_mask]
+        }
+
+        val_data = {
+            'sources': sources[val_mask],
+            'destinations': destinations[val_mask],
+            'timestamps': timestamps[val_mask],
+            'edge_idxs': edge_idxs[val_mask],
+            'y': y[val_mask]
+        }
+
+        test_data = {
+            'sources': sources[test_mask],
+            'destinations': destinations[test_mask],
+            'timestamps': timestamps[test_mask],
+            'edge_idxs': edge_idxs[test_mask],
+            'y': y[test_mask]
+        }
+        return train_data, val_data, test_data
+
+       
+
 
     @property
     def node_feat(self) -> Optional[np.ndarray]:
@@ -205,43 +254,6 @@ class EdgeRegressionDataset(object):
     
 
 
-    
-
-    
-
-    # def get_data(self,
-    #         feat_dim: int,
-    #         node_features: np.ndarray,
-    #         edge_features: np.ndarray,
-    #         full_data: Dict,
-    #         train_data: Dict,
-    #         val_data: Dict,
-    #         test_data: Dict,
-    #         new_node_val_data: Dict,
-    #         new_node_test_data: Dict,
-    #         ):
-    #     r'''
-    #     full_data, train_data, val_data, test_data, new_node_val_data, new_node_test_data
-    #     function specifying the output to tgn
-    #     Parameters:
-    #         feat_dim: pad to this dimension must be same as the memory dimension, can be enforced in config file
-    #         node_features: node features, [N, feat_dim]
-    #         edge_features: edge features  [E, feat_dim]
-    #         full_data: dictionary containing full data, must have sources, destinations, timestamps, edge_idxs, edge_labels
-
-    #     '''
-    #     full_data = {
-    #         sources: np.ndarray, #int numpy array, [E,1]
-    #         destinations: np.ndarray, #int numpy array, [E,1]
-    #         timestamps: np.ndarray, #float numpy array, converted from int, [E,1]
-    #         edge_idxs: np.ndarray, #int numpy array, [E,1]
-    #         y: np.ndarray, #edge weight, here used as target for edge regresssion
-    #     }
-
-
-    # @property new_node_val_data
-    # @property new_node_test_data
-
 
 
 def main():
@@ -250,10 +262,15 @@ def main():
     dataset.node_feat
     dataset.edge_feat #not the edge weights
     dataset.full_data
+    dataset.full_data["edge_idxs"]
+    dataset.full_data["sources"]
+    dataset.full_data["destinations"]
+    dataset.full_data["timestamps"] 
+    dataset.full_data["y"]
+
     dataset.train_data
     dataset.val_data
     dataset.test_data
-    dataset.full_data["y"] 
 
 if __name__ == "__main__":
     main()

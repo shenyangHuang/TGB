@@ -14,14 +14,23 @@ def main():
 
     #process dataset
     name = "un_trade" #"enron"
-    enron_tgb = EdgeRegressionDataset(name=name, root="datasets")
-    enron_tgb.pre_process()
+    dataset = EdgeRegressionDataset(name=name, root="datasets")
 
+    '''
+    the following can be obtained from dataset
+    '''
+    # dataset.node_feat
+    # dataset.edge_feat #not the edge weights
+    # dataset.full_data
+    # dataset.full_data["edge_idxs"]
+    # dataset.full_data["sources"]
+    # dataset.full_data["destinations"]
+    # dataset.full_data["timestamps"] 
+    # dataset.full_data["y"]
 
-
-    # train_data = enron_tgb.train_data    
-    # test_data = enron_tgb.test_data
-    # val_data = enron_tgb.val_data
+    # dataset.train_data
+    # dataset.val_data
+    # dataset.test_data
 
 
     # generate fake data to test the evaluator 
