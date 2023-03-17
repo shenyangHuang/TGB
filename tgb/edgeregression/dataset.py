@@ -47,12 +47,6 @@ class EdgeRegressionDataset(object):
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
-
-        #check if the root directory exists, if not create it
-        if osp.isdir(self.root):
-            print("Dataset directory is ", self.root)
-        else:
-            raise FileNotFoundError(f"Directory not found at {self.root}")
         
         #initialize
         self._node_feat = None
@@ -64,6 +58,12 @@ class EdgeRegressionDataset(object):
 
         #TODO Andy: add url logic here from info.py to manage the urls in a centralized file
         self.download()
+        #check if the root directory exists, if not create it
+        if osp.isdir(self.root):
+            print("Dataset directory is ", self.root)
+        else:
+            #os.makedirs(self.root)
+            raise FileNotFoundError(f"Directory not found at {self.root}")
 
         if preprocess:
             self.pre_process()
@@ -72,6 +72,8 @@ class EdgeRegressionDataset(object):
     def download(self):
         """
         downloads this dataset from url
+        check if files are already downloaded
+
         """
         inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
 
@@ -83,22 +85,23 @@ class EdgeRegressionDataset(object):
                 raise Exception("Dataset url not found, download not supported yet.")
             else:
                 r = requests.get(self.url, stream=True)
-                if (os.path.exists(self.root)):
-                    raise Exception("director already exists, please delete the directory first.")
                 #download_dir = self.root + "/" + "download"
-                with open(self.root, 'wb') as f:
+                if osp.isdir(self.root):
+                    print("Dataset directory is ", self.root)
+                else:
+                    os.makedirs(self.root)
+
+                path_download = self.root + "/" + self.name + ".zip"
+                with open(path_download, 'wb') as f:
                     total_length = int(r.headers.get('content-length'))
                     for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
                         if chunk:
                             f.write(chunk)
-                            f.flush()
-
-                #os.makedirs(f"./{self.root}", exist_ok=True)
-            
-            #for unzipping the file
-            # with zipfile.ZipFile(self.root, 'r') as zip_ref:
-            #     zip_ref.extractall(f"./{self.root}")
-            # print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
+                            f.flush()            
+                #for unzipping the file
+                with zipfile.ZipFile(path_download, 'r') as zip_ref:
+                    zip_ref.extractall(self.root)
+                print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
         else:
             raise Exception(
                 BColors.FAIL + "Data not found error, download " + self.name + " failed")

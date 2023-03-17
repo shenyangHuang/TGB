@@ -1,9 +1,36 @@
 import networkx as nx
+import ast
 
 
+def dataset_stats(fname):
+    """
+    edge_id, user_id, timestamp, tags
 
-def load_daily_fav_genres(user_edge_dicts):
-    print ("hi")
+    0,user_000001,2006-08-13 14:59:59+00:00,"['electronic', 0.5319148936170213]"
+    0,user_000001,2006-08-13 14:59:59+00:00,"['alternative', 0.46808510638297873]"
+    """
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+    e_id = 0
+    genre_list = []
+    genre_dict = {}
+    for i in range(1,len(lines)):
+        vals = lines[i].split(',')
+        user_id = vals[1]
+        time = vals[2]
+        g_w = ast.literal_eval(vals[3]+vals[4])
+        genre = g_w[0].strip("'")
+        weight = float(g_w[1])
+
+        if (genre not in genre_dict):
+            genre_dict[genre] = 1
+        else:
+            genre_dict[genre] += 1
+
+    print ("number of genres: " + str(len(genre_dict)))
+
+
 
 
 
@@ -72,3 +99,9 @@ def load_UNvote_temporarl_edgelist(fname):
 
     print ("maximum time stamp is " + str(len(G_times)))
     return G_times
+
+
+
+
+if __name__ == "__main__":
+    dataset_stats("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
