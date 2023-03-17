@@ -1,24 +1,21 @@
 from typing import Optional, Dict, Any, Tuple
-import os
 import os.path as osp
 import numpy as np
 import pandas as pd
-import shutil
-import zipfile
-import requests
-from clint.textui import progress
 
-from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
+
+from tgb.utils.info import PROJ_DIR
 from tgb.utils.pre_process import _to_pd_data, reindex
 
 
-class EdgeRegressionDataset(object):
+class NodePropPredictionDataset(object):
     def __init__(
         self, 
         name: str, 
         root: Optional[str] = 'datasets', 
         meta_dict: Optional[dict] = None,
         preprocess: Optional[bool] = True,
+
         ):
         r"""Dataset class for edge regression tasks. Stores meta information about each dataset such as evaluation metrics etc.
         also automatically pre-processes the dataset.
@@ -29,13 +26,6 @@ class EdgeRegressionDataset(object):
             preprocess: whether to pre-process the dataset
         """
         self.name = name ## original name
-        #check if dataset url exist 
-        if (self.name in DATA_URL_DICT):
-            self.url = DATA_URL_DICT[self.name]
-        else:
-            self.url = None
-            print (f"Dataset {self.name} url not found, download not supported yet.")
-
         root = PROJ_DIR + root
 
         if meta_dict is None:
@@ -47,6 +37,12 @@ class EdgeRegressionDataset(object):
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+
+        #check if the root directory exists, if not create it
+        if osp.isdir(self.root):
+            print("Dataset directory is ", self.root)
+        else:
+            raise FileNotFoundError(f"Directory not found at {self.root}")
         
         #initialize
         self._node_feat = None
@@ -57,55 +53,9 @@ class EdgeRegressionDataset(object):
         self._test_data = None
 
         #TODO Andy: add url logic here from info.py to manage the urls in a centralized file
-        self.download()
-        #check if the root directory exists, if not create it
-        if osp.isdir(self.root):
-            print("Dataset directory is ", self.root)
-        else:
-            #os.makedirs(self.root)
-            raise FileNotFoundError(f"Directory not found at {self.root}")
 
         if preprocess:
             self.pre_process()
-
-
-    def download(self):
-        """
-        downloads this dataset from url
-        check if files are already downloaded
-
-        """
-        inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
-
-        if inp == 'y':
-            print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
-            print(f"Dataset title: {self.name}")
-
-            if (self.url is None):
-                raise Exception("Dataset url not found, download not supported yet.")
-            else:
-                r = requests.get(self.url, stream=True)
-                #download_dir = self.root + "/" + "download"
-                if osp.isdir(self.root):
-                    print("Dataset directory is ", self.root)
-                else:
-                    os.makedirs(self.root)
-
-                path_download = self.root + "/" + self.name + ".zip"
-                with open(path_download, 'wb') as f:
-                    total_length = int(r.headers.get('content-length'))
-                    for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
-                        if chunk:
-                            f.write(chunk)
-                            f.flush()            
-                #for unzipping the file
-                with zipfile.ZipFile(path_download, 'r') as zip_ref:
-                    zip_ref.extractall(self.root)
-                print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
-        else:
-            raise Exception(
-                BColors.FAIL + "Data not found error, download " + self.name + " failed")
-
 
     def output_ml_files(self):
         r"""Turns raw data .csv file into TG learning ready format such as for TGN, stores the processed file locally for faster access later

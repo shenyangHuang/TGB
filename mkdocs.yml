@@ -5,6 +5,7 @@ nav:
   - About: about.md
   - API:
     - tgb.edgeregression: api/tgb.edgeregression.md
+    - tgb.utils: api/tgb.utils.md
 
 theme:
   name: material

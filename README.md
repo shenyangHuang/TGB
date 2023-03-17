@@ -5,9 +5,17 @@ Temporal Graph Benchmark project repo
 
 ### Install dependency
 
+1. install external packages
 ```
 pip install -r requirements.txt
 ```
+
+2. install local dependencies under root directory `/TGB`
+```
+pip install -e .
+```
+
+
 
 
 ### Instruction for tracking new documentation and running mkdocs locally
