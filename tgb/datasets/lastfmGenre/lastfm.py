@@ -8,6 +8,13 @@ def dataset_stats(fname):
 
     0,user_000001,2006-08-13 14:59:59+00:00,"['electronic', 0.5319148936170213]"
     0,user_000001,2006-08-13 14:59:59+00:00,"['alternative', 0.46808510638297873]"
+    1,user_000001,2006-08-13 15:36:22+00:00,"['electronic', 0.6410256410256411]"
+    1,user_000001,2006-08-13 15:36:22+00:00,"['chillout', 0.358974358974359]"
+    2,user_000001,2006-08-13 15:40:13+00:00,"['math rock', 1.0]"
+    3,user_000001,2006-08-15 13:41:18+00:00,"['electronica', 1.0]"
+    4,user_000001,2006-08-15 13:59:27+00:00,"['acid jazz', 0.3546099290780142]"
+    4,user_000001,2006-08-15 13:59:27+00:00,"['nu jazz', 0.3333333333333333]"
+    4,user_000001,2006-08-15 13:59:27+00:00,"['chillout', 0.3120567375886525]"
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -19,9 +26,10 @@ def dataset_stats(fname):
         vals = lines[i].split(',')
         user_id = vals[1]
         time = vals[2]
-        g_w = ast.literal_eval(vals[3]+vals[4])
-        genre = g_w[0].strip("'")
-        weight = float(g_w[1])
+        genre = vals[3].strip("[").strip("'")
+        print (genre)
+        quit()
+        w = vals[4]
 
         if (genre not in genre_dict):
             genre_dict[genre] = 1

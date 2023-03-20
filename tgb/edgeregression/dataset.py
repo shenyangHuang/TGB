@@ -12,6 +12,51 @@ from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
 from tgb.utils.pre_process import _to_pd_data, reindex
 
 
+
+
+
+def gen_src_ts_sum_weight(edgelist_df: pd.DataFrame,
+                          src_col_name: str = 'u',
+                          ts_col_name: str = 'ts',
+                          w_col_name: str = 'w',
+                          ) -> Dict[Tuple[int, int], float]:
+    """
+    generates a dictionary where the keys are (src, ts) and 
+    the values are the sum of all edge weights at that timestamp with the same source node
+    """
+    src_ts_sum_w = {}
+    for idx, row in edgelist_df.iterrows():
+        if (row[src_col_name], row[ts_col_name]) not in src_ts_sum_w:
+            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] = row[w_col_name]
+        else:
+            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] += row[w_col_name]
+
+    return src_ts_sum_w
+
+
+def normalize_weight_wtd(edgelist_df: pd.DataFrame, 
+                         src_ts_sum_w: Dict[Tuple[int, int], float],
+                         src_col_name: str = 'u',
+                         ts_col_name: str = 'ts',
+                         w_col_name: str = 'w',) -> pd.DataFrame:
+    """
+    Normalize the edge weights by the weighted temporal degrees
+    """
+    normal_weights = []
+    for idx, row in edgelist_df.iterrows():
+        sum_weight = src_ts_sum_w[(row[src_col_name], row[ts_col_name])]
+        if sum_weight != 0:
+            normal_weights.append(row[w_col_name]/sum_weight)
+        else:
+            normal_weights.append(0)
+
+    edgelist_df[w_col_name] = normal_weights
+
+    return edgelist_df
+
+    
+
+
 class EdgeRegressionDataset(object):
     def __init__(
         self, 
@@ -73,8 +118,13 @@ class EdgeRegressionDataset(object):
         """
         downloads this dataset from url
         check if files are already downloaded
-
         """
+        #check if the file already exists
+        if osp.exists(self.meta_dict['fname']):
+            print ("file found, skipping download")
+            return
+
+
         inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
 
         if inp == 'y':
@@ -153,6 +203,9 @@ class EdgeRegressionDataset(object):
         #TODO Andy write better panda dataloading code, currently the feat is empty
         df, feat = _to_pd_data(self.meta_dict['fname'])  
         df = reindex(df, bipartite=False)
+
+        src_ts_sum_w = gen_src_ts_sum_weight(df)
+        df = normalize_weight_wtd(df, src_ts_sum_w)
 
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
