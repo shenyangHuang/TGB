@@ -1,4 +1,5 @@
 #dataset
+*.pdf
 *.csv
 *.zip
 *.json
