@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import csv
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
+from datetime import date
+
 
 
 def get_genre_list(fname):
@@ -189,17 +191,84 @@ def load_node_labels(fname: str):
     print ("there are ", len(fav_genre_dict), "genres in total")
 
 
+def generate_weekly_labels(
+                    fname: str,
+                    days : int = 7,
+                    ):
+    """
+    load daily node labels, generate weekly node labels
+    if there is a tie, choose early genre
+    """
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+
+    with open('weekly_avg_labels.csv', 'w') as outf:
+        outf.write("year,month,day,user_id,fav_genre\n")
+        for i in range(1,len(lines)):
+            vals = lines[i].split(',')
+            year = int(vals[0])
+            month = int(vals[1])
+            day = int(vals[2])
+            user_id = vals[3]
+            fav_genre = vals[4]
+            fav_list = []
+
+            #check next 7 lines to generate the label
+            cur_date = date(year, month, day)
+            if ((i + days) < len(lines)):
+                for j in range(days):
+                    vals = lines[i+j].split(',')
+                    n_year = int(vals[0])
+                    n_month = int(vals[1])
+                    n_day = int(vals[2])
+                    n_user_id = vals[3]
+                    n_fav_genre = vals[4]
+                    n_date = date(n_year, n_month, n_day)
+                    diff = (n_date - cur_date).days
+                    if (n_user_id != user_id):
+                        break
+                    if (diff <= days):
+                        fav_list.append(n_fav_genre)
+                    else:
+                        break
+            if (len(fav_list) < 1):
+                print ("finished processing at line " + str(i))
+                return None
+            label = most_frequent(fav_list)
+            outf.write(str(year) + "," + str(month) +"," + str(day) + "," + user_id + "," + label.strip("\n") + "\n")
+
+            
+
+            
+
+        # date = date(year, month, day)
+        # diff_days = (date - prev_date).days
+
+        # #check if the duration has passed
+        # if (diff_days > days):
+        #     label = most_frequent(fav_list)
+        #     prev_date = prev_date + datetime.timedelta(days=days)
+        #     fav_list = []
+        # fav_list.append(fav_genre)
 
 
 
-
-
-
-
-
-
-
-
+def most_frequent(List):
+    '''
+    helper function to find the most frequent element in a list
+    the ties are broken by choosing the earlier element
+    '''
+    counter = 0
+    out = List[0]
+     
+    for item in List:
+        curr_frequency = List.count(item)
+        if(curr_frequency> counter):  #update on most frequent item is found
+            counter = curr_frequency
+            out = item
+    return out
 
 
 
@@ -211,4 +280,6 @@ if __name__ == "__main__":
     #get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #genre_dict = load_genre_dict("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/genre_list.csv")
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
-    load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
+    #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
+    fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
+    generate_weekly_labels(fname, days=7)
