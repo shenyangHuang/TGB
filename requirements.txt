@@ -87,3 +87,4 @@ urllib3==1.26.14
 watchdog==2.2.1
 webencodings==0.5.1
 zipp==3.10.0
+pandas
