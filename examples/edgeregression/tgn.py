@@ -26,15 +26,18 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
+from tgb.edgeregression.dataset_pyg import PyGEdgeRegressDataset
+
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'JODIE')
-dataset = JODIEDataset(path, name='wikipedia')
-data = dataset[0]
 
-# For small datasets, we can put the whole dataset on GPU and thus avoid
-# expensive memory transfer costs for mini-batches:
+name = "un_trade"
+dataset = PyGEdgeRegressDataset(name=name, root="datasets")
+print (type(dataset.data[0]))
+data = dataset.data[0]
 data = data.to(device)
+print (data.msg.size(-1))
 
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
