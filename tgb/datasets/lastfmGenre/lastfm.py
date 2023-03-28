@@ -39,19 +39,62 @@ def get_genre_list(fname):
             genre_dict[genre] += 1
 
     
+    # TODO check the frequency of genres and threshold
+    genre_list_10 = []
+    genre_list_100 = []
+    genre_list_1000 = []
+    genre_list_2000 = []
+    for key,freq in genre_dict.items():
+        if (freq > 10):
+            genre_list_10.append([key])
+        if (freq > 100):
+            genre_list_100.append([key])
+        if (freq > 1000):
+            genre_list_1000.append([key])
+        if (freq > 2000):
+            genre_list_2000.append([key])
+
+    
+    print ("number of genres with frequency > 10: " + str(len(genre_list_10)))
+    print ("number of genres with frequency > 100: " + str(len(genre_list_100)))
+    print ("number of genres with frequency > 1000: " + str(len(genre_list_1000)))
+    print ("number of genres with frequency > 2000: " + str(len(genre_list_2000)))
+
+
+    fields = ['genre']
+
+    '''
     # only keep genres that has shown up in more than 100 lines
     genre_list = []
     for key in genre_dict:
         genre_list.append([key])
-        # if genre_dict[key] > 100:
-        #     genre_list.append([key])
-    fields = ['genre']
 
     with open('genre_list.csv', 'w') as f:
         # using csv.writer method from CSV package
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(genre_list)
+    '''
+
+    with open('genre_list_10.csv', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(fields)
+        write.writerows(genre_list_10)
+    
+    with open('genre_list_100.csv', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(fields)
+        write.writerows(genre_list_100)
+
+    with open('genre_list_1000.csv', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(fields)
+        write.writerows(genre_list_1000)
+    
+    with open('genre_list_2000.csv', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(fields)
+        write.writerows(genre_list_2000)
     
     #check the distribution of genres        
     # print ("number of genres: " + str(len(genre_dict)))
@@ -277,9 +320,15 @@ def most_frequent(List):
 
 
 if __name__ == "__main__":
-    #get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
+
+    #! generate the list of genres by frequency
+    get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #genre_dict = load_genre_dict("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/genre_list.csv")
+
+    #! generate the daily node labels
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
-    fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
-    generate_weekly_labels(fname, days=7)
+
+    #! generate the rolling weekly labels
+    # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
+    # generate_weekly_labels(fname, days=7)

@@ -13,8 +13,6 @@ from tgb.utils.pre_process import _to_pd_data, reindex
 
 
 
-
-
 def gen_src_ts_sum_weight(edgelist_df: pd.DataFrame,
                           src_col_name: str = 'u',
                           ts_col_name: str = 'ts',
@@ -92,7 +90,7 @@ class EdgeRegressionDataset(object):
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
-        
+
         #initialize
         self._node_feat = None
         self._edge_feat = None
