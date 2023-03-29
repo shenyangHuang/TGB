@@ -5,6 +5,7 @@ import csv
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
 from datetime import date
+from difflib import SequenceMatcher
 
 
 
@@ -63,19 +64,6 @@ def get_genre_list(fname):
 
     fields = ['genre']
 
-    '''
-    # only keep genres that has shown up in more than 100 lines
-    genre_list = []
-    for key in genre_dict:
-        genre_list.append([key])
-
-    with open('genre_list.csv', 'w') as f:
-        # using csv.writer method from CSV package
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list)
-    '''
-
     with open('genre_list_10.csv', 'w') as f:
         write = csv.writer(f)
         write.writerow(fields)
@@ -95,26 +83,36 @@ def get_genre_list(fname):
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(genre_list_2000)
-    
-    #check the distribution of genres        
-    # print ("number of genres: " + str(len(genre_dict)))
-    # freq = list(genre_dict.values())
-    # freq = np.asarray(freq)
-    # c100 = (freq > 100).sum()
-    # print ("number of genres with frequency > 100: " + str(c100))
-    # c1000 = (freq > 1000).sum()
-    # print ("number of genres with frequency > 1000: " + str(c1000))
-    # c10000 = (freq > 10000).sum()
-    # print ("number of genres with frequency > 10000: " + str(c10000))
 
-    #frequency diagram of genres
-    # plt.title("genre distribution")
-    # plt.xlabel("genre frequency")
-    # plt.ylabel("number of genres")
-    # #plt.yscale('log')
-    # plt.xscale('log')
-    # plt.hist(freq)
-    # plt.savefig('genre_hist.pdf')
+
+def find_unique_genres(fname: str,
+                       threshold: float = 0.8):
+    """
+    identify fuzzy strings which are actually the same genre, differences can be spacing, typo etc. 
+    """
+    #load all genre names into a list
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    genres = []
+    sim_genres = {}
+    for i in range(1,len(lines)):
+        line = lines[i]
+        genre = line.strip("\n")
+        genres.append(genre)
+    
+    for i in range(len(genres)):
+        for j in range(i+1,len(genres)):
+            text = genres[i]
+            search_key = genres[j]
+            sim = SequenceMatcher(None, text, search_key)
+            sim = sim.ratio()
+            if (sim >= threshold):
+                sim_genres[(text, search_key)] = sim
+
+    print ("there are " + str(len(sim_genres)) + " similar genres")
+    print (sim_genres)
 
 
 def load_genre_dict(
@@ -322,8 +320,12 @@ def most_frequent(List):
 if __name__ == "__main__":
 
     #! generate the list of genres by frequency
-    get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
+    # get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #genre_dict = load_genre_dict("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/genre_list.csv")
+
+    #! find similar genres 
+    find_unique_genres("genre_list_1000.csv",
+                       threshold= 0.8)
 
     #! generate the daily node labels
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
@@ -332,3 +334,4 @@ if __name__ == "__main__":
     #! generate the rolling weekly labels
     # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
     # generate_weekly_labels(fname, days=7)
+
