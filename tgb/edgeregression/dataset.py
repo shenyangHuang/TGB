@@ -173,6 +173,7 @@ class EdgeRegressionDataset(object):
         #check if the output files already exist, if so, skip the pre-processing
         if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
             print ("pre-processed files found, skipping file generation")
+            return df
         else:
             df, feat = _to_pd_data(self.meta_dict['fname'])
             df = reindex(df, bipartite=False)
@@ -186,6 +187,38 @@ class EdgeRegressionDataset(object):
             np.save(OUT_FEAT, feat)
             np.save(OUT_NODE_FEAT, rand_feat)
 
+
+    def generate_processed_files(self,
+                                fname: str) -> pd.DataFrame:
+        r"""
+        turns raw data .csv file into a pandas data frame, stored on disc if not already
+        Parameters:
+            fname: path to raw data file
+        Returns:
+            df: pandas data frame
+        """
+        if not osp.exists(fname):
+            raise FileNotFoundError(f"File not found at {fname}")
+        OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
+
+        if osp.exists(OUT_DF):
+            print ("loading processed file")
+            df = pd.read_pickle(OUT_DF)
+            #df = pd.read_csv(OUT_DF)
+        else:
+            #TODO Andy write better panda dataloading code, currently the feat is empty
+            print ("file not processed, generating processed file")
+            df, feat = _to_pd_data(fname)  
+            df = reindex(df, bipartite=False)
+            src_ts_sum_w = gen_src_ts_sum_weight(df)
+            df = normalize_weight_wtd(df, src_ts_sum_w)
+            df.to_pickle(OUT_DF)
+            #df.to_csv(OUT_DF)
+        return df
+
+
+
+
     def pre_process(self, 
                     feat_dim=172):
         '''
@@ -195,16 +228,7 @@ class EdgeRegressionDataset(object):
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
         #check if path to file is valid 
-        if not osp.exists(self.meta_dict['fname']):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
-        
-        #TODO Andy write better panda dataloading code, currently the feat is empty
-        df, feat = _to_pd_data(self.meta_dict['fname'])  
-        df = reindex(df, bipartite=False)
-
-        src_ts_sum_w = gen_src_ts_sum_weight(df)
-        df = normalize_weight_wtd(df, src_ts_sum_w)
-
+        df = self.generate_processed_files(self.meta_dict['fname'])
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
         sources = np.array(df['u'])

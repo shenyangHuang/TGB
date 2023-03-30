@@ -5,6 +5,7 @@ import torch
 
 from torch_geometric.data import InMemoryDataset, TemporalData, download_url
 from tgb.edgeregression.dataset import EdgeRegressionDataset
+import warnings
 
 
 
@@ -38,11 +39,25 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         """
         collate on the data from the EdgeRegressionDataset
         """
+
+        #! check a few tensor typing constraints first, forcing the conversion if needed
         src = torch.from_numpy(self.dataset.full_data["sources"])
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
-        y = torch.from_numpy(self.dataset.full_data["y"])
-        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
+        
+        if (src.dtype != torch.int64 and src.dtype != torch.int32):
+            warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
+            src = src.long()
+        
+        if (dst.dtype != torch.int64 and dst.dtype != torch.int32):
+            warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
+            dst = dst.long()
+        
+        if (t.dtype != torch.int64 and t.dtype != torch.int32):
+            warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
+            t = t.long()
+        y = torch.from_numpy(self.dataset.full_data["y"]).long()
+        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1]).float()  #use edge features here if available
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
         if self.pre_transform is not None:
             data = self.pre_transform(data)
