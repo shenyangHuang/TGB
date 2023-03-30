@@ -28,33 +28,13 @@ from torch_geometric.nn.models.tgn import (
 
 from tgb.edgeregression.dataset_pyg import PyGEdgeRegressDataset
 
-
-
-# path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'JODIE')
-# dataset = JODIEDataset(path, name='wikipedia')
-# data = dataset[0]
-
-# print ("----printing format of data-----")
-# print (data.src.size())
-# print (data.src.dtype)
-# print (data.dst.size())
-# print (data.dst.dtype)
-# print (data.t.size())
-# print (data.t.dtype)
-# print (data.msg.size())
-# print (data.msg.dtype)
-# print (data.y.size())
-# print (data.y.dtype)
-
-# quit()
-
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 name = "un_trade"
 dataset = PyGEdgeRegressDataset(name=name, root="datasets")
 data = dataset.data[0]
+data.t = data.t.long()
 data = data.to(device)
 
 # Ensure to only sample actual destination nodes as negatives.

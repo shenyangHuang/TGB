@@ -44,6 +44,9 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         src = torch.from_numpy(self.dataset.full_data["sources"])
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
+        y = torch.from_numpy(self.dataset.full_data["y"])
+        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
+
         
         if (src.dtype != torch.int64 and src.dtype != torch.int32):
             warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
@@ -56,8 +59,10 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         if (t.dtype != torch.int64 and t.dtype != torch.int32):
             warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
             t = t.long()
-        y = torch.from_numpy(self.dataset.full_data["y"]).long()
-        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1]).float()  #use edge features here if available
+
+        if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
+            warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
+            msg = msg.float()
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
         if self.pre_transform is not None:
             data = self.pre_transform(data)
