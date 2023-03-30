@@ -243,30 +243,9 @@ def generate_daily_node_labels(fname: str):
                 else:
                     day_dict[genre] += w
 
+def load_node_labels():
+    print ("hi")
 
-
-def load_node_labels(fname: str):
-    """
-    loading the node labels from the file
-    year,month,day,user_id,fav_genre
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
-
-    fav_genre_dict = {}
-
-    for i in range(1,len(lines)):
-        vals = lines[i].split(',')
-        year = int(vals[0])
-        month = int(vals[1])
-        day = int(vals[2])
-        user_id = vals[3]
-        fav_genre = vals[4]
-        if fav_genre not in fav_genre_dict:
-            fav_genre_dict[fav_genre] = 1
-    
-    print ("there are ", len(fav_genre_dict), "genres in total")
 
 
 def generate_weekly_labels(
