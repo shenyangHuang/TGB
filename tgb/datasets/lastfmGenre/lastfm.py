@@ -190,74 +190,60 @@ def generate_daily_node_labels(fname: str):
     generate the node label for each day for each user
     Note: only genres from the genre_list are considered
 
-    0,user_000001,2006-08-13 14:59:59+00:00,"['electronic', 0.5319148936170213]"
-    0,user_000001,2006-08-13 14:59:59+00:00,"['alternative', 0.46808510638297873]"
-    1,user_000001,2006-08-13 15:36:22+00:00,"['electronic', 0.6410256410256411]"
-    1,user_000001,2006-08-13 15:36:22+00:00,"['chillout', 0.358974358974359]"
-    2,user_000001,2006-08-13 15:40:13+00:00,"['math rock', 1.0]"
-    3,user_000001,2006-08-15 13:41:18+00:00,"['electronica', 1.0]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['acid jazz', 0.3546099290780142]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['nu jazz', 0.3333333333333333]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['chillout', 0.3120567375886525]"
+    user_000001,2006-08-13 14:59:59+00:00,"['electronic', 0.5319148936170213]"
+    user_000001,2006-08-13 14:59:59+00:00,"['alternative', 0.46808510638297873]"
+    user_000001,2006-08-13 15:36:22+00:00,"['electronic', 0.6410256410256411]"
+    user_000001,2006-08-13 15:36:22+00:00,"['chillout', 0.358974358974359]"
+    user_000001,2006-08-13 15:40:13+00:00,"['math rock', 1.0]"
+    user_000001,2006-08-15 13:41:18+00:00,"['electronica', 1.0]"
+    user_000001,2006-08-15 13:59:27+00:00,"['acid jazz', 0.3546099290780142]"
+    user_000001,2006-08-15 13:59:27+00:00,"['nu jazz', 0.3333333333333333]"
+    user_000001,2006-08-15 13:59:27+00:00,"['chillout', 0.3120567375886525]"
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
     edgelist.close()
-
-    print (len(lines))
-    quit()
 
     format = "%Y-%m-%d %H:%M:%S"
     day_dict = {} #store the weights of genres on this day
     cur_day = -1
 
     with open('daily_labels.csv', 'w') as outf:
-        outf.write("year,month,day,user_id,fav_genre\n")
+        write = csv.writer(outf)
+        fields = ["user_id", "year", "month", "day", "genre", "weight"]
+        write.writerow(fields)
+
         #generate daily labels for users
         for i in range(1,len(lines)):
             vals = lines[i].split(',')
-            user_id = vals[1]
-            time = vals[2][:-7]
+            user_id = vals[0]
+            time = vals[1][:-7]
             date_object = datetime.strptime(time, format)
             if (i == 1):
                 cur_day = date_object.day
 
-            genre = vals[3].strip("\"").strip("['")
-            w = float(vals[4][:-3])
+            genre = vals[2]
+            w = float(vals[3].strip())
             if (date_object.day != cur_day):
-                #print (date_object.year, date_object.month, date_object.day)
-                try:
-                    fav_genre = max(day_dict, key=day_dict.get)
-                except:
-                    print ("error at line " + str(i))
-                outf.write(str(date_object.year) + "," + str(date_object.month) +"," + str(date_object.day) + "," + user_id + "," + fav_genre + "\n")
+                
+                #! normalize the weights in the day_dict to sum 1 
+                total = sum(day_dict.values())
+                day_dict = {k: v / total for k, v in day_dict.items()}
+
+                #! user,time,genre,weight  # genres = # of weights
+                out = [user_id, str(date_object.year), str(date_object.month), str(date_object.day)]
+                for genre, w in day_dict.items():
+                    write.writerow(out + [genre] + [w])
+                
                 cur_day = date_object.day
                 day_dict = {}
-
-            if (genre not in day_dict):
-                day_dict[genre] = w
             else:
-                day_dict[genre] += w
+                if (genre not in day_dict):
+                    day_dict[genre] = w
+                else:
+                    day_dict[genre] += w
 
-            # if (genre not in genre_dict):
-            #     print ("includes all genres now")
-            #     print (genre)
-            #     continue
-            # else:
-            #     if (date_object.day != cur_day):
-            #         #print (date_object.year, date_object.month, date_object.day)
-            #         try:
-            #             fav_genre = max(day_dict, key=day_dict.get)
-            #         except:
-            #             print (i)
-            #         outf.write(str(date_object.year) + "," + str(date_object.month) +"," + str(date_object.day) + "," + user_id + "," + fav_genre + "\n")
-            #         cur_day = date_object.day
-            #         day_dict = {}
-            #     else:
-            #         if (genre not in day_dict):
-            #             day_dict[genre] = w
-            #         else:
-            #             day_dict[genre] += w
+
 
 def load_node_labels(fname: str):
     """
