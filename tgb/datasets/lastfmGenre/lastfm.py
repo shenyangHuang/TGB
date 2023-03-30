@@ -5,6 +5,76 @@ import csv
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
 from datetime import date
+from difflib import SequenceMatcher
+
+# similarity_dict = {('electronic', 'electronica'): 0.9523809523809523, ('electronic', 'electro'): 0.8235294117647058, ('alternative', 'alternative rock'): 0.8148148148148148, ('nu jazz', 'nu-jazz'): 0.8571428571428571, 
+#                    ('funky', 'funk'): 0.8888888888888888, ('funky', 'funny'): 0.8, ('post rock', 'pop rock'): 0.8235294117647058, ('post rock', 'post-rock'): 0.8888888888888888, 
+#                    ('instrumental', 'instrumental rock'): 0.8275862068965517, ('chill', 'chile'): 0.8, ('Drum and bass', 'Drum n Bass'): 0.8333333333333334, ('female vocalists', 'female vocalist'): 0.967741935483871, 
+#                    ('female vocalists', 'male vocalists'): 0.9333333333333333, ('female vocalists', 'male vocalist'): 0.896551724137931, ('electro', 'electropop'): 0.8235294117647058, ('funk', 'fun'): 0.8571428571428571, 
+#                    ('hip hop', 'trip hop'): 0.8, ('hip hop', 'hiphop'): 0.9230769230769231, ('trip-hop', 'trip hop'): 0.875, ('indie rock', 'indie folk'): 0.8, ('new age', 'new wave'): 0.8, ('new age', 'new rave'): 0.8, 
+#                    ('synthpop', 'synth pop'): 0.9411764705882353, ('industrial', 'industrial rock'): 0.8, ('cover', 'covers'): 0.9090909090909091, ('post hardcore', 'post-hardcore'): 0.9230769230769231, ('mathcore', 'deathcore'): 0.8235294117647058, 
+#                    ('deutsch', 'dutch'): 0.8333333333333334, ('swing', 'sting'): 0.8, ('female vocalist', 'male vocalists'): 0.896551724137931, ('female vocalist', 'male vocalist'): 0.9285714285714286, ('new wave', 'new rave'): 0.875, 
+#                    ('male vocalists', 'male vocalist'): 0.9629629629629629, ('Progressive rock', 'Progressive'): 0.8148148148148148, ('Alt-country', 'alt country'): 0.8181818181818182, ('favorites', 'Favourites'): 0.8421052631578947, 
+#                    ('favorites', 'favourite'): 0.8888888888888888, ('favorites', 'Favorite'): 0.8235294117647058, ('1970s', '1980s'): 0.8, ('1970s', '1990s'): 0.8, ('proto-punk', 'post-punk'): 0.8421052631578947, 
+#                    ('folk rock', 'folk-rock'): 0.8888888888888888, ('1980s', '1990s'): 0.8, ('favorite songs', 'Favourite Songs'): 0.8275862068965517, ('melancholic', 'melancholy'): 0.8571428571428571, 
+#                    ('Favourites', 'favourite'): 0.8421052631578947, ('Favourites', 'Favorite'): 0.8888888888888888, ('Favourites', 'Favourite Songs'): 0.8, ('favourite', 'Favorite'): 0.8235294117647058, 
+#                    ('american', 'americana'): 0.9411764705882353, ('american', 'african'): 0.8, ('american', 'mexican'): 0.8, ('rock en español', 'Rock en Espanol'): 0.8, ('trance', 'psytrance'): 0.8, 
+#                    ('power pop', 'powerpop'): 0.9411764705882353, ('psychill', 'psychobilly'): 0.8421052631578947, ('Progressive metal', 'progressive death metal'): 0.8, ('Progressive metal', 'progressive black metal'): 0.8, 
+#                    ('progressive death metal', 'progressive black metal'): 0.8260869565217391, ('romantic', 'new romantic'): 0.8, ('hair metal', 'Dark metal'): 0.8, ('melodic metal', 'melodic black metal'): 0.8125, 
+#                    ('funk metal', 'folk metal'): 0.8, ('death metal', 'math metal'): 0.8571428571428571, ('Technical Metal', 'Technical Death Metal'): 0.8333333333333334, ('speed metal', 'sid metal'): 0.8}
+
+#! map diferent spelling and similar ones to the same one, use space if possible
+#? key = to replace, value = to keep 
+
+similarity_dict = {
+'nu-jazz': 'nu jazz', 
+'funky': 'funk', 
+'post-rock': 'post rock', 
+'Drum n Bass': 'Drum and bass', 
+'female vocalists': 'female vocalist', 
+'male vocalists': 'male vocalist',
+'hiphop':'hip hop', 
+'trip-hop': 'trip hop', 
+'synthpop': 'synth pop', 
+'covers': 'cover', 
+'post-hardcore': 'post hardcore',
+'Favourites': 'favorites', 
+'favourite': 'favorites', 
+'Favorite': 'favorites',
+'folk-rock': 'folk rock', 
+'favorite songs': 'favorites',
+'Favourite Songs': 'favorites', 
+'americana' : 'american',
+'Rock en Espanol': 'rock en español', 
+'melancholy': 'melancholic', 
+'powerpop' : 'power pop'
+}
+
+
+def filter_genre_edgelist(fname,
+                          genres_dict):
+    '''
+    rewrite the edgelist but only keeping the genres with high frequency, also uses similarity_dict
+    '''
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    with open('lastfm_edgelist_clean.csv', 'w') as f:
+        write = csv.writer(f)
+        fields = ["user_id", "timestamp", "tags", "weight"]
+        write.writerow(fields)
+
+        for i in range(1,len(lines)):
+            vals = lines[i].split(',')
+            user_id = vals[1]
+            time = vals[2]
+            genre = vals[3].strip("\"").strip("['")
+            w = vals[4][:-3]
+            if (genre in genres_dict):
+                if (genre in similarity_dict):
+                    genre = similarity_dict[genre]
+                write.writerow([user_id, time, genre, w])
 
 
 
@@ -18,9 +88,6 @@ def get_genre_list(fname):
     1,user_000001,2006-08-13 15:36:22+00:00,"['chillout', 0.358974358974359]"
     2,user_000001,2006-08-13 15:40:13+00:00,"['math rock', 1.0]"
     3,user_000001,2006-08-15 13:41:18+00:00,"['electronica', 1.0]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['acid jazz', 0.3546099290780142]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['nu jazz', 0.3333333333333333]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['chillout', 0.3120567375886525]"
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -53,68 +120,47 @@ def get_genre_list(fname):
             genre_list_1000.append([key])
         if (freq > 2000):
             genre_list_2000.append([key])
-
-    
     print ("number of genres with frequency > 10: " + str(len(genre_list_10)))
     print ("number of genres with frequency > 100: " + str(len(genre_list_100)))
     print ("number of genres with frequency > 1000: " + str(len(genre_list_1000)))
     print ("number of genres with frequency > 2000: " + str(len(genre_list_2000)))
-
-
     fields = ['genre']
-
-    '''
-    # only keep genres that has shown up in more than 100 lines
-    genre_list = []
-    for key in genre_dict:
-        genre_list.append([key])
-
-    with open('genre_list.csv', 'w') as f:
-        # using csv.writer method from CSV package
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list)
-    '''
-
-    with open('genre_list_10.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_10)
-    
-    with open('genre_list_100.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_100)
 
     with open('genre_list_1000.csv', 'w') as f:
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(genre_list_1000)
-    
-    with open('genre_list_2000.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_2000)
-    
-    #check the distribution of genres        
-    # print ("number of genres: " + str(len(genre_dict)))
-    # freq = list(genre_dict.values())
-    # freq = np.asarray(freq)
-    # c100 = (freq > 100).sum()
-    # print ("number of genres with frequency > 100: " + str(c100))
-    # c1000 = (freq > 1000).sum()
-    # print ("number of genres with frequency > 1000: " + str(c1000))
-    # c10000 = (freq > 10000).sum()
-    # print ("number of genres with frequency > 10000: " + str(c10000))
 
-    #frequency diagram of genres
-    # plt.title("genre distribution")
-    # plt.xlabel("genre frequency")
-    # plt.ylabel("number of genres")
-    # #plt.yscale('log')
-    # plt.xscale('log')
-    # plt.hist(freq)
-    # plt.savefig('genre_hist.pdf')
+
+
+def find_unique_genres(fname: str,
+                       threshold: float = 0.8):
+    """
+    identify fuzzy strings which are actually the same genre, differences can be spacing, typo etc. 
+    """
+    #load all genre names into a list
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    genres = []
+    sim_genres = {}
+    for i in range(1,len(lines)):
+        line = lines[i]
+        genre = line.strip("\n")
+        genres.append(genre)
+    
+    for i in range(len(genres)):
+        for j in range(i+1,len(genres)):
+            text = genres[i]
+            search_key = genres[j]
+            sim = SequenceMatcher(None, text, search_key)
+            sim = sim.ratio()
+            if (sim >= threshold):
+                sim_genres[(text, search_key)] = sim
+
+    print ("there are " + str(len(sim_genres)) + " similar genres")
+    print (sim_genres)
 
 
 def load_genre_dict(
@@ -157,6 +203,9 @@ def generate_daily_node_labels(fname: str):
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
     edgelist.close()
+
+    print (len(lines))
+    quit()
 
     format = "%Y-%m-%d %H:%M:%S"
     day_dict = {} #store the weights of genres on this day
@@ -322,13 +371,23 @@ def most_frequent(List):
 if __name__ == "__main__":
 
     #! generate the list of genres by frequency
-    get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
+    # get_genre_list("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #genre_dict = load_genre_dict("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/genre_list.csv")
 
+    #! find similar genres 
+    # find_unique_genres("genre_list_1000.csv",threshold= 0.8)
+
+    #! filter edgelist with genres to keep
+    # genres_dict = load_genre_dict("genre_list_1000.csv")
+    # filter_genre_edgelist("dataset.csv", genres_dict)
+
     #! generate the daily node labels
+    generate_daily_node_labels("lastfm_edgelist_clean.csv")
+
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
 
     #! generate the rolling weekly labels
     # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
     # generate_weekly_labels(fname, days=7)
+
