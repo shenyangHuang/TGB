@@ -29,11 +29,10 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         self.root = root
         self.transform = transform
         self.pre_transform = pre_transform
-
-        super().__init__(root, transform, pre_transform)
         self.dataset = EdgeRegressionDataset(name=name, root=root)
-        self._data = None
+        super().__init__(root, transform, pre_transform)
         self.process_data()
+
 
     def process_data(self):
         """
@@ -67,17 +66,6 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         if self.pre_transform is not None:
             data = self.pre_transform(data)
         self._data = self.collate([data])
-
-    
-    @property
-    def data(self):
-        if (self._data is None):
-            raise RuntimeError('Dataset not initialized. Call process_data()')
-        else:
-            return self._data
-    
-
-    
 
     def __repr__(self) -> str:
         return f'{self.name.capitalize()}()'
