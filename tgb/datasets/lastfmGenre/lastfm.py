@@ -51,6 +51,32 @@ similarity_dict = {
 }
 
 
+def filter_genre_edgelist(fname,
+                          genres_dict):
+    '''
+    rewrite the edgelist but only keeping the genres with high frequency, also uses similarity_dict
+    '''
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    with open('lastfm_edgelist_clean.csv', 'w') as f:
+        write = csv.writer(f)
+        fields = ["user_id", "timestamp", "tags", "weight"]
+        write.writerow(fields)
+
+        for i in range(1,len(lines)):
+            vals = lines[i].split(',')
+            user_id = vals[1]
+            time = vals[2]
+            genre = vals[3].strip("\"").strip("['")
+            w = vals[4][:-3]
+            if (genre in genres_dict):
+                if (genre in similarity_dict):
+                    genre = similarity_dict[genre]
+                write.writerow([user_id, time, genre, w])
+
+
 
 def get_genre_list(fname):
     """
@@ -62,9 +88,6 @@ def get_genre_list(fname):
     1,user_000001,2006-08-13 15:36:22+00:00,"['chillout', 0.358974358974359]"
     2,user_000001,2006-08-13 15:40:13+00:00,"['math rock', 1.0]"
     3,user_000001,2006-08-15 13:41:18+00:00,"['electronica', 1.0]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['acid jazz', 0.3546099290780142]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['nu jazz', 0.3333333333333333]"
-    4,user_000001,2006-08-15 13:59:27+00:00,"['chillout', 0.3120567375886525]"
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -97,35 +120,17 @@ def get_genre_list(fname):
             genre_list_1000.append([key])
         if (freq > 2000):
             genre_list_2000.append([key])
-
-    
     print ("number of genres with frequency > 10: " + str(len(genre_list_10)))
     print ("number of genres with frequency > 100: " + str(len(genre_list_100)))
     print ("number of genres with frequency > 1000: " + str(len(genre_list_1000)))
     print ("number of genres with frequency > 2000: " + str(len(genre_list_2000)))
-
-
     fields = ['genre']
-
-    with open('genre_list_10.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_10)
-    
-    with open('genre_list_100.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_100)
 
     with open('genre_list_1000.csv', 'w') as f:
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(genre_list_1000)
-    
-    with open('genre_list_2000.csv', 'w') as f:
-        write = csv.writer(f)
-        write.writerow(fields)
-        write.writerows(genre_list_2000)
+
 
 
 def find_unique_genres(fname: str,
@@ -198,6 +203,9 @@ def generate_daily_node_labels(fname: str):
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
     edgelist.close()
+
+    print (len(lines))
+    quit()
 
     format = "%Y-%m-%d %H:%M:%S"
     day_dict = {} #store the weights of genres on this day
@@ -367,10 +375,15 @@ if __name__ == "__main__":
     #genre_dict = load_genre_dict("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/genre_list.csv")
 
     #! find similar genres 
-    find_unique_genres("genre_list_1000.csv",
-                       threshold= 0.8)
+    # find_unique_genres("genre_list_1000.csv",threshold= 0.8)
+
+    #! filter edgelist with genres to keep
+    # genres_dict = load_genre_dict("genre_list_1000.csv")
+    # filter_genre_edgelist("dataset.csv", genres_dict)
 
     #! generate the daily node labels
+    generate_daily_node_labels("lastfm_edgelist_clean.csv")
+
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
 
