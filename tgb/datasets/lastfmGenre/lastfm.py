@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import csv
 from typing import Optional, Dict, Any, Tuple
-from datetime import datetime
+import datetime
 from datetime import date
 from difflib import SequenceMatcher
 
@@ -218,7 +218,7 @@ def generate_daily_node_labels(fname: str):
             vals = lines[i].split(',')
             user_id = vals[0]
             time = vals[1][:-7]
-            date_object = datetime.strptime(time, format)
+            date_object = datetime.datetime.strptime(time, format)
             if (i == 1):
                 cur_day = date_object.day
 
@@ -227,8 +227,9 @@ def generate_daily_node_labels(fname: str):
             if (date_object.day != cur_day):
                 
                 #! normalize the weights in the day_dict to sum 1 
-                total = sum(day_dict.values())
-                day_dict = {k: v / total for k, v in day_dict.items()}
+                #* remove normalization for future aggregation
+                # total = sum(day_dict.values())
+                # day_dict = {k: v / total for k, v in day_dict.items()}
 
                 #! user,time,genre,weight  # genres = # of weights
                 out = [user_id, str(date_object.year), str(date_object.month), str(date_object.day)]
@@ -243,72 +244,132 @@ def generate_daily_node_labels(fname: str):
                 else:
                     day_dict[genre] += w
 
+def generate_aggregate_labels(fname: str, 
+                              days: int = 7):
+    """
+    aggregate the genres over a number of days,  as specified by days
+
+    # TODO generate the labels in a rolling basis
+    """
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+    date_prev = 0
+
+
+    genre_dict = {}
+
+    #"user_id", "year", "month", "day", "genre", "weight"
+    with open(str(days) + 'days_labels.csv', 'w') as outf:
+        write = csv.writer(outf)
+        fields = ["user_id", "year", "month", "day", "genre", "weight"]
+        write.writerow(fields)
+
+        for i in range(1,len(lines)):
+            vals = lines[i].split(',')
+            user_id = vals[0]
+            year = int(vals[1])
+            month = int(vals[2])
+            day = int(vals[3])
+            genre = vals[4]
+            w = float(vals[5])
+            if (i == 1):
+                date_prev = date(year,month,day)
+            date_cur = date(year,month,day)
+
+            if ((date_cur - date_prev).days <= days):
+                if (genre not in genre_dict):
+                    genre_dict[genre] = w
+                else:
+                    genre_dict[genre] += w
+            else:
+                # start a new week
+                # normalize the weight to sum 1 
+                total = sum(genre_dict.values())
+                genre_dict = {k: v / total for k, v in genre_dict.items()}
+
+                out = [user_id, str(date_prev.year), str(date_prev.month), str(date_prev.day)]
+                for genre, w in genre_dict.items():
+                    write.writerow(out + [genre] + [w])
+                date_prev = date_prev + datetime.timedelta(days=1)
+                genre_dict = {}
+        
+                
+
+
+
+
+
+
+
+
+
 def load_node_labels():
     print ("hi")
 
 
 
-def generate_weekly_labels(
-                    fname: str,
-                    days : int = 7,
-                    ):
-    """
-    load daily node labels, generate weekly node labels
-    if there is a tie, choose early genre
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+# def generate_weekly_labels(
+#                     fname: str,
+#                     days : int = 7,
+#                     ):
+#     """
+#     load daily node labels, generate weekly node labels
+#     if there is a tie, choose early genre
+#     """
+#     edgelist = open(fname, "r")
+#     lines = list(edgelist.readlines())
+#     edgelist.close()
 
 
-    with open('weekly_avg_labels.csv', 'w') as outf:
-        outf.write("year,month,day,user_id,fav_genre\n")
-        for i in range(1,len(lines)):
-            vals = lines[i].split(',')
-            year = int(vals[0])
-            month = int(vals[1])
-            day = int(vals[2])
-            user_id = vals[3]
-            fav_genre = vals[4]
-            fav_list = []
+#     with open('weekly_avg_labels.csv', 'w') as outf:
+#         outf.write("year,month,day,user_id,fav_genre\n")
+#         for i in range(1,len(lines)):
+#             vals = lines[i].split(',')
+#             year = int(vals[0])
+#             month = int(vals[1])
+#             day = int(vals[2])
+#             user_id = vals[3]
+#             fav_genre = vals[4]
+#             fav_list = []
 
-            #check next 7 lines to generate the label
-            cur_date = date(year, month, day)
-            if ((i + days) < len(lines)):
-                for j in range(days):
-                    vals = lines[i+j].split(',')
-                    n_year = int(vals[0])
-                    n_month = int(vals[1])
-                    n_day = int(vals[2])
-                    n_user_id = vals[3]
-                    n_fav_genre = vals[4]
-                    n_date = date(n_year, n_month, n_day)
-                    diff = (n_date - cur_date).days
-                    if (n_user_id != user_id):
-                        break
-                    if (diff <= days):
-                        fav_list.append(n_fav_genre)
-                    else:
-                        break
-            if (len(fav_list) < 1):
-                print ("finished processing at line " + str(i))
-                return None
-            label = most_frequent(fav_list)
-            outf.write(str(year) + "," + str(month) +"," + str(day) + "," + user_id + "," + label.strip("\n") + "\n")
-
-            
+#             #check next 7 lines to generate the label
+#             cur_date = date(year, month, day)
+#             if ((i + days) < len(lines)):
+#                 for j in range(days):
+#                     vals = lines[i+j].split(',')
+#                     n_year = int(vals[0])
+#                     n_month = int(vals[1])
+#                     n_day = int(vals[2])
+#                     n_user_id = vals[3]
+#                     n_fav_genre = vals[4]
+#                     n_date = date(n_year, n_month, n_day)
+#                     diff = (n_date - cur_date).days
+#                     if (n_user_id != user_id):
+#                         break
+#                     if (diff <= days):
+#                         fav_list.append(n_fav_genre)
+#                     else:
+#                         break
+#             if (len(fav_list) < 1):
+#                 print ("finished processing at line " + str(i))
+#                 return None
+#             label = most_frequent(fav_list)
+#             outf.write(str(year) + "," + str(month) +"," + str(day) + "," + user_id + "," + label.strip("\n") + "\n")
 
             
 
-        # date = date(year, month, day)
-        # diff_days = (date - prev_date).days
+            
 
-        # #check if the duration has passed
-        # if (diff_days > days):
-        #     label = most_frequent(fav_list)
-        #     prev_date = prev_date + datetime.timedelta(days=days)
-        #     fav_list = []
-        # fav_list.append(fav_genre)
+#         # date = date(year, month, day)
+#         # diff_days = (date - prev_date).days
+
+#         # #check if the duration has passed
+#         # if (diff_days > days):
+#         #     label = most_frequent(fav_list)
+#         #     prev_date = prev_date + datetime.timedelta(days=days)
+#         #     fav_list = []
+#         # fav_list.append(fav_genre)
 
 
 
@@ -351,6 +412,14 @@ if __name__ == "__main__":
 
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
+
+
+    #! generate normalized weekly node labels
+    generate_aggregate_labels("daily_labels.csv", days=7)
+    
+    
+    
+
 
     #! generate the rolling weekly labels
     # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
