@@ -1,21 +1,71 @@
 from typing import Optional, Dict, Any, Tuple
+import os
 import os.path as osp
 import numpy as np
 import pandas as pd
+import shutil
+import zipfile
+import requests
+from clint.textui import progress
 
-
-from tgb.utils.info import PROJ_DIR
+from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
 from tgb.utils.pre_process import _to_pd_data, reindex
 
 
-class NodePropPredictionDataset(object):
+# TODO add node label loading code, node label convertion to unix time code etc.
+
+
+
+
+def gen_src_ts_sum_weight(edgelist_df: pd.DataFrame,
+                          src_col_name: str = 'u',
+                          ts_col_name: str = 'ts',
+                          w_col_name: str = 'w',
+                          ) -> Dict[Tuple[int, int], float]:
+    """
+    generates a dictionary where the keys are (src, ts) and 
+    the values are the sum of all edge weights at that timestamp with the same source node
+    """
+    src_ts_sum_w = {}
+    for idx, row in edgelist_df.iterrows():
+        if (row[src_col_name], row[ts_col_name]) not in src_ts_sum_w:
+            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] = row[w_col_name]
+        else:
+            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] += row[w_col_name]
+
+    return src_ts_sum_w
+
+
+def normalize_weight_wtd(edgelist_df: pd.DataFrame, 
+                         src_ts_sum_w: Dict[Tuple[int, int], float],
+                         src_col_name: str = 'u',
+                         ts_col_name: str = 'ts',
+                         w_col_name: str = 'w',) -> pd.DataFrame:
+    """
+    Normalize the edge weights by the weighted temporal degrees
+    """
+    normal_weights = []
+    for idx, row in edgelist_df.iterrows():
+        sum_weight = src_ts_sum_w[(row[src_col_name], row[ts_col_name])]
+        if sum_weight != 0:
+            normal_weights.append(row[w_col_name]/sum_weight)
+        else:
+            normal_weights.append(0)
+
+    edgelist_df[w_col_name] = normal_weights
+
+    return edgelist_df
+
+    
+
+
+class NodePropertyDataset(object):
     def __init__(
         self, 
         name: str, 
         root: Optional[str] = 'datasets', 
         meta_dict: Optional[dict] = None,
         preprocess: Optional[bool] = True,
-
         ):
         r"""Dataset class for edge regression tasks. Stores meta information about each dataset such as evaluation metrics etc.
         also automatically pre-processes the dataset.
@@ -26,6 +76,13 @@ class NodePropPredictionDataset(object):
             preprocess: whether to pre-process the dataset
         """
         self.name = name ## original name
+        #check if dataset url exist 
+        if (self.name in DATA_URL_DICT):
+            self.url = DATA_URL_DICT[self.name]
+        else:
+            self.url = None
+            print (f"Dataset {self.name} url not found, download not supported yet.")
+
         root = PROJ_DIR + root
 
         if meta_dict is None:
@@ -38,12 +95,6 @@ class NodePropPredictionDataset(object):
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
 
-        #check if the root directory exists, if not create it
-        if osp.isdir(self.root):
-            print("Dataset directory is ", self.root)
-        else:
-            raise FileNotFoundError(f"Directory not found at {self.root}")
-        
         #initialize
         self._node_feat = None
         self._edge_feat = None
@@ -51,11 +102,60 @@ class NodePropPredictionDataset(object):
         self._train_data = None
         self._val_data = None
         self._test_data = None
-
-        #TODO Andy: add url logic here from info.py to manage the urls in a centralized file
+        self.download()
+        #check if the root directory exists, if not create it
+        if osp.isdir(self.root):
+            print("Dataset directory is ", self.root)
+        else:
+            #os.makedirs(self.root)
+            raise FileNotFoundError(f"Directory not found at {self.root}")
 
         if preprocess:
             self.pre_process()
+
+
+    def download(self):
+        """
+        downloads this dataset from url
+        check if files are already downloaded
+        """
+        #check if the file already exists
+        if osp.exists(self.meta_dict['fname']):
+            print ("file found, skipping download")
+            return
+
+
+        inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
+
+        if inp == 'y':
+            print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
+            print(f"Dataset title: {self.name}")
+
+            if (self.url is None):
+                raise Exception("Dataset url not found, download not supported yet.")
+            else:
+                r = requests.get(self.url, stream=True)
+                #download_dir = self.root + "/" + "download"
+                if osp.isdir(self.root):
+                    print("Dataset directory is ", self.root)
+                else:
+                    os.makedirs(self.root)
+
+                path_download = self.root + "/" + self.name + ".zip"
+                with open(path_download, 'wb') as f:
+                    total_length = int(r.headers.get('content-length'))
+                    for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                        if chunk:
+                            f.write(chunk)
+                            f.flush()            
+                #for unzipping the file
+                with zipfile.ZipFile(path_download, 'r') as zip_ref:
+                    zip_ref.extractall(self.root)
+                print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
+        else:
+            raise Exception(
+                BColors.FAIL + "Data not found error, download " + self.name + " failed")
+
 
     def output_ml_files(self):
         r"""Turns raw data .csv file into TG learning ready format such as for TGN, stores the processed file locally for faster access later
@@ -75,6 +175,7 @@ class NodePropPredictionDataset(object):
         #check if the output files already exist, if so, skip the pre-processing
         if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
             print ("pre-processed files found, skipping file generation")
+            return df
         else:
             df, feat = _to_pd_data(self.meta_dict['fname'])
             df = reindex(df, bipartite=False)
@@ -88,6 +189,38 @@ class NodePropPredictionDataset(object):
             np.save(OUT_FEAT, feat)
             np.save(OUT_NODE_FEAT, rand_feat)
 
+
+    def generate_processed_files(self,
+                                fname: str) -> pd.DataFrame:
+        r"""
+        turns raw data .csv file into a pandas data frame, stored on disc if not already
+        Parameters:
+            fname: path to raw data file
+        Returns:
+            df: pandas data frame
+        """
+        if not osp.exists(fname):
+            raise FileNotFoundError(f"File not found at {fname}")
+        OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
+
+        if osp.exists(OUT_DF):
+            print ("loading processed file")
+            df = pd.read_pickle(OUT_DF)
+            #df = pd.read_csv(OUT_DF)
+        else:
+            #TODO Andy write better panda dataloading code, currently the feat is empty
+            print ("file not processed, generating processed file")
+            df, feat = _to_pd_data(fname)  
+            df = reindex(df, bipartite=False)
+            src_ts_sum_w = gen_src_ts_sum_weight(df)
+            df = normalize_weight_wtd(df, src_ts_sum_w)
+            df.to_pickle(OUT_DF)
+            #df.to_csv(OUT_DF)
+        return df
+
+
+
+
     def pre_process(self, 
                     feat_dim=172):
         '''
@@ -97,13 +230,7 @@ class NodePropPredictionDataset(object):
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
         #check if path to file is valid 
-        if not osp.exists(self.meta_dict['fname']):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
-        
-        #TODO Andy write better panda dataloading code, currently the feat is empty
-        df, feat = _to_pd_data(self.meta_dict['fname'])  
-        df = reindex(df, bipartite=False)
-
+        df = self.generate_processed_files(self.meta_dict['fname'])
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
         sources = np.array(df['u'])

@@ -244,6 +244,8 @@ def generate_daily_node_labels(fname: str):
                 else:
                     day_dict[genre] += w
 
+
+
 def generate_aggregate_labels(fname: str, 
                               days: int = 7):
     """
@@ -258,6 +260,7 @@ def generate_aggregate_labels(fname: str,
 
 
     genre_dict = {}
+    user_prev = 0
 
     #"user_id", "year", "month", "day", "genre", "weight"
     with open(str(days) + 'days_labels.csv', 'w') as outf:
@@ -275,7 +278,13 @@ def generate_aggregate_labels(fname: str,
             w = float(vals[5])
             if (i == 1):
                 date_prev = date(year,month,day)
+                user_prev = user_id
+
             date_cur = date(year,month,day)
+
+            if (user_id != user_prev):
+                date_prev = date(year,month,day)
+                user_prev = user_id
 
             if ((date_cur - date_prev).days <= days):
                 if (genre not in genre_dict):
@@ -408,7 +417,7 @@ if __name__ == "__main__":
     # filter_genre_edgelist("dataset.csv", genres_dict)
 
     #! generate the daily node labels
-    generate_daily_node_labels("lastfm_edgelist_clean.csv")
+    # generate_daily_node_labels("lastfm_edgelist_clean.csv")
 
     #generate_daily_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/dataset.csv")
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
