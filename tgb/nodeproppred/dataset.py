@@ -208,8 +208,8 @@ class NodePropertyDataset(object):
             df = pd.read_pickle(OUT_DF)
             #df = pd.read_csv(OUT_DF)
         else:
-            #TODO Andy write better panda dataloading code, currently the feat is empty
             print ("file not processed, generating processed file")
+            # TODO load both the edgelist file and the node label file
             df, feat = _to_pd_data(fname)  
             df = reindex(df, bipartite=False)
             src_ts_sum_w = gen_src_ts_sum_weight(df)
@@ -229,6 +229,12 @@ class NodePropertyDataset(object):
         Parameters:
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
+
+        #first load the genre_list
+
+
+
+
         #check if path to file is valid 
         df = self.generate_processed_files(self.meta_dict['fname'])
         self._node_feat = np.zeros((df.shape[0], feat_dim))
@@ -384,7 +390,11 @@ class NodePropertyDataset(object):
 
 
 def main():
-    dataset = EdgeRegressionDataset(name="un_trade", root="datasets", preprocess=True)
+    
+    # download files
+    name = "lastfmgenre"
+    dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
+
     
     dataset.node_feat
     dataset.edge_feat #not the edge weights

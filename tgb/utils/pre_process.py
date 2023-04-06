@@ -39,6 +39,47 @@ def clean_rows(
     outf.close()
 
 
+def load_node_labels(fname,
+                     genre_index):
+    r"""
+    load node labels as weight distribution
+    genre_index: a dictionary mapping genre to index
+    """
+    #lastfmgenre dataset
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    #user_id,year,month,day,genre,weight
+    genre_dict = {}
+
+    for i in range(1,len(lines)):
+        vals = lines[i].split(',')
+        user_id = vals[0]
+        year = int(vals[1])
+        month = int(vals[2])
+        day = int(vals[3])
+        genre = vals[4]
+        weight = float(vals[5])
+        date_prev = date(year,month,day)
+
+
+def load_genre_list(fname):
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    genre_index = {}
+    ctr = 0
+    for i in range(1,len(lines)):
+        vals = lines[i].split(',')
+        genre = vals[0]
+        if (genre not in genre_index):
+            genre_index[genre] = ctr
+            ctr += 1
+        else:
+            raise ValueError("duplicate in genre_index")
+
 
 
 
