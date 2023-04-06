@@ -2,6 +2,7 @@ from typing import Optional, cast, Union, List, overload, Literal
 import numpy as np
 import pandas as pd
 import os.path as osp
+import time
 from datetime import datetime
 
 
@@ -79,16 +80,37 @@ def load_edgelist(fname, genre_index):
     edgelist.close()
 
     user_index = {} #map user id to index
+    unique_id = max(genre_index.values()) + 1
 
 
-    for i in range(1,len(lines)):
-        vals = lines[i].split(',')
+
+    for idx in range(1,len(lines)):
+        vals = lines[idx].split(',')
         user_id = vals[0]
         time = vals[1][:-7]
         genre = vals[2]
         w = float(vals[3].strip())
         date_object = datetime.datetime.strptime(time, format)
+<<<<<<< HEAD
         
+=======
+        if (user_id not in user_index):
+            user_index[user_id] = unique_id
+            unique_id += 1
+
+        u = user_index[user_id]
+        i = genre_index[genre]
+        label = 0
+        feat = np.zeros((1))
+        u_list.append(u)
+        i_list.append(i)
+        ts_list.append(time.mktime(date_object.timetuple()))
+        label_list.append(label)
+        idx_list.append(idx)
+        feat_l.append(feat)
+        w_list.append(w)
+
+>>>>>>> 91e620d9a7a86c411f74372ddfa854c7b8851c65
 
 
 
