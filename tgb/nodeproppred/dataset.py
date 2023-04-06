@@ -9,7 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex
+from tgb.utils.pre_process import load_genre_list, load_node_labels, _to_pd_data, reindex
 
 
 # TODO add node label loading code, node label convertion to unix time code etc.
@@ -95,6 +95,13 @@ class NodePropertyDataset(object):
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
 
+        #! Attention, this is last fm specific syntax now
+        if (name == "lastfmgenre"):
+            self.meta_dict["edge_fname"] = self.root + "/" + self.name + "/lastfm_edgelist_clean.csv"
+            self.meta_dict["genre_fname"] = self.root + "/" + self.name + "/genre_list_final.csv"
+            self.meta_dict["node_fname"] = self.root + "/" + "/7days_labels.csv"
+
+
         #initialize
         self._node_feat = None
         self._edge_feat = None
@@ -120,10 +127,9 @@ class NodePropertyDataset(object):
         check if files are already downloaded
         """
         #check if the file already exists
-        if osp.exists(self.meta_dict['fname']):
+        if (osp.exists(self.meta_dict["edge_fname"]) and osp.exists(self.meta_dict["genre_fname"]) + osp.exists(self.meta_dict["node_fname"])):
             print ("file found, skipping download")
             return
-
 
         inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
 
@@ -230,7 +236,18 @@ class NodePropertyDataset(object):
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
 
+        #first check if all files exist
+        if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
+            raise Exception("meta_dict does not contain all required filenames")
         #first load the genre_list
+        genre_index = load_genre_list(self.meta_dict["genre_fname"])
+        load_node_labels(fname, genre_index)
+        quit()
+
+        # self.meta_dict["edge_fname"] = self.root + "/" + self.name + "lastfm_edgelist_clean.csv"
+        # self.meta_dict["genre_fname"] = self.root + "/" + self.name + "genre_list_final.csv"
+        # self.meta_dict["node_fname"] = self.root + "/" + "7days_labels.csv"
+
 
 
 

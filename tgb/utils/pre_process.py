@@ -1,6 +1,8 @@
 from typing import Optional, cast, Union, List, overload, Literal
 import numpy as np
 import pandas as pd
+import os.path as osp
+
 
 
 # TODO cleaning the un trade csv with countries with comma in the name, to remove this function
@@ -45,6 +47,8 @@ def load_node_labels(fname,
     load node labels as weight distribution
     genre_index: a dictionary mapping genre to index
     """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
     #lastfmgenre dataset
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -64,7 +68,40 @@ def load_node_labels(fname,
         date_prev = date(year,month,day)
 
 
+
+def load_edgelist(fname, genre_index):
+    """
+    load the edgelist into a pandas dataframe
+    """
+    #lastfmgenre dataset
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+
+    user_index = {} #map user id to index
+
+
+    for i in range(1,len(lines)):
+        vals = lines[i].split(',')
+        user_id = vals[0]
+        time = vals[1][:-7]
+        genre = vals[2]
+        w = float(vals[3].strip())
+        date_object = datetime.datetime.strptime(time, format)
+
+
+
+    
+
+
+
 def load_genre_list(fname):
+    """
+    load the list of genres 
+    """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
+
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
     edgelist.close()
