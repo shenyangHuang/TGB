@@ -9,7 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import load_genre_list, load_node_labels, _to_pd_data, reindex
+from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, _to_pd_data, reindex
 
 
 # TODO add node label loading code, node label convertion to unix time code etc.
@@ -241,7 +241,8 @@ class NodePropertyDataset(object):
             raise Exception("meta_dict does not contain all required filenames")
         #first load the genre_list
         genre_index = load_genre_list(self.meta_dict["genre_fname"])
-        load_node_labels(fname, genre_index)
+        load_edgelist(self.meta_dict["edge_fname"], genre_index)
+        #load_node_labels(fname, genre_index)
         quit()
 
         # self.meta_dict["edge_fname"] = self.root + "/" + self.name + "lastfm_edgelist_clean.csv"

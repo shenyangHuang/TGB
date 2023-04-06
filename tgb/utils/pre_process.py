@@ -2,7 +2,7 @@ from typing import Optional, cast, Union, List, overload, Literal
 import numpy as np
 import pandas as pd
 import os.path as osp
-
+from datetime import datetime
 
 
 # TODO cleaning the un trade csv with countries with comma in the name, to remove this function
@@ -88,6 +88,7 @@ def load_edgelist(fname, genre_index):
         genre = vals[2]
         w = float(vals[3].strip())
         date_object = datetime.datetime.strptime(time, format)
+        
 
 
 
