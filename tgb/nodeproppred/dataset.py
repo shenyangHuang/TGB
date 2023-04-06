@@ -13,52 +13,6 @@ from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgeli
 
 
 # TODO add node label loading code, node label convertion to unix time code etc.
-
-
-
-
-def gen_src_ts_sum_weight(edgelist_df: pd.DataFrame,
-                          src_col_name: str = 'u',
-                          ts_col_name: str = 'ts',
-                          w_col_name: str = 'w',
-                          ) -> Dict[Tuple[int, int], float]:
-    """
-    generates a dictionary where the keys are (src, ts) and 
-    the values are the sum of all edge weights at that timestamp with the same source node
-    """
-    src_ts_sum_w = {}
-    for idx, row in edgelist_df.iterrows():
-        if (row[src_col_name], row[ts_col_name]) not in src_ts_sum_w:
-            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] = row[w_col_name]
-        else:
-            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] += row[w_col_name]
-
-    return src_ts_sum_w
-
-
-def normalize_weight_wtd(edgelist_df: pd.DataFrame, 
-                         src_ts_sum_w: Dict[Tuple[int, int], float],
-                         src_col_name: str = 'u',
-                         ts_col_name: str = 'ts',
-                         w_col_name: str = 'w',) -> pd.DataFrame:
-    """
-    Normalize the edge weights by the weighted temporal degrees
-    """
-    normal_weights = []
-    for idx, row in edgelist_df.iterrows():
-        sum_weight = src_ts_sum_w[(row[src_col_name], row[ts_col_name])]
-        if sum_weight != 0:
-            normal_weights.append(row[w_col_name]/sum_weight)
-        else:
-            normal_weights.append(0)
-
-    edgelist_df[w_col_name] = normal_weights
-
-    return edgelist_df
-
-    
-
-
 class NodePropertyDataset(object):
     def __init__(
         self, 
@@ -163,66 +117,33 @@ class NodePropertyDataset(object):
                 BColors.FAIL + "Data not found error, download " + self.name + " failed")
 
 
-    def output_ml_files(self):
-        r"""Turns raw data .csv file into TG learning ready format such as for TGN, stores the processed file locally for faster access later
-        'ml_<network>.csv': source, destination, timestamp, state_label, index 	# 'index' is the index of the line in the edgelist
-        'ml_<network>.npy': contains the edge features; this is a numpy array where each element corresponds to the features of the corresponding line specifying one edge. If there are no features, should be initialized by zeros
-        'ml_<network>_node.npy': contains the node features; this is a numpy array that each element specify the features of one node where the node-id is equal to the element index.
-        """
-        #check if path to file is valid 
-        if not osp.exists(self.meta_dict['fname']):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
-        
-        #output file names 
-        OUT_DF = self.root + '/' + 'ml_{}.csv'.format(self.name)
-        OUT_FEAT = self.root + '/' + 'ml_{}.npy'.format(self.name)
-        OUT_NODE_FEAT =  self.root + '/' + 'ml_{}_node.npy'.format(self.name)
-
-        #check if the output files already exist, if so, skip the pre-processing
-        if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
-            print ("pre-processed files found, skipping file generation")
-            return df
-        else:
-            df, feat = _to_pd_data(self.meta_dict['fname'])
-            df = reindex(df, bipartite=False)
-            empty = np.zeros(feat.shape[1])[np.newaxis, :]
-            feat = np.vstack([empty, feat])
-
-            max_idx = max(df.u.max(), df.i.max())
-            rand_feat = np.zeros((max_idx + 1, 172))
-
-            df.to_csv(OUT_DF)
-            np.save(OUT_FEAT, feat)
-            np.save(OUT_NODE_FEAT, rand_feat)
-
-
-    def generate_processed_files(self,
-                                fname: str) -> pd.DataFrame:
+    def generate_processed_files(self) -> pd.DataFrame:
         r"""
-        turns raw data .csv file into a pandas data frame, stored on disc if not already
+        returns an edge list of pandas data frame
         Parameters:
             fname: path to raw data file
         Returns:
             df: pandas data frame
         """
-        if not osp.exists(fname):
-            raise FileNotFoundError(f"File not found at {fname}")
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
+        OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
 
         if osp.exists(OUT_DF):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
-            #df = pd.read_csv(OUT_DF)
+            node_df = pd.read_pickle(OUT_NODE_DF)
         else:
             print ("file not processed, generating processed file")
-            # TODO load both the edgelist file and the node label file
-            df, feat = _to_pd_data(fname)  
-            df = reindex(df, bipartite=False)
-            src_ts_sum_w = gen_src_ts_sum_weight(df)
-            df = normalize_weight_wtd(df, src_ts_sum_w)
+            genre_index = load_genre_list(self.meta_dict["genre_fname"])
+            df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
+            df = reindex(df, bipartite=True)
             df.to_pickle(OUT_DF)
-            #df.to_csv(OUT_DF)
-        return df
+
+            node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
+
+
+        return df, node_df
+    
 
 
 
@@ -238,23 +159,10 @@ class NodePropertyDataset(object):
 
         #first check if all files exist
         if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
-            raise Exception("meta_dict does not contain all required filenames")
-        #first load the genre_list
-        genre_index = load_genre_list(self.meta_dict["genre_fname"])
-        load_edgelist(self.meta_dict["edge_fname"], genre_index)
-        #load_node_labels(fname, genre_index)
-        quit()
-
-        # self.meta_dict["edge_fname"] = self.root + "/" + self.name + "lastfm_edgelist_clean.csv"
-        # self.meta_dict["genre_fname"] = self.root + "/" + self.name + "genre_list_final.csv"
-        # self.meta_dict["node_fname"] = self.root + "/" + "7days_labels.csv"
+            raise Exception("meta_dict does not contain all required filenames")        
+        df, node_df = self.generate_processed_files()
 
 
-
-
-
-        #check if path to file is valid 
-        df = self.generate_processed_files(self.meta_dict['fname'])
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
         sources = np.array(df['u'])

@@ -43,7 +43,8 @@ def clean_rows(
 
 
 def load_node_labels(fname,
-                     genre_index):
+                     genre_index,
+                     user_index):
     r"""
     load node labels as weight distribution
     genre_index: a dictionary mapping genre to index
@@ -55,18 +56,20 @@ def load_node_labels(fname,
     lines = list(edgelist.readlines())
     edgelist.close()
 
-    #user_id,year,month,day,genre,weight
-    genre_dict = {}
+    label_size = max(genre_index.values()) 
 
+    np.zeros(label_size)
+
+    #user_id,year,month,day,genre,weight
     for i in range(1,len(lines)):
         vals = lines[i].split(',')
-        user_id = vals[0]
+        user_id = user_index[vals[0]]
         year = int(vals[1])
         month = int(vals[2])
         day = int(vals[3])
         genre = vals[4]
         weight = float(vals[5])
-        date_prev = date(year,month,day)
+        date_prev = datetime(year,month,day)
 
 
 
@@ -81,9 +84,13 @@ def load_edgelist(fname, genre_index):
 
     user_index = {} #map user id to index
     unique_id = max(genre_index.values()) + 1
-
-
-
+    u_list = []
+    i_list = []
+    ts_list = []
+    label_list = []
+    idx_list = []
+    feat_l = []
+    w_list = []
     for idx in range(1,len(lines)):
         vals = lines[idx].split(',')
         user_id = vals[0]
@@ -91,9 +98,6 @@ def load_edgelist(fname, genre_index):
         genre = vals[2]
         w = float(vals[3].strip())
         date_object = datetime.datetime.strptime(time, format)
-<<<<<<< HEAD
-        
-=======
         if (user_id not in user_index):
             user_index[user_id] = unique_id
             unique_id += 1
@@ -110,7 +114,13 @@ def load_edgelist(fname, genre_index):
         feat_l.append(feat)
         w_list.append(w)
 
->>>>>>> 91e620d9a7a86c411f74372ddfa854c7b8851c65
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'label': label_list,
+                        'idx': idx_list,
+                        'w':w_list}), user_index
+
 
 
 
