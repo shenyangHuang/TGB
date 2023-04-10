@@ -51,9 +51,9 @@ class NodePropertyDataset(object):
 
         #! Attention, this is last fm specific syntax now
         if (name == "lastfmgenre"):
-            self.meta_dict["edge_fname"] = self.root + "/" + self.name + "/lastfm_edgelist_clean.csv"
+            self.meta_dict["edge_fname"] = self.root + "/" + self.name + "/sorted_lastfm_edgelist.csv"
             self.meta_dict["genre_fname"] = self.root + "/" + self.name + "/genre_list_final.csv"
-            self.meta_dict["node_fname"] = self.root + "/" + "/7days_labels.csv"
+            self.meta_dict["node_fname"] = self.root + "/" + "/sorted_7days_node_labels.csv"
 
 
         #initialize
@@ -127,21 +127,30 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
+        
+        
+        #TODO continue coding here
+        
+        
+        print ("processing temporal node labels")
+        node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
+        node_df.to_pickle(OUT_NODE_DF)
 
-        if osp.exists(OUT_DF):
+        if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
             node_df = pd.read_pickle(OUT_NODE_DF)
         else:
             print ("file not processed, generating processed file")
+            print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
             genre_index = load_genre_list(self.meta_dict["genre_fname"])
+            print ("processing temporal edge list")
             df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
-            df = reindex(df, bipartite=True)
+            #df = reindex(df, bipartite=True)
             df.to_pickle(OUT_DF)
-
+            print ("processing temporal node labels")
             node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
-
-
+            node_df.to_pickle(OUT_NODE_DF)
         return df, node_df
     
 
@@ -160,8 +169,8 @@ class NodePropertyDataset(object):
         #first check if all files exist
         if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
             raise Exception("meta_dict does not contain all required filenames")        
+        
         df, node_df = self.generate_processed_files()
-
 
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
