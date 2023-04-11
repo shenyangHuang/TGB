@@ -148,7 +148,7 @@ def load_node_labels(fname,
     # day, user_idx, label_vec
     node_df = pd.DataFrame(columns=['ts', 'node_id', 'y'])
     loc_ctr = 0
-    label_size = max(genre_index.values()) 
+    label_size = len(genre_index)
     label_vec = np.zeros(label_size)
     date_prev = 0
 
@@ -164,8 +164,7 @@ def load_node_labels(fname,
             date_prev = date_cur
         #the next day
         if (date_cur != date_prev):
-            user_idx = user_index[user_id]
-            node_df.loc[loc_ctr] = [date_prev.timestamp(), user_idx, label_vec]
+            node_df.loc[loc_ctr] = [date_prev.timestamp(), user_id, label_vec]
             label_vec = np.zeros(label_size)
             date_prev = date_cur
         else:

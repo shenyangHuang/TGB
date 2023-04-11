@@ -9,6 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
+from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, _to_pd_data, reindex
 
 
@@ -127,15 +128,7 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
-        
-        
-        #TODO continue coding here
-        
-        
-        print ("processing temporal node labels")
-        node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
-        node_df.to_pickle(OUT_NODE_DF)
-
+                
         if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
@@ -148,6 +141,7 @@ class NodePropertyDataset(object):
             df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
             #df = reindex(df, bipartite=True)
             df.to_pickle(OUT_DF)
+            save_pkl(user_index, self.root + '/' + "user_index.pkl")
             print ("processing temporal node labels")
             node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
             node_df.to_pickle(OUT_NODE_DF)
