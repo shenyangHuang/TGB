@@ -22,7 +22,7 @@ class BColors:
 
 DATA_URL_DICT ={
     "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
-    "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre_processed.zip",
+    "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
     "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
 }
 

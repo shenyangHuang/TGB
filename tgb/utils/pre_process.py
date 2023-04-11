@@ -126,6 +126,7 @@ def sort_node_labels(fname,
     
     
 #! data loading functions
+#! currently not loading correctly
 def load_node_labels(fname,
                      genre_index,
                      user_index):

@@ -137,6 +137,7 @@ class NodePropertyDataset(object):
             df = pd.read_pickle(OUT_DF)
             node_df = pd.read_pickle(OUT_NODE_DF)
         else:
+            #! now directly load the processed files and not providing the raw files
             print ("file not processed, generating processed file")
             print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
             genre_index = load_genre_list(self.meta_dict["genre_fname"])
@@ -191,6 +192,19 @@ class NodePropertyDataset(object):
         self._val_data = _val_data
         self._test_data = _test_data
 
+        #now process the node label data
+        labels = np.array(node_df['y'])
+        label_ts = np.array(node_df['ts'])
+        print (node_df.size)
+        label_srcs = np.array(node_df['node_id'])
+        self.label_dict = {
+            'labels': labels,
+            'label_ts': label_ts,
+            'label_srcs': label_srcs
+        }
+        self.label_ctr = 0 #use this to track which rows the labels should start next
+        self._num_classes = node_df['y'][0].shape[0]
+
 
 
 
@@ -244,7 +258,51 @@ class NodePropertyDataset(object):
             'edge_idxs': edge_idxs[test_mask],
             'y': y[test_mask]
         }
-        return train_data, val_data, test_data       
+        return train_data, val_data, test_data   
+
+
+    def find_next_labels_batch(self, cur_t):
+        r"""
+        this functions returns the next batch of node labels with timestamps >= to cur_t but difference less than a day
+
+        return ts, source_idx, labels
+        """
+        labels = self.label_dict['labels']
+        label_ts = self.label_dict['label_ts']
+        label_srcs = self.label_dict['label_srcs']
+        DAYS_IN_SEC = 86400
+        s_ctr = self.label_ctr
+
+        for i in range(self.label_ctr, label_ts.shape[0]):
+            '''
+            #TODO 
+            continue debugging here!
+            first batch timestamp is in 2009
+            first label timestamp is in 2005
+            '''
+            if (label_ts[i] >= cur_t):
+                if ((label_ts[i] - cur_t) > DAYS_IN_SEC ): #there is more than 1 day gap until the next label
+                    if ((self.label_ctr-s_ctr) > 1):
+                        return label_ts[s_ctr:label_ctr], label_srcs[s_ctr:label_ctr], labels[s_ctr:label_ctr]
+                    else:
+                        return None, None, None
+                else:
+                    self.label_ctr += 1
+            else:
+                self.label_ctr += 1
+
+    def reset_ctr(self):
+        self.label_ctr = 0
+
+
+
+
+    @property
+    def num_classes(self) -> int:
+        """
+        number of classes in the node label
+        """    
+        return self._num_classes
 
 
     @property

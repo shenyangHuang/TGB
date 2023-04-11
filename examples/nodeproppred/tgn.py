@@ -12,7 +12,7 @@
 # test bed for future methods.
 
 import os.path as osp
-
+from tqdm import tqdm
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
@@ -26,18 +26,20 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
-from tgb.edgeregression.dataset_pyg import PyGEdgeRegressDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 #! first need to provide pyg dataset support for lastfm dataset
 
-name = "un_trade"
-dataset = PyGEdgeRegressDataset(name=name, root="datasets")
+name = "lastfmgenre"
+dataset = PyGNodePropertyDataset(name=name, root="datasets")
+num_classes = dataset.num_classes
 data = dataset.data[0]
 data.t = data.t.long()
 data = data.to(device)
+print ("finished setting up dataset")
 
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
@@ -79,6 +81,19 @@ class LinkPredictor(torch.nn.Module):
         return self.lin_final(h)
 
 
+class NodePredictor(torch.nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.lin_node = Linear(in_dim, in_dim)
+        self.out = Linear(in_dim, out_dim)
+
+    def forward(self, node_embed):
+        h = self.lin_node(node_embed)
+        h = h.relu()
+        return self.out(h)
+
+
+
 memory_dim = time_dim = embedding_dim = 100
 
 memory = TGNMemory(
@@ -97,11 +112,12 @@ gnn = GraphAttentionEmbedding(
     time_enc=memory.time_enc,
 ).to(device)
 
-link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
+#link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
+node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
-    | set(link_pred.parameters()), lr=0.0001)
+    | set(node_pred.parameters()), lr=0.0001)
 criterion = torch.nn.BCEWithLogitsLoss()
 
 # Helper vector to map global node indices to local ones.
@@ -111,45 +127,70 @@ assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 def train():
     memory.train()
     gnn.train()
-    link_pred.train()
+    #link_pred.train()
+    node_pred.train()
 
     memory.reset_state()  # Start with a fresh memory.
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
-    for batch in train_loader:
+
+    print ("training starts")
+    for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
-
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
-        # Sample negative destination nodes.
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
 
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+        query_t = batch.t[-1]
+        label_ts, label_srcs, labels = dataset.get_node_label(query_t)
+        if (label_ts is not None):
+            print ("found label at time", query_t)
+            print (label_ts)
+
+        n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
-        # Get updated memory of all nodes involved in the computation.
         z, last_update = memory(n_id)
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
-
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
-
-        loss = criterion(pos_out, torch.ones_like(pos_out))
-        loss += criterion(neg_out, torch.zeros_like(neg_out))
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
-        loss.backward()
-        optimizer.step()
-        memory.detach()
-        total_loss += float(loss) * batch.num_events
+
+
+        # # Sample negative destination nodes.
+        # neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
+        #                         dtype=torch.long, device=device)
+
+        # n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+        # n_id, edge_index, e_id = neighbor_loader(n_id)
+        # assoc[n_id] = torch.arange(n_id.size(0), device=device)
+
+        # # Get updated memory of all nodes involved in the computation.
+        # z, last_update = memory(n_id)
+        # z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
+        #         data.msg[e_id].to(device))
+
+        # pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+        # neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+
+        # loss = criterion(pos_out, torch.ones_like(pos_out))
+        # loss += criterion(neg_out, torch.zeros_like(neg_out))
+
+        # # Update memory and neighbor loader with ground-truth state.
+        # memory.update_state(src, pos_dst, t, msg)
+        # neighbor_loader.insert(src, pos_dst)
+
+        # loss.backward()
+        # optimizer.step()
+        # memory.detach()
+        # total_loss += float(loss) * batch.num_events
+
+    dataset.reset_label_time()
 
     return total_loss / train_data.num_events
 
@@ -163,7 +204,8 @@ def test(loader):
     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
 
     aps, aucs = [], []
-    for batch in loader:
+    print ("testing starts")
+    for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
