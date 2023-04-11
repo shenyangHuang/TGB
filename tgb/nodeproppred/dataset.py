@@ -52,9 +52,12 @@ class NodePropertyDataset(object):
 
         #! Attention, this is last fm specific syntax now
         if (name == "lastfmgenre"):
-            self.meta_dict["edge_fname"] = self.root + "/" + self.name + "/sorted_lastfm_edgelist.csv"
-            self.meta_dict["genre_fname"] = self.root + "/" + self.name + "/genre_list_final.csv"
-            self.meta_dict["node_fname"] = self.root + "/" + "/sorted_7days_node_labels.csv"
+            #self.meta_dict["edge_fname"] = self.root + "/sorted_lastfm_edgelist.csv"
+            #self.meta_dict["node_fname"] = self.root + "/sorted_7days_node_labels.csv"
+            self.meta_dict["genre_fname"] = self.root + "/genre_list_final.csv"
+            self.meta_dict["edge_fname"] = self.root + "/ml_lastfmgenre.pkl"
+            self.meta_dict["node_fname"] = self.root + "/ml_lastfmgenre_node.pkl"
+
 
 
         #initialize
@@ -86,36 +89,36 @@ class NodePropertyDataset(object):
             print ("file found, skipping download")
             return
 
-        inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
-
-        if inp == 'y':
-            print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
-            print(f"Dataset title: {self.name}")
-
-            if (self.url is None):
-                raise Exception("Dataset url not found, download not supported yet.")
-            else:
-                r = requests.get(self.url, stream=True)
-                #download_dir = self.root + "/" + "download"
-                if osp.isdir(self.root):
-                    print("Dataset directory is ", self.root)
-                else:
-                    os.makedirs(self.root)
-
-                path_download = self.root + "/" + self.name + ".zip"
-                with open(path_download, 'wb') as f:
-                    total_length = int(r.headers.get('content-length'))
-                    for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
-                        if chunk:
-                            f.write(chunk)
-                            f.flush()            
-                #for unzipping the file
-                with zipfile.ZipFile(path_download, 'r') as zip_ref:
-                    zip_ref.extractall(self.root)
-                print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
         else:
-            raise Exception(
-                BColors.FAIL + "Data not found error, download " + self.name + " failed")
+            inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
+            if inp == 'y':
+                print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
+                print(f"Dataset title: {self.name}")
+
+                if (self.url is None):
+                    raise Exception("Dataset url not found, download not supported yet.")
+                else:
+                    r = requests.get(self.url, stream=True)
+                    #download_dir = self.root + "/" + "download"
+                    if osp.isdir(self.root):
+                        print("Dataset directory is ", self.root)
+                    else:
+                        os.makedirs(self.root)
+
+                    path_download = self.root + "/" + self.name + ".zip"
+                    with open(path_download, 'wb') as f:
+                        total_length = int(r.headers.get('content-length'))
+                        for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                            if chunk:
+                                f.write(chunk)
+                                f.flush()            
+                    #for unzipping the file
+                    with zipfile.ZipFile(path_download, 'r') as zip_ref:
+                        zip_ref.extractall(self.root)
+                    print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
+            else:
+                raise Exception(
+                    BColors.FAIL + "Data not found error, download " + self.name + " failed")
 
 
     def generate_processed_files(self) -> pd.DataFrame:
@@ -140,6 +143,7 @@ class NodePropertyDataset(object):
             print ("processing temporal edge list")
             df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
             #df = reindex(df, bipartite=True)
+            print ("processed edgelist now save to pkl")
             df.to_pickle(OUT_DF)
             save_pkl(user_index, self.root + '/' + "user_index.pkl")
             print ("processing temporal node labels")
@@ -240,9 +244,7 @@ class NodePropertyDataset(object):
             'edge_idxs': edge_idxs[test_mask],
             'y': y[test_mask]
         }
-        return train_data, val_data, test_data
-
-       
+        return train_data, val_data, test_data       
 
 
     @property
@@ -319,7 +321,6 @@ class NodePropertyDataset(object):
 
 
 def main():
-    
     # download files
     name = "lastfmgenre"
     dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
