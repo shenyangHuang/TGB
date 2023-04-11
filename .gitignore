@@ -1,4 +1,6 @@
 #dataset
+*.gz
+*.tar
 *.csv
 *.zip
 *.json
