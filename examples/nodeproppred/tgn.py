@@ -46,9 +46,11 @@ min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 train_data, val_data, test_data = data.train_val_test_split(
     val_ratio=0.15, test_ratio=0.15)
 
-train_loader = TemporalDataLoader(train_data, batch_size=200)
-val_loader = TemporalDataLoader(val_data, batch_size=200)
-test_loader = TemporalDataLoader(test_data, batch_size=200)
+batch_size = 200
+
+train_loader = TemporalDataLoader(train_data, batch_size=batch_size)
+val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
+test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
 
@@ -134,6 +136,7 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
+    label_t = dataset.get_label_time() #check when does the first label start
 
     print ("training starts")
     for batch in tqdm(train_loader):
@@ -143,10 +146,16 @@ def train():
 
 
         query_t = batch.t[-1]
-        label_ts, label_srcs, labels = dataset.get_node_label(query_t)
-        if (label_ts is not None):
-            print ("found label at time", query_t)
-            print (label_ts)
+        if (query_t > label_t):
+            label_tuple = dataset.get_node_label(query_t)
+            label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
+            print ("---------------------")
+            print ("batch of node labels")
+            print (labels.shape)
+            label_t = dataset.get_label_time()
+
+
+
 
         n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
