@@ -146,7 +146,7 @@ class NodePropertyDataset(object):
             #df = reindex(df, bipartite=True)
             print ("processed edgelist now save to pkl")
             df.to_pickle(OUT_DF)
-            save_pkl(user_index, self.root + '/' + "user_index.pkl")
+            #save_pkl(user_index, self.root + '/' + "user_index.pkl")
             print ("processing temporal node labels")
             node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
             node_df.to_pickle(OUT_NODE_DF)

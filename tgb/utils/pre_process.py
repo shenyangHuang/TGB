@@ -126,7 +126,6 @@ def sort_node_labels(fname,
     
     
 #! data loading functions
-#! currently not loading correctly
 def load_node_labels(fname,
                      genre_index,
                      user_index):
@@ -152,6 +151,8 @@ def load_node_labels(fname,
     label_size = len(genre_index)
     label_vec = np.zeros(label_size)
     date_prev = 0
+    
+    
 
     #user_id,year,month,day,genre,weight
     for i in tqdm(range(1,len(lines))):
@@ -168,6 +169,7 @@ def load_node_labels(fname,
             node_df.loc[loc_ctr] = [date_prev.timestamp(), user_id, label_vec]
             label_vec = np.zeros(label_size)
             date_prev = date_cur
+            loc_ctr += 1
         else:
             label_vec[genre_index[genre]] = weight
     return node_df
