@@ -27,9 +27,10 @@ from torch_geometric.nn.models.tgn import (
 )
 
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+import torch.nn.functional as F
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = 'cpu'
 
 #! first need to provide pyg dataset support for lastfm dataset
 
@@ -92,7 +93,9 @@ class NodePredictor(torch.nn.Module):
     def forward(self, node_embed):
         h = self.lin_node(node_embed)
         h = h.relu()
-        return self.out(h)
+        h = self.out(h)
+        output = F.log_softmax(h, dim=-1)
+        return output
 
 
 
@@ -120,8 +123,8 @@ node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
     | set(node_pred.parameters()), lr=0.0001)
-criterion = torch.nn.BCEWithLogitsLoss()
-
+#criterion = torch.nn.BCEWithLogitsLoss()
+criterion = torch.nn.CrossEntropyLoss()
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
@@ -138,6 +141,7 @@ def train():
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
 
+    ctr = 0
     print ("training starts")
     for batch in tqdm(train_loader):
         batch = batch.to(device)
@@ -146,16 +150,26 @@ def train():
 
 
         query_t = batch.t[-1]
-        if (query_t > label_t):
+        if (query_t > label_t and ctr > 0):
             label_tuple = dataset.get_node_label(query_t)
             label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
-            print ("---------------------")
-            print ("batch of node labels")
-            print (labels.shape)
             label_t = dataset.get_label_time()
 
+            # must require edges for time dependent embedding
+            # apply edge index as self-loops
+            self_loop = torch.stack((n_id,n_id))
+            self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
+            all_update = torch.zeros(label_ts.shape[0]).float().to(device)
 
+            z = gnn(z, all_update, self_loop, label_ts.to(device),
+                self_msg)
 
+            pred = node_pred(z)
+            loss = criterion(pred, labels.to(device))
+
+            loss.backward()
+            optimizer.step()
+            total_loss += float(loss)
 
         n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
@@ -168,6 +182,9 @@ def train():
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
+        memory.detach()
+
+        ctr += 1
 
 
 
@@ -249,7 +266,7 @@ def test(loader):
 for epoch in range(1, 51):
     loss = train()
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
-    val_ap, val_auc = test(val_loader)
-    test_ap, test_auc = test(test_loader)
-    print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
-    print(f'Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}')
+    # val_ap, val_auc = test(val_loader)
+    # test_ap, test_auc = test(test_loader)
+    # print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
+    # print(f'Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}')
