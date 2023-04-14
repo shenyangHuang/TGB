@@ -131,7 +131,10 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
-                
+        
+        '''
+        reprocess the node label dataset again
+        '''     
         if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
