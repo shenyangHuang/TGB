@@ -15,6 +15,7 @@ import os.path as osp
 from tqdm import tqdm
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import ndcg_score
 from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
@@ -27,9 +28,13 @@ from torch_geometric.nn.models.tgn import (
 )
 
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+import torch.nn.functional as F
+import time
+
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+#device = 'cpu'
 
 #! first need to provide pyg dataset support for lastfm dataset
 
@@ -92,7 +97,9 @@ class NodePredictor(torch.nn.Module):
     def forward(self, node_embed):
         h = self.lin_node(node_embed)
         h = h.relu()
-        return self.out(h)
+        h = self.out(h)
+        output = F.log_softmax(h, dim=-1)
+        return output
 
 
 
@@ -120,10 +127,11 @@ node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
     | set(node_pred.parameters()), lr=0.0001)
-criterion = torch.nn.BCEWithLogitsLoss()
-
+#criterion = torch.nn.BCEWithLogitsLoss()
+criterion = torch.nn.CrossEntropyLoss()
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
+
 
 
 def train():
@@ -136,7 +144,10 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
+    total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
+    TOP_K = 10
+    num_labels = 0
 
     print ("training starts")
     for batch in tqdm(train_loader):
@@ -149,12 +160,48 @@ def train():
         if (query_t > label_t):
             label_tuple = dataset.get_node_label(query_t)
             label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
-            print ("---------------------")
-            print ("batch of node labels")
-            print (labels.shape)
             label_t = dataset.get_label_time()
+            label_srcs = label_srcs.to(device)
 
 
+            #! problem with current implementation
+            '''
+            to feed into gnn requires edge index and last update
+            however the nodes might not have been upated recently
+            rel_t = last_update[edge_index[0]] - t
+            IndexError: index 533 is out of bounds for dimension 0 with size 46
+            '''
+
+            # must require edges for time dependent embedding
+            # apply edge index as self-loops
+            self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
+            self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
+
+            #.unique()
+            n_id = label_srcs
+            n_id, _, _ = neighbor_loader(n_id)
+            z, last_update = memory(n_id)
+
+            all_update = torch.zeros(label_ts.shape[0]).float().to(device)
+
+            z = gnn(z, last_update, self_loop, label_ts.to(device),
+                self_msg)
+
+            z = z[0:labels.shape[0]]
+
+            #loss and metric computation
+
+            pred = node_pred(z)
+            loss = criterion(pred, labels.to(device))
+            np_pred = pred.cpu().detach().numpy()
+            np_true = labels.cpu().detach().numpy()
+            ncdg_score = ndcg_score(np_true, np_pred, k=TOP_K)
+            num_labels += label_ts.shape[0]
+
+            loss.backward()
+            optimizer.step()
+            total_loss += float(loss)
+            total_ncdg += ncdg_score * label_ts.shape[0]
 
 
         n_id = torch.cat([src, pos_dst]).unique()
@@ -168,88 +215,139 @@ def train():
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
+        memory.detach()
+
+    metric_dict = {
+    "ce":total_loss / num_labels,
+    "ndcg": total_ncdg / num_labels,
+    }
 
 
-
-        # # Sample negative destination nodes.
-        # neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-        #                         dtype=torch.long, device=device)
-
-        # n_id = torch.cat([src, pos_dst, neg_dst]).unique()
-        # n_id, edge_index, e_id = neighbor_loader(n_id)
-        # assoc[n_id] = torch.arange(n_id.size(0), device=device)
-
-        # # Get updated memory of all nodes involved in the computation.
-        # z, last_update = memory(n_id)
-        # z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-        #         data.msg[e_id].to(device))
-
-        # pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        # neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
-
-        # loss = criterion(pos_out, torch.ones_like(pos_out))
-        # loss += criterion(neg_out, torch.zeros_like(neg_out))
-
-        # # Update memory and neighbor loader with ground-truth state.
-        # memory.update_state(src, pos_dst, t, msg)
-        # neighbor_loader.insert(src, pos_dst)
-
-        # loss.backward()
-        # optimizer.step()
-        # memory.detach()
-        # total_loss += float(loss) * batch.num_events
-
-    dataset.reset_label_time()
-
-    return total_loss / train_data.num_events
+    return metric_dict
 
 
 @torch.no_grad()
 def test(loader):
     memory.eval()
     gnn.eval()
-    link_pred.eval()
+    node_pred.eval()
 
     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
+    total_ncdg = 0
+    label_t = dataset.get_label_time() #check when does the first label start
+    TOP_K = 10
+    num_labels = 0
 
-    aps, aucs = [], []
     print ("testing starts")
     for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
+        query_t = batch.t[-1]
+        if (query_t > label_t):
+            label_tuple = dataset.get_node_label(query_t)
+            if (label_tuple is None):
+                break
+            label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
+            label_t = dataset.get_label_time()
+            label_srcs = label_srcs.to(device)
 
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+            self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
+            self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
+
+            n_id = label_srcs
+            n_id, _, _ = neighbor_loader(n_id)
+            z, last_update = memory(n_id)
+            z = gnn(z, last_update, self_loop, label_ts.to(device),
+                self_msg)
+
+            z = z[0:labels.shape[0]]
+            #loss and metric computation
+            pred = node_pred(z)
+            np_pred = pred.cpu().detach().numpy()
+            np_true = labels.cpu().detach().numpy()
+            ncdg_score = ndcg_score(np_true, np_pred, k=TOP_K)
+            num_labels += label_ts.shape[0]
+            total_ncdg += ncdg_score * label_ts.shape[0]
+
+        n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
-        assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
         z, last_update = memory(n_id)
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
-
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
-             torch.zeros(neg_out.size(0))], dim=0)
-
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
-
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
-    return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean())
-
+    metric_dict = {
+    "ndcg": total_ncdg / num_labels,
+    }
+    return metric_dict
 
 for epoch in range(1, 51):
-    loss = train()
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
-    val_ap, val_auc = test(val_loader)
-    test_ap, test_auc = test(test_loader)
-    print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
-    print(f'Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}')
+    start_time = time.time()
+    metric_dict = train()
+    ce_loss = metric_dict["ce"]
+    ncdg = metric_dict["ndcg"]
+    print("Training takes--- %s seconds ---" % (time.time() - start_time))
+    print(f'training Epoch: {epoch:02d}, cross entropy Loss: {ce_loss:.4f}, ncdg: {ncdg:.4f}')
+
+    start_time = time.time()
+    val_dict = test(val_loader)
+    print(f'Val ncdg: {val_dict["ndcg"]:.4f}')
+    print("Validation takes--- %s seconds ---" % (time.time() - start_time))
+
+    start_time = time.time()
+    test_dict = test(test_loader)
+    print(f'Test ncdg: {test_dict["ndcg"]:.4f}')
+    dataset.reset_label_time()
+    print("Test takes--- %s seconds ---" % (time.time() - start_time))
+
+
+
+
+
+
+
+# @torch.no_grad()
+# def test(loader):
+#     memory.eval()
+#     gnn.eval()
+#     link_pred.eval()
+
+#     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
+
+#     aps, aucs = [], []
+#     print ("testing starts")
+#     for batch in tqdm(loader):
+#         batch = batch.to(device)
+#         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+
+#         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
+#                                 dtype=torch.long, device=device)
+
+#         n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+#         n_id, edge_index, e_id = neighbor_loader(n_id)
+#         assoc[n_id] = torch.arange(n_id.size(0), device=device)
+
+#         z, last_update = memory(n_id)
+#         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
+#                 data.msg[e_id].to(device))
+
+#         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+#         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+
+#         y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
+#         y_true = torch.cat(
+#             [torch.ones(pos_out.size(0)),
+#              torch.zeros(neg_out.size(0))], dim=0)
+
+#         aps.append(average_precision_score(y_true, y_pred))
+#         aucs.append(roc_auc_score(y_true, y_pred))
+
+#         memory.update_state(src, pos_dst, t, msg)
+#         neighbor_loader.insert(src, pos_dst)
+
+#     return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean())
+

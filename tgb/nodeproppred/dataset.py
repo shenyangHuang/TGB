@@ -285,8 +285,6 @@ class NodePropertyDataset(object):
 
            
     def get_nearest_label_ctr(self):
-        print (self.label_dict['label_ts'][0:100])
-        quit()
         return self.label_dict['label_ts'][self.label_ctr]
 
 
