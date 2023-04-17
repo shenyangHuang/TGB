@@ -1,9 +1,15 @@
 #dataset
 *.gz
 *.tar
+*.pdf
 *.csv
 *.zip
 *.json
+*.npy
+*.pt
+*.out
+*.pkl
+*.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

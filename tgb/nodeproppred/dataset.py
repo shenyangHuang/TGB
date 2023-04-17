@@ -9,53 +9,12 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex
+from tgb.utils.utils import save_pkl, load_pkl
+from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, _to_pd_data, reindex
 
 
-
-def gen_src_ts_sum_weight(edgelist_df: pd.DataFrame,
-                          src_col_name: str = 'u',
-                          ts_col_name: str = 'ts',
-                          w_col_name: str = 'w',
-                          ) -> Dict[Tuple[int, int], float]:
-    """
-    generates a dictionary where the keys are (src, ts) and 
-    the values are the sum of all edge weights at that timestamp with the same source node
-    """
-    src_ts_sum_w = {}
-    for idx, row in edgelist_df.iterrows():
-        if (row[src_col_name], row[ts_col_name]) not in src_ts_sum_w:
-            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] = row[w_col_name]
-        else:
-            src_ts_sum_w[(row[src_col_name], row[ts_col_name])] += row[w_col_name]
-
-    return src_ts_sum_w
-
-
-def normalize_weight_wtd(edgelist_df: pd.DataFrame, 
-                         src_ts_sum_w: Dict[Tuple[int, int], float],
-                         src_col_name: str = 'u',
-                         ts_col_name: str = 'ts',
-                         w_col_name: str = 'w',) -> pd.DataFrame:
-    """
-    Normalize the edge weights by the weighted temporal degrees
-    """
-    normal_weights = []
-    for idx, row in edgelist_df.iterrows():
-        sum_weight = src_ts_sum_w[(row[src_col_name], row[ts_col_name])]
-        if sum_weight != 0:
-            normal_weights.append(row[w_col_name]/sum_weight)
-        else:
-            normal_weights.append(0)
-
-    edgelist_df[w_col_name] = normal_weights
-
-    return edgelist_df
-
-    
-
-
-class EdgeRegressionDataset(object):
+# TODO add node label loading code, node label convertion to unix time code etc.
+class NodePropertyDataset(object):
     def __init__(
         self, 
         name: str, 
@@ -91,6 +50,16 @@ class EdgeRegressionDataset(object):
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
 
+        #! Attention, this is last fm specific syntax now
+        if (name == "lastfmgenre"):
+            #self.meta_dict["edge_fname"] = self.root + "/sorted_lastfm_edgelist.csv"
+            #self.meta_dict["node_fname"] = self.root + "/sorted_7days_node_labels.csv"
+            self.meta_dict["genre_fname"] = self.root + "/genre_list_final.csv"
+            self.meta_dict["edge_fname"] = self.root + "/ml_lastfmgenre.pkl"
+            self.meta_dict["node_fname"] = self.root + "/ml_lastfmgenre_node.pkl"
+
+
+
         #initialize
         self._node_feat = None
         self._edge_feat = None
@@ -98,8 +67,6 @@ class EdgeRegressionDataset(object):
         self._train_data = None
         self._val_data = None
         self._test_data = None
-
-        #TODO Andy: add url logic here from info.py to manage the urls in a centralized file
         self.download()
         #check if the root directory exists, if not create it
         if osp.isdir(self.root):
@@ -118,103 +85,73 @@ class EdgeRegressionDataset(object):
         check if files are already downloaded
         """
         #check if the file already exists
-        if osp.exists(self.meta_dict['fname']):
+        if (osp.exists(self.meta_dict["edge_fname"]) and osp.exists(self.meta_dict["genre_fname"]) + osp.exists(self.meta_dict["node_fname"])):
             print ("file found, skipping download")
             return
 
+        else:
+            inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
+            if inp == 'y':
+                print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
+                print(f"Dataset title: {self.name}")
 
-        inp = input('Will you download the dataset(s) now? (y/N)\n').lower() #ask if the user wants to download the dataset
-
-        if inp == 'y':
-            print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
-            print(f"Dataset title: {self.name}")
-
-            if (self.url is None):
-                raise Exception("Dataset url not found, download not supported yet.")
-            else:
-                r = requests.get(self.url, stream=True)
-                #download_dir = self.root + "/" + "download"
-                if osp.isdir(self.root):
-                    print("Dataset directory is ", self.root)
+                if (self.url is None):
+                    raise Exception("Dataset url not found, download not supported yet.")
                 else:
-                    os.makedirs(self.root)
+                    r = requests.get(self.url, stream=True)
+                    #download_dir = self.root + "/" + "download"
+                    if osp.isdir(self.root):
+                        print("Dataset directory is ", self.root)
+                    else:
+                        os.makedirs(self.root)
 
-                path_download = self.root + "/" + self.name + ".zip"
-                with open(path_download, 'wb') as f:
-                    total_length = int(r.headers.get('content-length'))
-                    for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
-                        if chunk:
-                            f.write(chunk)
-                            f.flush()            
-                #for unzipping the file
-                with zipfile.ZipFile(path_download, 'r') as zip_ref:
-                    zip_ref.extractall(self.root)
-                print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
-        else:
-            raise Exception(
-                BColors.FAIL + "Data not found error, download " + self.name + " failed")
-
-
-    def output_ml_files(self):
-        r"""Turns raw data .csv file into TG learning ready format such as for TGN, stores the processed file locally for faster access later
-        'ml_<network>.csv': source, destination, timestamp, state_label, index 	# 'index' is the index of the line in the edgelist
-        'ml_<network>.npy': contains the edge features; this is a numpy array where each element corresponds to the features of the corresponding line specifying one edge. If there are no features, should be initialized by zeros
-        'ml_<network>_node.npy': contains the node features; this is a numpy array that each element specify the features of one node where the node-id is equal to the element index.
-        """
-        #check if path to file is valid 
-        if not osp.exists(self.meta_dict['fname']):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
-        
-        #output file names 
-        OUT_DF = self.root + '/' + 'ml_{}.csv'.format(self.name)
-        OUT_FEAT = self.root + '/' + 'ml_{}.npy'.format(self.name)
-        OUT_NODE_FEAT =  self.root + '/' + 'ml_{}_node.npy'.format(self.name)
-
-        #check if the output files already exist, if so, skip the pre-processing
-        if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
-            print ("pre-processed files found, skipping file generation")
-            return df
-        else:
-            df, feat = _to_pd_data(self.meta_dict['fname'])
-            df = reindex(df, bipartite=False)
-            empty = np.zeros(feat.shape[1])[np.newaxis, :]
-            feat = np.vstack([empty, feat])
-
-            max_idx = max(df.u.max(), df.i.max())
-            rand_feat = np.zeros((max_idx + 1, 172))
-
-            df.to_csv(OUT_DF)
-            np.save(OUT_FEAT, feat)
-            np.save(OUT_NODE_FEAT, rand_feat)
+                    path_download = self.root + "/" + self.name + ".zip"
+                    with open(path_download, 'wb') as f:
+                        total_length = int(r.headers.get('content-length'))
+                        for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                            if chunk:
+                                f.write(chunk)
+                                f.flush()            
+                    #for unzipping the file
+                    with zipfile.ZipFile(path_download, 'r') as zip_ref:
+                        zip_ref.extractall(self.root)
+                    print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
+            else:
+                raise Exception(
+                    BColors.FAIL + "Data not found error, download " + self.name + " failed")
 
 
-    def generate_processed_files(self,
-                                fname: str) -> pd.DataFrame:
+    def generate_processed_files(self) -> pd.DataFrame:
         r"""
-        turns raw data .csv file into a pandas data frame, stored on disc if not already
+        returns an edge list of pandas data frame
         Parameters:
             fname: path to raw data file
         Returns:
             df: pandas data frame
         """
-        if not osp.exists(fname):
-            raise FileNotFoundError(f"File not found at {fname}")
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
-
-        if osp.exists(OUT_DF):
+        OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
+                
+        if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
-            #df = pd.read_csv(OUT_DF)
+            node_df = pd.read_pickle(OUT_NODE_DF)
         else:
-            #TODO Andy write better panda dataloading code, currently the feat is empty
+            #! now directly load the processed files and not providing the raw files
             print ("file not processed, generating processed file")
-            df, feat = _to_pd_data(fname)  
-            df = reindex(df, bipartite=False)
-            src_ts_sum_w = gen_src_ts_sum_weight(df)
-            df = normalize_weight_wtd(df, src_ts_sum_w)
+            print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
+            genre_index = load_genre_list(self.meta_dict["genre_fname"])
+            print ("processing temporal edge list")
+            df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
+            #df = reindex(df, bipartite=True)
+            print ("processed edgelist now save to pkl")
             df.to_pickle(OUT_DF)
-            #df.to_csv(OUT_DF)
-        return df
+            save_pkl(user_index, self.root + '/' + "user_index.pkl")
+            print ("processing temporal node labels")
+            node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
+            node_df.to_pickle(OUT_NODE_DF)
+        return df, node_df
+    
 
 
 
@@ -227,8 +164,13 @@ class EdgeRegressionDataset(object):
         Parameters:
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
-        #check if path to file is valid 
-        df = self.generate_processed_files(self.meta_dict['fname'])
+
+        #first check if all files exist
+        if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
+            raise Exception("meta_dict does not contain all required filenames")        
+        
+        df, node_df = self.generate_processed_files()
+
         self._node_feat = np.zeros((df.shape[0], feat_dim))
         self._edge_feat = np.zeros((df.shape[0], feat_dim))
         sources = np.array(df['u'])
@@ -249,6 +191,19 @@ class EdgeRegressionDataset(object):
         self._train_data = _train_data
         self._val_data = _val_data
         self._test_data = _test_data
+
+        #now process the node label data
+        labels = np.array(node_df['y'])
+        label_ts = np.array(node_df['ts'])
+        print (node_df.size)
+        label_srcs = np.array(node_df['node_id'])
+        self.label_dict = {
+            'labels': labels,
+            'label_ts': label_ts,
+            'label_srcs': label_srcs
+        }
+        self.label_ctr = 0 #use this to track which rows the labels should start next
+        self._num_classes = node_df['y'][0].shape[0]
 
 
 
@@ -303,9 +258,51 @@ class EdgeRegressionDataset(object):
             'edge_idxs': edge_idxs[test_mask],
             'y': y[test_mask]
         }
-        return train_data, val_data, test_data
+        return train_data, val_data, test_data   
 
-       
+
+    def find_next_labels_batch(self, cur_t):
+        r"""
+        this functions returns the next batch of node labels with timestamps >= to cur_t but difference less than a day
+
+        return ts, source_idx, labels
+        """
+        labels = self.label_dict['labels']
+        label_ts = self.label_dict['label_ts']
+        label_srcs = self.label_dict['label_srcs']
+        DAYS_IN_SEC = 86400
+        s_ctr = self.label_ctr
+
+        for i in range(self.label_ctr, label_ts.shape[0]):
+            '''
+            #TODO 
+            continue debugging here!
+            first batch timestamp is in 2009
+            first label timestamp is in 2005
+            '''
+            if (label_ts[i] >= cur_t):
+                if ((label_ts[i] - cur_t) > DAYS_IN_SEC ): #there is more than 1 day gap until the next label
+                    if ((self.label_ctr-s_ctr) > 1):
+                        return label_ts[s_ctr:label_ctr], label_srcs[s_ctr:label_ctr], labels[s_ctr:label_ctr]
+                    else:
+                        return None, None, None
+                else:
+                    self.label_ctr += 1
+            else:
+                self.label_ctr += 1
+
+    def reset_ctr(self):
+        self.label_ctr = 0
+
+
+
+
+    @property
+    def num_classes(self) -> int:
+        """
+        number of classes in the node label
+        """    
+        return self._num_classes
 
 
     @property
@@ -382,7 +379,10 @@ class EdgeRegressionDataset(object):
 
 
 def main():
-    dataset = EdgeRegressionDataset(name="un_trade", root="datasets", preprocess=True)
+    # download files
+    name = "lastfmgenre"
+    dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
+
     
     dataset.node_feat
     dataset.edge_feat #not the edge weights
