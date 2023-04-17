@@ -126,7 +126,6 @@ def sort_node_labels(fname,
     
     
 #! data loading functions
-#! currently not loading correctly
 def load_node_labels(fname,
                      genre_index,
                      user_index):
@@ -147,11 +146,15 @@ def load_node_labels(fname,
     TIME_FORMAT = "%Y-%m-%d"
 
     # day, user_idx, label_vec
-    node_df = pd.DataFrame(columns=['ts', 'node_id', 'y'])
-    loc_ctr = 0
     label_size = len(genre_index)
     label_vec = np.zeros(label_size)
     date_prev = 0
+    prev_user = 0
+    
+    ts_list = []
+    node_id_list = []
+    y_list = []
+    
 
     #user_id,year,month,day,genre,weight
     for i in tqdm(range(1,len(lines))):
@@ -163,15 +166,27 @@ def load_node_labels(fname,
         date_cur = datetime.strptime(ts, TIME_FORMAT)
         if (i == 1):
             date_prev = date_cur
+            prev_user = user_id
         #the next day
         if (date_cur != date_prev):
-            node_df.loc[loc_ctr] = [date_prev.timestamp(), user_id, label_vec]
+            ts_list.append(date_prev.timestamp())
+            node_id_list.append(prev_user)
+            y_list.append(label_vec)
             label_vec = np.zeros(label_size)
             date_prev = date_cur
+            prev_user = user_id
         else:
             label_vec[genre_index[genre]] = weight
-    return node_df
-
+            
+        if (user_id != prev_user):
+            ts_list.append(date_prev.timestamp())
+            node_id_list.append(prev_user)
+            y_list.append(label_vec)
+            prev_user = user_id
+            label_vec = np.zeros(label_size)
+    return pd.DataFrame({'ts': ts_list,
+                        'node_id': node_id_list,
+                        'y': y_list})
 
 
 def load_edgelist(fname, genre_index):

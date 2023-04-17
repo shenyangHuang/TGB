@@ -77,12 +77,17 @@ class PyGNodePropertyDataset(InMemoryDataset):
         self.dataset.reset_ctr()
 
     def get_node_label(self, cur_t):
-        label_ts, label_srcs, labels = self.dataset.find_next_labels_batch(cur_t)
+        label_tuple = self.dataset.find_next_labels_batch(cur_t)
+        if (label_tuple is None):
+            return None
+        label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
+        label_ts = torch.from_numpy(label_ts).long()
+        label_srcs = torch.from_numpy(label_srcs).long()
+        labels = torch.from_numpy(labels).float()
+        return label_ts, label_srcs, labels
 
-        if (label_ts is not None):
-            return torch.from_numpy(label_ts), torch.from_numpy(label_srcs), torch.from_numpy(labels)
-        else:
-            return None, None, None
+    def get_label_time(self):
+        return self.dataset.get_nearest_label_ctr()
     
 
 

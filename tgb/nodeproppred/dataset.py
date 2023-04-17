@@ -131,7 +131,10 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
-                
+        
+        '''
+        reprocess the node label dataset again
+        '''     
         if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
@@ -146,7 +149,7 @@ class NodePropertyDataset(object):
             #df = reindex(df, bipartite=True)
             print ("processed edgelist now save to pkl")
             df.to_pickle(OUT_DF)
-            save_pkl(user_index, self.root + '/' + "user_index.pkl")
+            #save_pkl(user_index, self.root + '/' + "user_index.pkl")
             print ("processing temporal node labels")
             node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
             node_df.to_pickle(OUT_NODE_DF)
@@ -195,7 +198,6 @@ class NodePropertyDataset(object):
         #now process the node label data
         labels = np.array(node_df['y'])
         label_ts = np.array(node_df['ts'])
-        print (node_df.size)
         label_srcs = np.array(node_df['node_id'])
         self.label_dict = {
             'labels': labels,
@@ -261,10 +263,13 @@ class NodePropertyDataset(object):
         return train_data, val_data, test_data   
 
 
-    def find_next_labels_batch(self, cur_t):
+    #! problem, which if the batch size is large and > # of edges in a day
+    def find_next_labels_batch(self, cur_t, time_gap=86400):
         r"""
-        this functions returns the next batch of node labels with timestamps >= to cur_t but difference less than a day
-
+        this functions returns the next batch of node labels with timestamps <= to cur_t but difference less than a day
+        Parameters:
+            cur_t: the current time of the last edge in a batch
+            time_gap: the largest timegap between edge and label
         return ts, source_idx, labels
         """
         labels = self.label_dict['labels']
@@ -274,22 +279,17 @@ class NodePropertyDataset(object):
         s_ctr = self.label_ctr
 
         for i in range(self.label_ctr, label_ts.shape[0]):
-            '''
-            #TODO 
-            continue debugging here!
-            first batch timestamp is in 2009
-            first label timestamp is in 2005
-            '''
             if (label_ts[i] >= cur_t):
-                if ((label_ts[i] - cur_t) > DAYS_IN_SEC ): #there is more than 1 day gap until the next label
-                    if ((self.label_ctr-s_ctr) > 1):
-                        return label_ts[s_ctr:label_ctr], label_srcs[s_ctr:label_ctr], labels[s_ctr:label_ctr]
-                    else:
-                        return None, None, None
-                else:
-                    self.label_ctr += 1
-            else:
-                self.label_ctr += 1
+                return (np.asarray(label_ts[s_ctr:self.label_ctr]), np.asarray(label_srcs[s_ctr:self.label_ctr]), np.stack(labels[s_ctr:self.label_ctr], axis=0))
+            self.label_ctr += 1
+
+           
+    def get_nearest_label_ctr(self):
+        return self.label_dict['label_ts'][self.label_ctr]
+
+
+
+
 
     def reset_ctr(self):
         self.label_ctr = 0
