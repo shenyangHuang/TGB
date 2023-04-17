@@ -6,6 +6,7 @@ import os
 import os.path as osp
 import pickle
 
+
 #import torch
 def save_pkl(obj, fname):
     with open(fname, 'wb') as handle:
@@ -22,7 +23,7 @@ def set_random_seed(seed):
 	np.random.seed(seed)
 	random.seed(seed)
 	os.environ['PYTHONHASHSEED'] = str(seed)
-	
+
 
 	
         

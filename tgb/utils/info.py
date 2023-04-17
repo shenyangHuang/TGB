@@ -23,10 +23,9 @@ class BColors:
 DATA_URL_DICT ={
     "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
     "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
+    "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",
     "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
 }
-
-#"lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip"
 
 
 DATA_EVAL_METRIC_DICT = {
