@@ -13,7 +13,8 @@ from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-from torch_geometric.nn import TGNMemory, TransformerConv
+# from torch_geometric.nn import TGNMemory, TransformerConv
+from torch_geometric.nn import TransformerConv
 from torch_geometric.nn.models.tgn import (
     IdentityMessage,
     LastAggregator,
@@ -22,11 +23,20 @@ from torch_geometric.nn.models.tgn import (
 import math
 import time
 
+# internal imports
+from models.tgn import TGNMemory
+from edgepred_utils import *
+
+
 
 overall_start = time.time()
 
+LR = 0.0001
 batch_size = 200
-K = 100  # for computing hits@K
+K = 10  # for computing metrics@k
+n_epoch = 50
+
+memory_dim = time_dim = embedding_dim = 100
 
 # set the device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -54,7 +64,6 @@ test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 # neighhorhood sampler
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
-
 
 class GraphAttentionEmbedding(torch.nn.Module):
     def __init__(self, in_channels, out_channels, msg_dim, time_enc):
@@ -84,8 +93,6 @@ class LinkPredictor(torch.nn.Module):
         return self.lin_final(h)
 
 
-memory_dim = time_dim = embedding_dim = 100
-
 memory = TGNMemory(
     data.num_nodes,
     data.msg.size(-1),
@@ -93,6 +100,7 @@ memory = TGNMemory(
     time_dim,
     message_module=IdentityMessage(data.msg.size(-1), memory_dim, time_dim),
     aggregator_module=LastAggregator(),
+    memory_updater_type='gru'
 ).to(device)
 
 gnn = GraphAttentionEmbedding(
@@ -106,7 +114,7 @@ link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
 
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
-    | set(link_pred.parameters()), lr=0.0001)
+    | set(link_pred.parameters()), lr=LR)
 criterion = torch.nn.BCEWithLogitsLoss()
 
 # Helper vector to map global node indices to local ones.
@@ -200,56 +208,6 @@ def test(loader):
     return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean())
 
 
-def eval_hits(y_pred_pos, y_pred_neg, type_info, K):
-    '''
-        source: https://github.com/snap-stanford/ogb/blob/d5c11d91c9e1c22ed090a2e0bbda3fe357de66e7/ogb/linkproppred/evaluate.py#L214
-        compute Hits@K
-        For each positive target node, the negative target nodes are the same.
-        y_pred_neg is an array.
-        rank y_pred_pos[i] against y_pred_neg for each i
-    '''
-
-    if len(y_pred_neg) < K:
-        return {'hits@{}'.format(K): 1.}
-
-    if type_info == 'torch':
-        kth_score_in_negative_edges = torch.topk(y_pred_neg, K)[0][-1]
-        hitsK = float(torch.sum(y_pred_pos > kth_score_in_negative_edges).cpu()) / len(y_pred_pos)
-
-    # type_info is numpy
-    else:
-        kth_score_in_negative_edges = np.sort(y_pred_neg)[-K]
-        hitsK = float(np.sum(y_pred_pos > kth_score_in_negative_edges)) / len(y_pred_pos)
-
-    return hitsK
-
-
-def gen_eval_set_for_batch(src, dst):
-    """
-    generate the evaluation set of edges for a batch of positive edges
-    """
-    pos_src = src.cpu().numpy()
-    pos_dst = dst.cpu().numpy()
-
-    batch_size = len(pos_src)
-
-    all_dst = np.arange(min_dst_idx, max_dst_idx + 1)
-
-    edges_per_node = {}
-    # positive edges
-    for pos_s, pos_d in zip(pos_src, pos_dst):
-        if pos_s not in edges_per_node:
-            edges_per_node[pos_s] = {'pos': [pos_d]}
-        else:
-            if pos_d not in edges_per_node[pos_s]['pos']:
-                edges_per_node[pos_s]['pos'].append(pos_d)
-
-    # negative edges
-    for pos_s in edges_per_node:
-        edges_per_node[pos_s]['neg'] = [neg_dst for neg_dst in all_dst if neg_dst not in edges_per_node[pos_s]['pos']]
-
-    return edges_per_node
-
 
 @torch.no_grad()
 def test_exh(loader):
@@ -262,7 +220,7 @@ def test_exh(loader):
 
     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
 
-    aps, aucs, hitsks = [], [], []
+    aps, aucs = [], []
     for batch in loader:
         batch = batch.to(device)
         src_orig, pos_dst_orig, t_orig, msg_orig = batch.src, batch.dst, batch.t, batch.msg
@@ -270,6 +228,8 @@ def test_exh(loader):
         
         edges_per_node = gen_eval_set_for_batch(src_orig, pos_dst_orig)
 
+        pos_out_agg, neg_out_agg = [], []
+        prec_at_k_list, rec_at_k_list, f1_at_k_list = [], [], []
         for pos_s in src_orig:
             pos_s = pos_s.item()
             pos_dst = torch.tensor(edges_per_node[pos_s]['pos'], device=device)
@@ -288,9 +248,9 @@ def test_exh(loader):
                     data.msg[pos_e_id].to(device))
 
             pos_out = link_pred(pos_z[assoc[pos_src]], pos_z[assoc[pos_dst]])
+            pos_out_agg.append(pos_out)
 
             # negative edges
-            neg_out_agg = []
             n_neg_iter = math.ceil(len(neg_dst) / batch_size)
             for n_iter_idx in range(n_neg_iter):
                 n_start_idx = n_iter_idx * batch_size
@@ -309,27 +269,46 @@ def test_exh(loader):
                 neg_out = link_pred(neg_z[assoc[neg_src_iter]], neg_z[assoc[neg_dst_iter]])
                 neg_out_agg.append(neg_out)
 
+            # precision@k & recall@k should be calculated for each positive source node separately
+            # y_true, y_pred_proba
+            y_pred_proba_src = torch.cat([pos_out.squeeze(dim=-1), neg_out.squeeze(dim=-1)], dim=0).sigmoid().cpu()
+            y_true_src = torch.cat([torch.ones(pos_out.size(0)), torch.zeros(neg_out.size(0))], dim=0)
+            prec_at_k, rec_at_k, f1_at_k = metric_at_k_score(y_true_src, y_pred_proba_src, k=K, pos_label=1)
+            prec_at_k_list.append(prec_at_k)
+            rec_at_k_list.append(rec_at_k)
+            f1_at_k_list.append(f1_at_k)
+
+        # metrics per processing each batch of positive edges
+        pos_out_agg = torch.cat([pos_out.squeeze(dim=-1) for pos_out in pos_out_agg], dim=0)
         neg_out_agg = torch.cat([neg_out.squeeze(dim=-1) for neg_out in neg_out_agg], dim=0)
-        pos_out = pos_out.squeeze(dim=-1)
-        hitsK = eval_hits(pos_out, neg_out_agg, 'torch', K)
-        y_pred = torch.cat([pos_out, neg_out_agg], dim=0).sigmoid().cpu()
+        y_pred = torch.cat([pos_out_agg, neg_out_agg], dim=0).sigmoid().cpu()
         y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
+            [torch.ones(pos_out_agg.size(0)),
              torch.zeros(neg_out_agg.size(0))], dim=0)
 
         aps.append(average_precision_score(y_true, y_pred))
         aucs.append(roc_auc_score(y_true, y_pred))
-        hitsks.append(hitsK)
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src_orig, pos_dst_orig, t_orig, msg_orig)
         neighbor_loader.insert(src_orig, pos_dst_orig)
 
-    return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean()), float(torch.tensor(hitsks).mean())
+    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
+                    'auc': float(torch.tensor(aucs).mean()),
+                    'prec@k': float(torch.tensor(prec_at_k_list).mean()),
+                    'rec@k': float(torch.tensor(rec_at_k_list).mean()),
+                    'f1@k': float(torch.tensor(f1_at_k_list).mean()),
+                    }
+
+    return perf_metrics
 
 
 # Train & Validation
-for epoch in range(1, 51):
+print("INFO: =======================================")
+print("INFO: ==========*** TGN model ***==========")
+print("INFO: =======================================")
+
+for epoch in range(n_epoch):
     start_epoch_train = time.time()
     loss = train()
     end_epoch_train = time.time()
@@ -337,11 +316,15 @@ for epoch in range(1, 51):
     val_ap, val_auc = test(val_loader)
     print(f'\tVal AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
 
-# Final Test
+# ===========
+# Final Test: Since the exhaustive test takes more time, we only do it at the end of training procedure
 start_test = time.time()
-test_ap, test_auc, test_hitsk = test_exh(test_loader)
+perf_metrics_test = test_exh(test_loader)
 end_test = time.time()
-print(f'\tTest AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}, Test Hits@{K}: {test_hitsk: .4f}, Test Elapsed Time (s): {end_test - start_test: .4f}')
+for perf_name, perf_value in perf_metrics_test.items():
+    print(f"\tTest: {perf_name}: {perf_value: .4f}")
+print(f'Test: Elapsed Time (s): {end_test - start_test: .4f}')
 
 overall_end = time.time()
 print(f'Overal Elapsed Time (s): {overall_end - overall_start: .4f}')
+print("INFO: =======================================")
