@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
+import math
 
 
 try:
@@ -16,7 +17,7 @@ class Evaluator(object):
             name: name of the dataset        
         """
         self.name = name
-        self.valid_metric_list = ['mse']
+        self.valid_metric_list = ['mse', 'rmse']
         if self.name not in ["un_trade"]:
             raise NotImplementedError("Dataset not supported")
     
@@ -74,7 +75,8 @@ class Evaluator(object):
         perf_dict = {}
         for eval_metric in self.eval_metric:
             if (eval_metric == 'mse'):
-                perf_dict = {'mse': mean_squared_error(y_true, y_pred)}
+                perf_dict = {'mse': mean_squared_error(y_true, y_pred),
+                             'rmse': math.sqrt(mean_squared_error(y_true, y_pred))}
         return perf_dict
 
     def eval(self, input_dict, verbose=False):

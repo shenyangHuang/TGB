@@ -1,20 +1,12 @@
-# This code achieves a performance of around 96.60%. However, it is not
-# directly comparable to the results reported by the TGN paper since a
-# slightly different evaluation setup is used here.
-# In particular, predictions in the same batch are made in parallel, i.e.
-# predictions for interactions later in the batch have no access to any
-# information whatsoever about previous interactions in the same batch.
-# On the contrary, when sampling node neighborhoods for interactions later in
-# the batch, the TGN paper code has access to previous interactions in the
-# batch.
-# While both approaches are correct, together with the authors of the paper we
-# decided to present this version here as it is more realsitic and a better
-# test bed for future methods.
+"""
+TGN pyG: Link Regression
+
+source: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+"""
 
 import os.path as osp
-
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import average_precision_score, roc_auc_score, mean_squared_error
 from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
@@ -25,28 +17,11 @@ from torch_geometric.nn.models.tgn import (
     LastAggregator,
     LastNeighborLoader,
 )
-
 from tgb.edgeregression.dataset_pyg import PyGEdgeRegressDataset
+import math
+import time
+import numpy as np
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-name = "un_trade"
-dataset = PyGEdgeRegressDataset(name=name, root="datasets")
-data = dataset.data[0]
-data.t = data.t.long()
-data = data.to(device)
-
-# Ensure to only sample actual destination nodes as negatives.
-min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
-train_data, val_data, test_data = data.train_val_test_split(
-    val_ratio=0.15, test_ratio=0.15)
-
-train_loader = TemporalDataLoader(train_data, batch_size=200)
-val_loader = TemporalDataLoader(val_data, batch_size=200)
-test_loader = TemporalDataLoader(test_data, batch_size=200)
-
-neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
 
 
 class GraphAttentionEmbedding(torch.nn.Module):
@@ -64,7 +39,7 @@ class GraphAttentionEmbedding(torch.nn.Module):
         return self.conv(x, edge_index, edge_attr)
 
 
-class LinkPredictor(torch.nn.Module):
+class LinkRegressor(torch.nn.Module):
     def __init__(self, in_channels):
         super().__init__()
         self.lin_src = Linear(in_channels, in_channels)
@@ -77,8 +52,39 @@ class LinkPredictor(torch.nn.Module):
         return self.lin_final(h)
 
 
-memory_dim = time_dim = embedding_dim = 100
+# tracking the time
+end_to_end_start = time.time()
 
+# set parameters
+batch_size = 200
+memory_dim = time_dim = embedding_dim = 100
+LEARNING_RATE = 0.0001
+n_epochs = 50
+
+# set the device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# data loading
+name = "un_trade"
+dataset = PyGEdgeRegressDataset(name=name, root="datasets")
+data = dataset.data[0]
+data.t = data.t.long()
+data.y = data.y.float()
+data = data.to(device)
+
+# Ensure to only sample actual destination nodes as negatives.
+min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
+train_data, val_data, test_data = data.train_val_test_split(
+    val_ratio=0.15, test_ratio=0.15)
+
+train_loader = TemporalDataLoader(train_data, batch_size=batch_size)
+val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
+test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
+
+neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
+
+# model initialization
+# memory module
 memory = TGNMemory(
     data.num_nodes,
     data.msg.size(-1),
@@ -87,20 +93,20 @@ memory = TGNMemory(
     message_module=IdentityMessage(data.msg.size(-1), memory_dim, time_dim),
     aggregator_module=LastAggregator(),
 ).to(device)
-
+# GAT
 gnn = GraphAttentionEmbedding(
     in_channels=memory_dim,
     out_channels=embedding_dim,
     msg_dim=data.msg.size(-1),
     time_enc=memory.time_enc,
 ).to(device)
-
-link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
+# decoder: link regressor
+link_regress = LinkRegressor(in_channels=embedding_dim).to(device)
 
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
-    | set(link_pred.parameters()), lr=0.0001)
-criterion = torch.nn.BCEWithLogitsLoss()
+    | set(link_regress.parameters()), lr=LEARNING_RATE)
+criterion = torch.nn.MSELoss()
 
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
@@ -109,7 +115,7 @@ assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 def train():
     memory.train()
     gnn.train()
-    link_pred.train()
+    link_regress.train()
 
     memory.reset_state()  # Start with a fresh memory.
     neighbor_loader.reset_state()  # Start with an empty graph.
@@ -119,13 +125,9 @@ def train():
         batch = batch.to(device)
         optimizer.zero_grad()
 
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+        src, pos_dst, t, msg, y = batch.src, batch.dst, batch.t, batch.msg, batch.y
 
-        # Sample negative destination nodes.
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
-
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+        n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
@@ -134,11 +136,8 @@ def train():
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
-
-        loss = criterion(pos_out, torch.ones_like(pos_out))
-        loss += criterion(neg_out, torch.zeros_like(neg_out))
+        pos_out = link_regress(z[assoc[src]], z[assoc[pos_dst]])
+        loss = criterion(pos_out.squeeze(), y)
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
@@ -156,19 +155,16 @@ def train():
 def test(loader):
     memory.eval()
     gnn.eval()
-    link_pred.eval()
+    link_regress.eval()
 
     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
 
-    aps, aucs = [], []
+    mse, rmse = [], []
     for batch in loader:
         batch = batch.to(device)
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+        src, pos_dst, t, msg, y = batch.src, batch.dst, batch.t, batch.msg, batch.y
 
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
-
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+        n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
@@ -176,27 +172,28 @@ def test(loader):
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+        pos_out = link_regress(z[assoc[src]], z[assoc[pos_dst]])
 
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
-             torch.zeros(neg_out.size(0))], dim=0)
+        y_pred = pos_out.cpu().numpy()
+        y_true = y.cpu().numpy()
 
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
+        mse.append(mean_squared_error(y_true, y_pred))
+        rmse.append(math.sqrt(mean_squared_error(y_true, y_pred)))
 
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
-    return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean())
+    return float(torch.tensor(mse).mean()), float(torch.tensor(rmse).mean())
 
 
-for epoch in range(1, 51):
+for epoch in range(n_epochs):
+    epoch_start_time = time.time()
     loss = train()
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
-    val_ap, val_auc = test(val_loader)
-    test_ap, test_auc = test(test_loader)
-    print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
-    print(f'Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}')
+    epoch_elapsed_time = time.time() - epoch_start_time
+    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Elapsed Time (sec.): {epoch_elapsed_time: .4f}')
+    val_mse, val_rmse = test(val_loader)
+    test_mse, test_rmse = test(test_loader)
+    print(f'\tVal MSE: {val_mse:.4f}, Val RMSE: {val_rmse:.4f}')
+    print(f'\tTest MSE: {test_mse:.4f}, Test RMSE: {test_rmse:.4f}')
+
+print(f'End to end elapsed time (sec.): {time.time() - end_to_end_start: .4f}')

@@ -62,6 +62,7 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
             warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
             msg = msg.float()
+
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
         if self.pre_transform is not None:
             data = self.pre_transform(data)
