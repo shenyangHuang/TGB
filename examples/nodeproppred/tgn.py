@@ -157,7 +157,7 @@ def train(plotting=True):
 
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    TOP_Ks = [10]
+    TOP_Ks = [5,10,20]
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
@@ -244,7 +244,7 @@ def train(plotting=True):
 
     for i in range(len(TOP_Ks)):
         k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg / num_labels
+        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
     return metric_dict
 
 
@@ -258,7 +258,7 @@ def test(loader):
     total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
     #TOP_K = 10
-    TOP_Ks = [10]
+    TOP_Ks = [5,10,20]
     total_ncdg = np.zeros(len(TOP_Ks)) 
     num_labels = 0
 
@@ -311,7 +311,7 @@ def test(loader):
 
     for i in range(len(TOP_Ks)):
         k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg / num_labels
+        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
     return metric_dict
 
 for epoch in range(1, 51):

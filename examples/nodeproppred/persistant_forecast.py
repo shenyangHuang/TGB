@@ -68,8 +68,8 @@ class MovingAverage:
 
     def update_dict(self, node_id, label):
         if (node_id in self.dict):
-            total = self.dict[node_id] * (window-1) + label
-            self.dict[node_id] = total / window
+            total = self.dict[node_id] * (self.window-1) + label
+            self.dict[node_id] = total / self.window
         else:
             self.dict[node_id] = label 
 
@@ -93,7 +93,8 @@ forecaster = MovingAverage(num_classes)
 def test_n_upate(loader):
     total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    TOP_K = 10
+    TOP_Ks = [5,10,20]
+    total_ncdg = np.zeros(len(TOP_Ks)) 
     num_labels = 0
 
     print ("training starts")
@@ -122,13 +123,18 @@ def test_n_upate(loader):
 
             np_pred = np.stack(preds, axis=0)
             np_true = labels
-            ncdg_score = ndcg_score(np_true, np_pred, k=TOP_K)
-            num_labels += label_ts.shape[0]
-            total_ncdg += ncdg_score * label_ts.shape[0]
 
-    metric_dict = {
-    "ndcg": total_ncdg / num_labels,
-    }
+            for i in range(len(TOP_Ks)):
+                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
+                total_ncdg[i] += ncdg_score * label_ts.shape[0]
+
+            num_labels += label_ts.shape[0]
+
+    metric_dict = {}
+
+    for i in range(len(TOP_Ks)):
+        k = TOP_Ks[i]
+        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
     return metric_dict
 
 
@@ -138,20 +144,19 @@ train, val and test for one epoch only
 
 start_time = time.time()
 metric_dict = test_n_upate(train_loader)
-ncdg = metric_dict["ndcg"]
 print ("testing persistant forecaster")
-print(f'training ncdg: {ncdg:.4f}')
+print (metric_dict)
 print("Persistant forecast on Training takes--- %s seconds ---" % (time.time() - start_time))
 
 start_time = time.time()
 val_dict = test_n_upate(val_loader)
-print(f'Val ncdg: {val_dict["ndcg"]:.4f}')
+print (val_dict)
 print("Persistant forecast on validation takes--- %s seconds ---" % (time.time() - start_time))
 
 
 start_time = time.time()
 test_dict = test_n_upate(test_loader)
-print(f'Test ncdg: {test_dict["ndcg"]:.4f}')
+print (test_dict)
 print("Persistant forecast on Test takes--- %s seconds ---" % (time.time() - start_time))
 dataset.reset_label_time()
 
