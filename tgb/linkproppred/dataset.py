@@ -50,6 +50,7 @@ class LinkPropPredDataset(object):
 
         #TODO update the logic here to load the filenames from info.py
         if (name == "opensky"):
+            self.meta_dict["fname"] = self.root + "/" + 'opensky_edgelist.csv'
             self.meta_dict["edgefile"] = self.root + "/" + 'opensky_edgelist.csv'
             self.meta_dict["nodefile"] = self.root + "/" + 'airport_node_feat.csv'
 

@@ -283,10 +283,16 @@ def csv_to_pd_data(
     Args:
         fname: the path to the raw data
     '''
-    u_list, i_list, ts_list, label_list = [], [], [], []
-    feat_l = []
-    idx_list = []
-    w_list = []
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted")
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, 1))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    print ("numpy allocated")
     TIME_FORMAT = "%Y-%m-%d" #2019-01-01
     node_ids = {}
     unique_id = 0
@@ -295,7 +301,7 @@ def csv_to_pd_data(
             csv_reader = csv.reader(csv_file, delimiter=',')
             idx = 0
             #'day','src','dst','callsign','typecode'
-            for row in csv_reader:
+            for row in tqdm(csv_reader):
                 if (idx == 0):
                     idx += 1
                     continue
@@ -313,18 +319,11 @@ def csv_to_pd_data(
                         unique_id += 1
                     u = node_ids[src]
                     i = node_ids[dst]
-                    w = float(1)
-
-                    #! padding 
-                    label = 0
-                    feat = np.zeros((1))
-                    u_list.append(u)
-                    i_list.append(i)
-                    ts_list.append(ts)
-                    label_list.append(label)
-                    idx_list.append(idx)
-                    feat_l.append(feat)
-                    w_list.append(w)
+                    u_list[idx] = u
+                    i_list[idx] = i
+                    ts_list[idx] = ts
+                    idx_list[idx] = idx
+                    w_list[idx] = float(1)
                     idx += 1
     return pd.DataFrame({'u': u_list,
                         'i': i_list,
@@ -332,6 +331,7 @@ def csv_to_pd_data(
                         'label': label_list,
                         'idx': idx_list,
                         'w':w_list}), np.array(feat_l)
+
 
     
 
