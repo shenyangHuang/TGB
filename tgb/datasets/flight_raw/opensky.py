@@ -107,6 +107,70 @@ def load_icao_airports(fname="airport_codes.csv"):
         airports_country[icao] = country
     return airports_continent, airports_country
 
+
+def merge_edgelist(input_names: str, 
+                   in_dir: str, 
+                   outname: str):
+    """
+    merge a list of edgefiles into one file 
+    """
+    line_count = 0
+    total = 0
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['day','src','dst','callsign','typecode']
+        write.writerow(fields)
+        for csv_name in tqdm(input_names):
+            in_name = in_dir + csv_name
+            line_count = 0
+            with open(in_name, "r") as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=',')
+                for row in csv_reader:
+                    if line_count == 0:  #header
+                        line_count += 1
+                    else:
+                        #Day, src, dst, callsign, number, icao24, registration, typecode
+                        day = row[0]
+                        src = row[1]
+                        dst = row[2]
+                        callsign = row[3]
+                        typecode = row[-1]
+                        out = [day, src, dst, callsign, typecode]
+                        write.writerow(out)
+                        total += 1
+                
+
+def clean_node_feat(in_file, outname):
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['airport_code','type','continent','iso_region','longitude','latitude']
+        write.writerow(fields)
+        idx = 0
+        with open(in_file, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            for row in csv_reader:
+                if (idx == 0):
+                    idx += 1
+                    continue
+                else:
+                    #ident,type,name,elevation_ft,continent,iso_country,iso_region,municipality,gps_code,iata_code,local_code,coordinates
+                    airport_code = row[0]
+                    type = row[1]
+                    continent = row[4]
+                    iso_region = row[6]
+                    longitude = float(row[-1].split(',')[0])
+                    latitude = float(row[-1].split(',')[1])
+                    out = [airport_code, type, continent, iso_region, longitude, latitude]
+                    idx += 1
+                    write.writerow(out)
+
+
+
+
+
+
+
+
 def main():
 
     """
@@ -117,28 +181,50 @@ def main():
     2. run the following code to extract the needed information 
     """
     
-    _, airports_country = load_icao_airports(fname="airport_codes.csv")
+    # _, airports_country = load_icao_airports(fname="airport_codes.csv")
     
-    in_dir = "full_dataset/"
-    out_dir = "edgelists/"
+    # in_dir = "full_dataset/"
+    # out_dir = "edgelists/"
 
-    csv_name = "flightlist_20190101_20190131.csv"
+    # csv_name = "flightlist_20190101_20190131.csv"
 
-    csv_names = find_csv_filenames(in_dir)
-    processed_lines = 0
-    skipped_lines = 0
-    miss_node_lines = 0
+    # csv_names = find_csv_filenames(in_dir)
+    # processed_lines = 0
+    # skipped_lines = 0
+    # miss_node_lines = 0
 
-    for csv_name in tqdm(csv_names):
-        fname = in_dir + csv_name
-        outname = out_dir + csv_name[11:-4] + "edgelist"+".csv"
-        line_count, skip_lines, miss_node = flight2edgelist(fname, outname, node_dict=airports_country)
-        processed_lines += line_count
-        skipped_lines += skip_lines
-        miss_node_lines += miss_node
-    print(f'Processed {processed_lines} lines.')
-    print(f'Skipped {skipped_lines} lines.')
-    print(f'missing node {miss_node_lines} lines.')
+    # for csv_name in tqdm(csv_names):
+    #     fname = in_dir + csv_name
+    #     outname = out_dir + csv_name[11:-4] + "edgelist"+".csv"
+    #     line_count, skip_lines, miss_node = flight2edgelist(fname, outname, node_dict=airports_country)
+    #     processed_lines += line_count
+    #     skipped_lines += skip_lines
+    #     miss_node_lines += miss_node
+    # print(f'Processed {processed_lines} lines.')
+    # print(f'Skipped {skipped_lines} lines.')
+    # print(f'missing node {miss_node_lines} lines.')
+
+
+
+    """
+    merge all edgelists into one file
+    """
+    # in_dir = "edgelists/"
+    # outname = "opensky_edgelist.csv"
+    # csv_names = find_csv_filenames(in_dir)
+    # merge_edgelist(csv_names, in_dir, outname)
+
+
+    """
+    clean the node features
+    """
+    in_file = "edgelists/airport_codes.csv"
+    outname = "airport_node_feat.csv"
+    clean_node_feat(in_file, outname)
+
+
+
+
 
 
 

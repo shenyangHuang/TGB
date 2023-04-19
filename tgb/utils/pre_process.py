@@ -273,6 +273,71 @@ def load_genre_list(fname):
     return genre_index
 
 
+def csv_to_pd_data(
+        fname: str,
+        ) -> pd.DataFrame:
+    r'''
+    currently used by open sky dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, node u, node v, attributes
+    Args:
+        fname: the path to the raw data
+    '''
+    u_list, i_list, ts_list, label_list = [], [], [], []
+    feat_l = []
+    idx_list = []
+    w_list = []
+    TIME_FORMAT = "%Y-%m-%d" #2019-01-01
+    node_ids = {}
+    unique_id = 0
+
+    with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            idx = 0
+            #'day','src','dst','callsign','typecode'
+            for row in csv_reader:
+                if (idx == 0):
+                    idx += 1
+                    continue
+                else:
+                    ts = row[0]
+                    date_cur = datetime.strptime(ts, TIME_FORMAT)
+                    ts = float(date_cur.timestamp())
+                    src = row[1]
+                    dst = row[2]
+                    if (src not in node_ids):
+                        node_ids[src] = unique_id
+                        unique_id += 1
+                    if (dst not in node_ids):
+                        node_ids[dst] = unique_id
+                        unique_id += 1
+                    u = node_ids[src]
+                    i = node_ids[dst]
+                    w = float(1)
+
+                    #! padding 
+                    label = 0
+                    feat = np.zeros((1))
+                    u_list.append(u)
+                    i_list.append(i)
+                    ts_list.append(ts)
+                    label_list.append(label)
+                    idx_list.append(idx)
+                    feat_l.append(feat)
+                    w_list.append(w)
+                    idx += 1
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'label': label_list,
+                        'idx': idx_list,
+                        'w':w_list}), np.array(feat_l)
+
+    
+
+
+
+
 
 
 
