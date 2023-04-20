@@ -209,18 +209,18 @@ def main():
     """
     merge all edgelists into one file
     """
-    # in_dir = "edgelists/"
-    # outname = "opensky_edgelist.csv"
-    # csv_names = find_csv_filenames(in_dir)
-    # merge_edgelist(csv_names, in_dir, outname)
+    in_dir = "edgelists/"
+    outname = "opensky_edgelist.csv"
+    csv_names = find_csv_filenames(in_dir)
+    merge_edgelist(csv_names, in_dir, outname)
 
 
     """
     clean the node features
     """
-    in_file = "edgelists/airport_codes.csv"
-    outname = "airport_node_feat.csv"
-    clean_node_feat(in_file, outname)
+    # in_file = "edgelists/airport_codes.csv"
+    # outname = "airport_node_feat.csv"
+    # clean_node_feat(in_file, outname)
 
 
 
