@@ -2,15 +2,41 @@
 Temporal Graph Benchmark project repo 
 
 
+### dependency
+Our implementation works with python >= 3.9 and has the following dependencies
+```
+pytorch == 2.0.0
+torch-geometric == 2.3.0
+torch-scatter==2.1.1
+torch-sparse==0.6.17
+torch-spline-conv==1.2.2
+pandas==1.5.3
+clint==0.5.1
+```
+
+
 
 ### Install dependency
 
-1. install external packages
+1. set up virtual environment (conda should work as well)
 ```
-pip install -r requirements.txt
+python -m venv ~/tgb_env/
+source ~/tgb_env/bin/activate
 ```
 
-2. install local dependencies under root directory `/TGB`
+2. install external packages
+```
+pip install torch==2.0.0 --index-url https://download.pytorch.org/whl/cu117
+pip install torch_geometric==2.3.0
+pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.0.0+cu117.html
+pip install pandas==1.5.3
+pip install matplotlib==3.7.1
+pip install clint==0.5.1
+pip install -e .
+
+```
+
+3. install local dependencies under root directory `/TGB`
 ```
 pip install -e .
 ```
