@@ -17,6 +17,8 @@ import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
 from tqdm import tqdm
+import timeit
+
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
@@ -117,7 +119,7 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
-    for batch in train_loader:
+    for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
 
@@ -196,8 +198,10 @@ def test(loader):
 
 
 for epoch in range(1, 51):
+    starttime = timeit.default_timer()
     loss = train()
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
+    print("The time difference is :", timeit.default_timer() - starttime)
     val_ap, val_auc = test(val_loader)
     test_ap, test_auc = test(test_loader)
     print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')

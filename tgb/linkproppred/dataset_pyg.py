@@ -44,7 +44,7 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
         y = torch.from_numpy(self.dataset.full_data["y"])
-        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
+        msg = torch.from_numpy(self.dataset.full_data['edge_feat'])  #use edge features here if available
 
         
         if (src.dtype != torch.int64 and src.dtype != torch.int32):
@@ -58,10 +58,6 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         if (t.dtype != torch.int64 and t.dtype != torch.int32):
             warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
             t = t.long()
-
-        # if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
-        #     warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
-        #     msg = msg.float()
 
         #! this is required for some reason, investigate more in the future
         msg = msg.float()

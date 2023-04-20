@@ -134,7 +134,7 @@ class LinkPropPredDataset(object):
             #TODO Andy write better panda dataloading code, currently the feat is empty
             print ("file not processed, generating processed file")
             #df, feat = _to_pd_data(self.meta_dict['edgefile'])  
-            df, feat = csv_to_pd_data(self.meta_dict['edgefile'])  
+            df = csv_to_pd_data(self.meta_dict['edgefile'])  
             df = reindex(df, bipartite=False)
             df.to_pickle(OUT_DF)
         return df
@@ -142,8 +142,7 @@ class LinkPropPredDataset(object):
 
 
 
-    def pre_process(self, 
-                    feat_dim=172):
+    def pre_process(self):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
         generates self.full_data, self.train_data, self.val_data, self.test_data
@@ -152,19 +151,21 @@ class LinkPropPredDataset(object):
         '''
         #check if path to file is valid 
         df = self.generate_processed_files()
-        self._node_feat = np.zeros((df.shape[0], feat_dim))
-        self._edge_feat = np.zeros((df.shape[0], feat_dim))
+        self._edge_feat = df['edge_feat']
         sources = np.array(df['u'])
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
         y = np.array(df['w'])
+        edge_feat = np.array(df['edge_feat'])
+
 
         full_data = {
             'sources': sources,
             'destinations': destinations,
             'timestamps': timestamps,
             'edge_idxs': edge_idxs,
+            'edge_feat': edge_feat,
             'y': y,
         }
         self._full_data = full_data
@@ -196,6 +197,7 @@ class LinkPropPredDataset(object):
         sources = full_data['sources']
         destinations = full_data['destinations']
         edge_idxs = full_data['edge_idxs']
+        edge_feat = full_data['edge_feat']
         y = full_data['y']
         
         train_mask = timestamps <= val_time
@@ -208,7 +210,8 @@ class LinkPropPredDataset(object):
             'destinations': destinations[train_mask],
             'timestamps': timestamps[train_mask],
             'edge_idxs': edge_idxs[train_mask],
-            'y': y[train_mask]
+            'edge_feat': edge_feat[train_mask],
+            'y': y[train_mask],
         }
 
         val_data = {
@@ -216,6 +219,7 @@ class LinkPropPredDataset(object):
             'destinations': destinations[val_mask],
             'timestamps': timestamps[val_mask],
             'edge_idxs': edge_idxs[val_mask],
+            'edge_feat': edge_feat[val_mask],
             'y': y[val_mask]
         }
 
@@ -224,6 +228,7 @@ class LinkPropPredDataset(object):
             'destinations': destinations[test_mask],
             'timestamps': timestamps[test_mask],
             'edge_idxs': edge_idxs[test_mask],
+            'edge_feat': edge_feat[test_mask],
             'y': y[test_mask]
         }
         return train_data, val_data, test_data
