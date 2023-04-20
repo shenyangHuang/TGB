@@ -36,7 +36,7 @@ def convert_str2int(in_str):
     return out
 
 
-
+#! panda dataframe can't take numpy 2d arrays
 def csv_to_pd_data(
         fname: str,
         ) -> pd.DataFrame:
@@ -49,7 +49,7 @@ def csv_to_pd_data(
     '''
     feat_size = 16
     num_lines = sum(1 for line in open(fname)) - 1
-    print ("number of lines counted")
+    print ("number of lines counted", num_lines)
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
     ts_list = np.zeros(num_lines)
@@ -71,9 +71,6 @@ def csv_to_pd_data(
                     idx += 1
                     continue
                 else:
-                    if (idx > 6716957):
-                        break
-
                     ts = row[0]
                     date_cur = datetime.strptime(ts, TIME_FORMAT)
                     ts = float(date_cur.timestamp())
@@ -108,20 +105,99 @@ def csv_to_pd_data(
                         unique_id += 1
                     u = node_ids[src]
                     i = node_ids[dst]
-                    u_list[idx] = u
-                    i_list[idx] = i
-                    ts_list[idx] = ts
-                    idx_list[idx] = idx
-                    w_list[idx] = float(1)
-                    feat_l[idx] = convert_str2int(feat_str)
+                    u_list[idx-1] = u
+                    i_list[idx-1] = i
+                    ts_list[idx-1] = ts
+                    idx_list[idx-1] = idx
+                    w_list[idx-1] = float(1)
+                    feat_l[idx-1] = convert_str2int(feat_str)
                     idx += 1
     return pd.DataFrame({'u': u_list,
                         'i': i_list,
                         'ts': ts_list,
                         'label': label_list,
                         'idx': idx_list,
-                        'edge_feat': feat_l,
-                        'w':w_list})
+                        'w':w_list}), feat_l, node_ids
+
+
+
+
+def process_node_feat(
+        fname: str,
+        node_ids, 
+        ):
+    """
+    1. need to have the same node id as csv_to_pd_data
+    2. process the various node features into a vector
+    3. return a numpy array of node features with index corresponding to node id
+
+    airport_code,type,continent,iso_region,longitude,latitude
+    type: onehot encoding
+    continent: onehot encoding
+    iso_region: alphabet encoding same as edge feat
+    longitude: float divide by 180
+    latitude: float divide by 90
+    """
+    feat_size = 20
+    node_feat = np.zeros((len(node_ids), feat_size))
+    type_dict = {}
+    type_idx = 0
+    continent_dict = {}
+    cont_idx = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        #airport_code,type,continent,iso_region,longitude,latitude
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                code = row[0]
+                if (code not in node_ids):
+                    continue
+                else:
+                    node_id = node_ids[code]
+                    airport_type = row[1]
+                    if (airport_type not in type_dict):
+                        type_dict[airport_type] = type_idx
+                        type_idx += 1
+                    continent = row[2]
+                    if (continent not in continent_dict):
+                        continent_dict[continent] = cont_idx
+                        cont_idx += 1
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        #airport_code,type,continent,iso_region,longitude,latitude
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                code = row[0]
+                if (code not in node_ids):
+                    continue
+                else:
+                    node_id = node_ids[code]
+                    airport_type = type_dict[row[1]]
+                    type_vec = np.zeros(type_idx)
+                    type_vec[airport_type] = 1
+                    continent = continent_dict[row[2]]
+                    cont_vec = np.zeros(cont_idx)
+                    cont_vec[continent] = 1
+                    while (len(row[3]) < 7):
+                        row[3] += "!"
+                    iso_region = convert_str2int(row[3]) #numpy float array
+                    lng = float(row[4])
+                    lat = float(row[5])
+                    coor_vec = np.array([lng, lat])
+                    final = np.concatenate((type_vec,cont_vec,iso_region,coor_vec), axis=0)
+                    node_feat[node_id] = final
+    return node_feat
+
 
 
 

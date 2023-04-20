@@ -31,6 +31,8 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         self.pre_transform = pre_transform
         self.dataset = LinkPropPredDataset(name=name, root=root)
         super().__init__(root, transform, pre_transform)
+        self.node_feat = self.dataset.node_feat
+        print (self.node_feat.shape)
         self.process_data()
 
 
@@ -66,6 +68,9 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         if self.pre_transform is not None:
             data = self.pre_transform(data)
         self._data = self.collate([data])
+
+    def get_node_feat(self,srcs):
+        return torch.from_numpy(self.node_feat[srcs.cpu()])
 
     def __repr__(self) -> str:
         return f'{self.name.capitalize()}()'

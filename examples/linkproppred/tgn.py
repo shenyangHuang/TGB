@@ -124,6 +124,9 @@ def train():
         optimizer.zero_grad()
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+
+        #to retrieve node features
+        node_feat = dataset.get_node_feat(src)
         
 
         # Sample negative destination nodes.

@@ -9,7 +9,8 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data
+from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat
+from tgb.utils.utils import save_pkl, load_pkl
 
 
 class LinkPropPredDataset(object):
@@ -126,18 +127,26 @@ class LinkPropPredDataset(object):
         if (not osp.exists(self.meta_dict['nodefile'])):
             raise FileNotFoundError(f"File not found at {self.meta_dict['nodefile']}")
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
+        OUT_EDGE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_edge")
+        OUT_NODE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_node")
 
         if osp.exists(OUT_DF):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
+            edge_feat = load_pkl(OUT_EDGE_FEAT)
+            node_feat = load_pkl(OUT_NODE_FEAT)
+
         else:
-            #TODO Andy write better panda dataloading code, currently the feat is empty
             print ("file not processed, generating processed file")
-            #df, feat = _to_pd_data(self.meta_dict['edgefile'])  
-            df = csv_to_pd_data(self.meta_dict['edgefile'])  
-            df = reindex(df, bipartite=False)
+            df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['edgefile'])  
+            #df = reindex(df, bipartite=False)  #this is simplying shifting the index by 1
+            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+            save_pkl(edge_feat, OUT_EDGE_FEAT)
+            save_pkl(node_feat, OUT_NODE_FEAT)
             df.to_pickle(OUT_DF)
-        return df
+            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+
+        return df, edge_feat, node_feat
 
 
 
@@ -150,14 +159,14 @@ class LinkPropPredDataset(object):
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
         #check if path to file is valid 
-        df = self.generate_processed_files()
-        self._edge_feat = df['edge_feat']
+        df, edge_feat, node_feat = self.generate_processed_files()
+        self._edge_feat = edge_feat
+        self._node_feat = node_feat
         sources = np.array(df['u'])
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
         y = np.array(df['w'])
-        edge_feat = np.array(df['edge_feat'])
 
 
         full_data = {
@@ -173,7 +182,6 @@ class LinkPropPredDataset(object):
         self._train_data = _train_data
         self._val_data = _val_data
         self._test_data = _test_data
-
 
 
 
