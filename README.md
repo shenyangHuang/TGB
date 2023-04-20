@@ -32,8 +32,6 @@ pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -
 pip install pandas==1.5.3
 pip install matplotlib==3.7.1
 pip install clint==0.5.1
-pip install -e .
-
 ```
 
 3. install local dependencies under root directory `/TGB`
