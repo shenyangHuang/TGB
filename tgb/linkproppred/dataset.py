@@ -9,7 +9,8 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex
+from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat
+from tgb.utils.utils import save_pkl, load_pkl
 
 
 class LinkPropPredDataset(object):
@@ -47,6 +48,12 @@ class LinkPropPredDataset(object):
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
             self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+
+        #TODO update the logic here to load the filenames from info.py
+        if (name == "opensky"):
+            self.meta_dict["fname"] = self.root + "/" + 'opensky_edgelist.csv'
+            self.meta_dict["edgefile"] = self.root + "/" + 'opensky_edgelist.csv'
+            self.meta_dict["nodefile"] = self.root + "/" + 'airport_node_feat.csv'
 
         #initialize
         self._node_feat = None
@@ -109,71 +116,42 @@ class LinkPropPredDataset(object):
             raise Exception(
                 BColors.FAIL + "Data not found error, download " + self.name + " failed")
 
-
-    def output_ml_files(self):
-        r"""Turns raw data .csv file into TG learning ready format such as for TGN, stores the processed file locally for faster access later
-        'ml_<network>.csv': source, destination, timestamp, state_label, index 	# 'index' is the index of the line in the edgelist
-        'ml_<network>.npy': contains the edge features; this is a numpy array where each element corresponds to the features of the corresponding line specifying one edge. If there are no features, should be initialized by zeros
-        'ml_<network>_node.npy': contains the node features; this is a numpy array that each element specify the features of one node where the node-id is equal to the element index.
-        """
-        #check if path to file is valid 
-        if not osp.exists(self.meta_dict['fname']):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
-        
-        #output file names 
-        OUT_DF = self.root + '/' + 'ml_{}.csv'.format(self.name)
-        OUT_FEAT = self.root + '/' + 'ml_{}.npy'.format(self.name)
-        OUT_NODE_FEAT =  self.root + '/' + 'ml_{}_node.npy'.format(self.name)
-
-        #check if the output files already exist, if so, skip the pre-processing
-        if osp.exists(OUT_DF) and osp.exists(OUT_FEAT) and osp.exists(OUT_NODE_FEAT):
-            print ("pre-processed files found, skipping file generation")
-            return df
-        else:
-            df, feat = _to_pd_data(self.meta_dict['fname'])
-            df = reindex(df, bipartite=False)
-            empty = np.zeros(feat.shape[1])[np.newaxis, :]
-            feat = np.vstack([empty, feat])
-
-            max_idx = max(df.u.max(), df.i.max())
-            rand_feat = np.zeros((max_idx + 1, 172))
-
-            df.to_csv(OUT_DF)
-            np.save(OUT_FEAT, feat)
-            np.save(OUT_NODE_FEAT, rand_feat)
-
-
-    def generate_processed_files(self,
-                                fname: str) -> pd.DataFrame:
+    def generate_processed_files(self) -> pd.DataFrame:
         r"""
         turns raw data .csv file into a pandas data frame, stored on disc if not already
-        Parameters:
-            fname: path to raw data file
         Returns:
             df: pandas data frame
         """
-        if not osp.exists(fname):
-            raise FileNotFoundError(f"File not found at {fname}")
+        if (not osp.exists(self.meta_dict['edgefile'])):
+            raise FileNotFoundError(f"File not found at {self.meta_dict['edgefile']}")
+        if (not osp.exists(self.meta_dict['nodefile'])):
+            raise FileNotFoundError(f"File not found at {self.meta_dict['nodefile']}")
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
+        OUT_EDGE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_edge")
+        OUT_NODE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_node")
 
         if osp.exists(OUT_DF):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
-            #df = pd.read_csv(OUT_DF)
+            edge_feat = load_pkl(OUT_EDGE_FEAT)
+            node_feat = load_pkl(OUT_NODE_FEAT)
+
         else:
-            #TODO Andy write better panda dataloading code, currently the feat is empty
             print ("file not processed, generating processed file")
-            df, feat = _to_pd_data(fname)  
-            df = reindex(df, bipartite=False)
+            df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['edgefile'])  
+            #df = reindex(df, bipartite=False)  #this is simplying shifting the index by 1
+            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+            save_pkl(edge_feat, OUT_EDGE_FEAT)
+            save_pkl(node_feat, OUT_NODE_FEAT)
             df.to_pickle(OUT_DF)
-            #df.to_csv(OUT_DF)
-        return df
+            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+
+        return df, edge_feat, node_feat
 
 
 
 
-    def pre_process(self, 
-                    feat_dim=172):
+    def pre_process(self):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
         generates self.full_data, self.train_data, self.val_data, self.test_data
@@ -181,28 +159,29 @@ class LinkPropPredDataset(object):
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
         #check if path to file is valid 
-        df = self.generate_processed_files(self.meta_dict['fname'])
-        self._node_feat = np.zeros((df.shape[0], feat_dim))
-        self._edge_feat = np.zeros((df.shape[0], feat_dim))
+        df, edge_feat, node_feat = self.generate_processed_files()
+        self._edge_feat = edge_feat
+        self._node_feat = node_feat
         sources = np.array(df['u'])
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
         y = np.array(df['w'])
 
+
         full_data = {
             'sources': sources,
             'destinations': destinations,
             'timestamps': timestamps,
             'edge_idxs': edge_idxs,
-            'y': y
+            'edge_feat': edge_feat,
+            'y': y,
         }
         self._full_data = full_data
         _train_data, _val_data, _test_data = self.generate_splits(full_data)
         self._train_data = _train_data
         self._val_data = _val_data
         self._test_data = _test_data
-
 
 
 
@@ -226,6 +205,7 @@ class LinkPropPredDataset(object):
         sources = full_data['sources']
         destinations = full_data['destinations']
         edge_idxs = full_data['edge_idxs']
+        edge_feat = full_data['edge_feat']
         y = full_data['y']
         
         train_mask = timestamps <= val_time
@@ -238,7 +218,8 @@ class LinkPropPredDataset(object):
             'destinations': destinations[train_mask],
             'timestamps': timestamps[train_mask],
             'edge_idxs': edge_idxs[train_mask],
-            'y': y[train_mask]
+            'edge_feat': edge_feat[train_mask],
+            'y': y[train_mask],
         }
 
         val_data = {
@@ -246,6 +227,7 @@ class LinkPropPredDataset(object):
             'destinations': destinations[val_mask],
             'timestamps': timestamps[val_mask],
             'edge_idxs': edge_idxs[val_mask],
+            'edge_feat': edge_feat[val_mask],
             'y': y[val_mask]
         }
 
@@ -254,6 +236,7 @@ class LinkPropPredDataset(object):
             'destinations': destinations[test_mask],
             'timestamps': timestamps[test_mask],
             'edge_idxs': edge_idxs[test_mask],
+            'edge_feat': edge_feat[test_mask],
             'y': y[test_mask]
         }
         return train_data, val_data, test_data
@@ -335,7 +318,8 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    dataset = EdgeRegressionDataset(name="un_trade", root="datasets", preprocess=True)
+    name = "opensky"
+    dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat
     dataset.edge_feat #not the edge weights

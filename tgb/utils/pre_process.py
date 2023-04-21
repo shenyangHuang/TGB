@@ -7,6 +7,210 @@ import time
 import csv
 from datetime import datetime
 
+
+
+"""
+functions for opensky
+-------------------------------------------
+"""
+
+def convert_str2int(in_str):
+    """
+    convert strings to vectors of integers based on individual character
+    each letter is converted as follows, a=10, b=11
+    numbers are still int
+    Parameters:
+        in_str: an input string to parse
+    Returns:
+        out: a numpy integer array
+    """
+    out = []
+    for element in in_str:
+        if (element.isnumeric()):
+            out.append(element)
+        elif(element == "!"):
+            out.append(-1)
+        else:
+            out.append(ord(element.upper()) -44 + 9)
+    out = np.array(out, dtype=np.float32)
+    return out
+
+
+#! panda dataframe can't take numpy 2d arrays
+def csv_to_pd_data(
+        fname: str,
+        ) -> pd.DataFrame:
+    r'''
+    currently used by open sky dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, node u, node v, attributes
+    Args:
+        fname: the path to the raw data
+    '''
+    feat_size = 16
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    print ("numpy allocated")
+    TIME_FORMAT = "%Y-%m-%d" #2019-01-01
+    node_ids = {}
+    unique_id = 0
+
+    with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            idx = 0
+            #'day','src','dst','callsign','typecode'
+            for row in tqdm(csv_reader):
+                if (idx == 0):
+                    idx += 1
+                    continue
+                else:
+                    ts = row[0]
+                    date_cur = datetime.strptime(ts, TIME_FORMAT)
+                    ts = float(date_cur.timestamp())
+                    src = row[1]
+                    dst = row[2]
+
+                    # 'callsign' has max size 8, can be 4, 5, 6, or 7
+                    # 'typecode' has max size 8
+                    # use ! as padding
+
+                    # pad row[3] to size 7
+                    if (len(row[3]) == 0):
+                        row[3] = "!!!!!!!!"
+                    while (len(row[3]) < 8):
+                        row[3] += "!"
+
+                    # pad row[4] to size 4
+                    if (len(row[4]) == 0):
+                        row[4] = "!!!!!!!!"
+                    while (len(row[4]) < 8):
+                        row[4] += "!"
+                    if (len(row[4]) > 8):
+                        row[4] = "!!!!!!!!"
+
+                    feat_str = row[3] + row[4]
+
+                    if (src not in node_ids):
+                        node_ids[src] = unique_id
+                        unique_id += 1
+                    if (dst not in node_ids):
+                        node_ids[dst] = unique_id
+                        unique_id += 1
+                    u = node_ids[src]
+                    i = node_ids[dst]
+                    u_list[idx-1] = u
+                    i_list[idx-1] = i
+                    ts_list[idx-1] = ts
+                    idx_list[idx-1] = idx
+                    w_list[idx-1] = float(1)
+                    feat_l[idx-1] = convert_str2int(feat_str)
+                    idx += 1
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'label': label_list,
+                        'idx': idx_list,
+                        'w':w_list}), feat_l, node_ids
+
+
+
+
+def process_node_feat(
+        fname: str,
+        node_ids, 
+        ):
+    """
+    1. need to have the same node id as csv_to_pd_data
+    2. process the various node features into a vector
+    3. return a numpy array of node features with index corresponding to node id
+
+    airport_code,type,continent,iso_region,longitude,latitude
+    type: onehot encoding
+    continent: onehot encoding
+    iso_region: alphabet encoding same as edge feat
+    longitude: float divide by 180
+    latitude: float divide by 90
+    """
+    feat_size = 20
+    node_feat = np.zeros((len(node_ids), feat_size))
+    type_dict = {}
+    type_idx = 0
+    continent_dict = {}
+    cont_idx = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        #airport_code,type,continent,iso_region,longitude,latitude
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                code = row[0]
+                if (code not in node_ids):
+                    continue
+                else:
+                    node_id = node_ids[code]
+                    airport_type = row[1]
+                    if (airport_type not in type_dict):
+                        type_dict[airport_type] = type_idx
+                        type_idx += 1
+                    continent = row[2]
+                    if (continent not in continent_dict):
+                        continent_dict[continent] = cont_idx
+                        cont_idx += 1
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        #airport_code,type,continent,iso_region,longitude,latitude
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                code = row[0]
+                if (code not in node_ids):
+                    continue
+                else:
+                    node_id = node_ids[code]
+                    airport_type = type_dict[row[1]]
+                    type_vec = np.zeros(type_idx)
+                    type_vec[airport_type] = 1
+                    continent = continent_dict[row[2]]
+                    cont_vec = np.zeros(cont_idx)
+                    cont_vec[continent] = 1
+                    while (len(row[3]) < 7):
+                        row[3] += "!"
+                    iso_region = convert_str2int(row[3]) #numpy float array
+                    lng = float(row[4])
+                    lat = float(row[5])
+                    coor_vec = np.array([lng, lat])
+                    final = np.concatenate((type_vec,cont_vec,iso_region,coor_vec), axis=0)
+                    node_feat[node_id] = final
+    return node_feat
+
+
+
+
+
+
+
+
+
+"""
+functions for lastfmgenre
+-------------------------------------------
+"""
+
 #! these are helper functions
 # TODO cleaning the un trade csv with countries with comma in the name, to remove this function
 def clean_rows(
@@ -120,9 +324,6 @@ def sort_node_labels(fname,
             for user_id, genre, w in rows:
                 write.writerow([ts, user_id, genre, w])
             
-    
-    
-        
     
     
 #! data loading functions
@@ -243,12 +444,6 @@ def load_edgelist(fname, genre_index):
                         'w':w_list}), user_index
 
 
-
-
-    
-
-
-
 def load_genre_list(fname):
     """
     load the list of genres 
@@ -274,8 +469,10 @@ def load_genre_list(fname):
 
 
 
-
-
+"""
+functions for wikipedia and un_trade
+-------------------------------------------
+"""
 def _to_pd_data(
         fname: str,
         ):

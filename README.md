@@ -74,6 +74,13 @@ nav:
 	- tgb.edgeregression: api/tgb.hi.md
 ```
 
+### Creating new branch ###
+```
+git fetch origin
+
+git checkout -b test origin/test
+```
+
 
 
 
