@@ -48,6 +48,7 @@ test_mask = dataset.test_mask
 
 num_classes = dataset.num_classes
 data = dataset.data[0]
+print (data)
 data.t = data.t.long()
 data = data.to(device)
 
