@@ -38,13 +38,19 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 name = "opensky"
 dataset = PyGLinkPropPredDataset(name=name, root="datasets")
+train_mask = dataset.train_mask
+val_mask = dataset.val_mask
+test_mask = dataset.test_mask
 data = dataset.data[0]
 data = data.to(device)
 
+train_data = data[train_mask]
+val_data = data[val_mask]
+test_data = data[test_mask]
+
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
-train_data, val_data, test_data = data.train_val_test_split(
-    val_ratio=0.15, test_ratio=0.15)
+
 
 train_loader = TemporalDataLoader(train_data, batch_size=200)
 val_loader = TemporalDataLoader(val_data, batch_size=200)

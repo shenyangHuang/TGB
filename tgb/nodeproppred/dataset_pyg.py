@@ -1,5 +1,5 @@
 import os.path as osp
-from typing import Optional, Dict, Any, Optional
+from typing import Optional, Dict, Any, Optional, Callable
 
 
 import torch
@@ -32,9 +32,9 @@ class PyGNodePropertyDataset(InMemoryDataset):
         self.transform = transform
         self.pre_transform = pre_transform
         self.dataset = NodePropertyDataset(name=name, root=root)
-        self._train_mask = self.dataset.train_mask
-        self._val_mask = self.dataset.val_mask
-        self._test_mask = self.dataset.test_mask
+        self._train_mask = torch.from_numpy(self.dataset.train_mask)
+        self._val_mask = torch.from_numpy(self.dataset.val_mask)
+        self._test_mask = torch.from_numpy(self.dataset.test_mask)
         self.__num_classes__ = self.dataset.num_classes
         super().__init__(root, transform, pre_transform)
         self.process_data()
