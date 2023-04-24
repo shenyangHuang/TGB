@@ -190,6 +190,8 @@ class NodePropertyDataset(object):
             'y': y
         }
         self._full_data = full_data
+
+        #! store the masks here instead of full arrays
         _train_data, _val_data, _test_data = self.generate_splits(full_data)
         self._train_data = _train_data
         self._val_data = _val_data
@@ -208,7 +210,32 @@ class NodePropertyDataset(object):
         self._num_classes = node_df['y'][0].shape[0]
 
 
+        # train_data = {
+        #     'sources': sources[train_mask],
+        #     'destinations': destinations[train_mask],
+        #     'timestamps': timestamps[train_mask],
+        #     'edge_idxs': edge_idxs[train_mask],
+        #     'y': y[train_mask]
+        # }
 
+        # val_data = {
+        #     'sources': sources[val_mask],
+        #     'destinations': destinations[val_mask],
+        #     'timestamps': timestamps[val_mask],
+        #     'edge_idxs': edge_idxs[val_mask],
+        #     'y': y[val_mask]
+        # }
+
+        # test_data = {
+        #     'sources': sources[test_mask],
+        #     'destinations': destinations[test_mask],
+        #     'timestamps': timestamps[test_mask],
+        #     'edge_idxs': edge_idxs[test_mask],
+        #     'y': y[test_mask]
+        # }
+
+
+    # TODO load from fixed split index from disc
 
     def generate_splits(self,
                         full_data: Dict[str, Any],
@@ -236,31 +263,7 @@ class NodePropertyDataset(object):
         val_mask = np.logical_and(timestamps <= test_time, timestamps > val_time)
         test_mask = timestamps > test_time
 
-        
-        train_data = {
-            'sources': sources[train_mask],
-            'destinations': destinations[train_mask],
-            'timestamps': timestamps[train_mask],
-            'edge_idxs': edge_idxs[train_mask],
-            'y': y[train_mask]
-        }
-
-        val_data = {
-            'sources': sources[val_mask],
-            'destinations': destinations[val_mask],
-            'timestamps': timestamps[val_mask],
-            'edge_idxs': edge_idxs[val_mask],
-            'y': y[val_mask]
-        }
-
-        test_data = {
-            'sources': sources[test_mask],
-            'destinations': destinations[test_mask],
-            'timestamps': timestamps[test_mask],
-            'edge_idxs': edge_idxs[test_mask],
-            'y': y[test_mask]
-        }
-        return train_data, val_data, test_data   
+        return train_mask, val_mask, test_mask   
 
 
     #! problem, which if the batch size is large and > # of edges in a day
