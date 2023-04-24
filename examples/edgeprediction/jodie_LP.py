@@ -37,7 +37,7 @@ overall_start = time.time()
 # set the global parameters
 LR = 0.0001
 batch_size = 200
-n_epoch = 50
+n_epoch = 20
 K = 10  # for computing metrics@k
 
 memory_dim = time_dim = embedding_dim = 100
@@ -95,8 +95,6 @@ class TimeEmbedding(torch.nn.Module):
         source_embeddings[edge_index[0]] = x[edge_index[0]] * (1 + self.embedding_layer(rel_t.to(x.dtype).unsqueeze(1)))
         
         # # preserve the other nodes
-        # unup_idx = [idx for idx in range(x.size(0)) if idx not in edge_index[0]]
-        # source_embeddings[unup_idx] = x[unup_idx]
         source_embeddings[~edge_index[0]] = x[~edge_index[0]]
 
         return source_embeddings
