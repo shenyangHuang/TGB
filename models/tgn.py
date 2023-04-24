@@ -1,13 +1,3 @@
-"""
-Source code for torch_geometric.nn.models.tgn
-
-Reference:
-    - https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/tgn.html
-
-Date:
-    - Apr. 17, 2023
-"""
-
 import copy
 from typing import Callable, Dict, Tuple
 
@@ -46,7 +36,8 @@ class TGNMemory(torch.nn.Module):
     """
     def __init__(self, num_nodes: int, raw_msg_dim: int, memory_dim: int,
                  time_dim: int, message_module: Callable,
-                 aggregator_module: Callable, memory_updater_type: str):
+                 aggregator_module: Callable,
+                 memory_updater_type: str):
         super().__init__()
 
         self.num_nodes = num_nodes
