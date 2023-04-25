@@ -20,7 +20,6 @@ def analyze_csv(fname):
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
-        #callsign,number,icao24,registration,typecode,origin,destination,firstseen,lastseen,day,latitude_1,longitude_1,altitude_1,latitude_2,longitude_2,altitude_2
         for row in csv_reader:
             if line_count == 0:
                 line_count += 1
