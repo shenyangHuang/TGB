@@ -1,6 +1,5 @@
 import os.path as osp
-from typing import Optional, Dict, Any, Optional, Callable
-
+from typing import Callable, Optional
 
 import torch
 
@@ -32,9 +31,6 @@ class PyGNodePropertyDataset(InMemoryDataset):
         self.transform = transform
         self.pre_transform = pre_transform
         self.dataset = NodePropertyDataset(name=name, root=root)
-        self._train_mask = torch.from_numpy(self.dataset.train_mask)
-        self._val_mask = torch.from_numpy(self.dataset.val_mask)
-        self._test_mask = torch.from_numpy(self.dataset.test_mask)
         self.__num_classes__ = self.dataset.num_classes
         super().__init__(root, transform, pre_transform)
         self.process_data()
@@ -43,44 +39,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
     @property
     def num_classes(self):
         return self.__num_classes__
-    
-    
-    @property
-    def train_mask(self) -> Dict[str, Any]:
-        r"""
-        Returns the train mask of the dataset 
-        Returns:
-            train_mask: Dict[str, Any]
-        """
-        if (self._train_mask is None):
-            raise ValueError("training split hasn't been loaded")
-        return self._train_mask
-    
-    @property
-    def val_mask(self) -> Dict[str, Any]:
-        r"""
-        Returns the validation mask of the dataset 
-        Returns:
-            val_mask: Dict[str, Any]
-        """
-        if (self._val_mask is None):
-            raise ValueError("validation split hasn't been loaded")
-        
-        return self._val_mask
-    
-    @property
-    def test_mask(self) -> Dict[str, Any]:
-        r"""
-        Returns the test mask of the dataset:
-        Returns:
-            test_mask: Dict[str, Any]
-        """
-        if (self._test_mask is None):
-            raise ValueError("test split hasn't been loaded")
-        
-        return self._test_mask
-    
-    
+
     def process_data(self):
         """
         collate on the data from the NodePropertyDataset

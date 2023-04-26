@@ -36,24 +36,22 @@ import time
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#device = 'cpu'
+
+#! first need to provide pyg dataset support for lastfm dataset
 
 name = "lastfmgenre"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
-train_mask = dataset.train_mask
-val_mask = dataset.val_mask
-test_mask = dataset.test_mask
-
 num_classes = dataset.num_classes
 data = dataset.data[0]
+data.t = data.t.long()
 data = data.to(device)
-
-
-train_data = data[train_mask]
-val_data = data[val_mask]
-test_data = data[test_mask]
+print ("finished setting up dataset")
 
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
+train_data, val_data, test_data = data.train_val_test_split(
+    val_ratio=0.15, test_ratio=0.15)
 
 batch_size = 200
 
@@ -77,6 +75,20 @@ class GraphAttentionEmbedding(torch.nn.Module):
         rel_t_enc = self.time_enc(rel_t.to(x.dtype))
         edge_attr = torch.cat([rel_t_enc, msg], dim=-1)
         return self.conv(x, edge_index, edge_attr)
+
+
+class LinkPredictor(torch.nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.lin_src = Linear(in_channels, in_channels)
+        self.lin_dst = Linear(in_channels, in_channels)
+        self.lin_final = Linear(in_channels, 1)
+
+    def forward(self, z_src, z_dst):
+        h = self.lin_src(z_src) + self.lin_dst(z_dst)
+        h = h.relu()
+        return self.lin_final(h)
+
 
 class NodePredictor(torch.nn.Module):
     def __init__(self, in_dim, out_dim):
@@ -111,12 +123,13 @@ gnn = GraphAttentionEmbedding(
     time_enc=memory.time_enc,
 ).to(device)
 
+#link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
 node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
     | set(node_pred.parameters()), lr=0.0001)
-
+#criterion = torch.nn.BCEWithLogitsLoss()
 criterion = torch.nn.CrossEntropyLoss()
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
@@ -174,19 +187,17 @@ def train(plotting=True):
 
             # must require edges for time dependent embedding
             # apply edge index as self-loops
+            self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
             self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
 
             #.unique()
             n_id = label_srcs
-            n_id, mem_edge_index, _ = neighbor_loader(n_id)
+            n_id, _, _ = neighbor_loader(n_id)
             z, last_update = memory(n_id)
 
-            #! use self loop if there is no memory update yet
-            if (mem_edge_index.shape[1] != last_update.shape[0]):
-                self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
-                mem_edge_index = self_loop
-                
-            z = gnn(z, last_update, mem_edge_index, label_ts.to(device),
+            all_update = torch.zeros(label_ts.shape[0]).float().to(device)
+
+            z = gnn(z, last_update, self_loop, label_ts.to(device),
                 self_msg)
 
             z = z[0:labels.shape[0]]
@@ -210,7 +221,15 @@ def train(plotting=True):
             optimizer.step()
             total_loss += float(loss)
 
-        #! only memory update here
+
+        n_id = torch.cat([src, pos_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+
+        z, last_update = memory(n_id)
+        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
+                data.msg[e_id].to(device))
+
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
@@ -257,12 +276,13 @@ def test(loader):
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
+            self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
             self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
 
             n_id = label_srcs
-            n_id, mem_edge_index, _ = neighbor_loader(n_id)
+            n_id, _, _ = neighbor_loader(n_id)
             z, last_update = memory(n_id)
-            z = gnn(z, last_update, mem_edge_index, label_ts.to(device),
+            z = gnn(z, last_update, self_loop, label_ts.to(device),
                 self_msg)
 
             z = z[0:labels.shape[0]]
@@ -276,6 +296,13 @@ def test(loader):
                 total_ncdg[i] += ncdg_score * label_ts.shape[0]
 
             num_labels += label_ts.shape[0]
+
+        n_id = torch.cat([src, pos_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+
+        z, last_update = memory(n_id)
+        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
+                data.msg[e_id].to(device))
 
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)

@@ -23,15 +23,9 @@ N_RUNS = 1
 # data loading
 name = "un_trade"
 dataset = PyGEdgeRegressDataset(name=name, root="datasets")
-train_mask = dataset.train_mask
-val_mask = dataset.val_mask
-test_mask = dataset.test_mask
-
 data = dataset.data[0]
-train_data = data[train_mask]
-val_data = data[val_mask]
-test_data = data[test_mask]
 
+train_data, val_data, test_data = data.train_val_test_split(val_ratio=0.15, test_ratio=0.15)
 
 # ===================================== Set the seed
 utils.set_random_seed(SEED)
