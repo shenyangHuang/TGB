@@ -245,8 +245,7 @@ for epoch in range(1, n_epoch + 1):
     val_ap, val_auc = test(val_loader)
     print(f'\tVal AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
 
-# ===========
-# Final Test: Since the exhaustive test takes more time, we only do it at the end of training procedure
+# =========== Test
 start_test_time = time.time()
 test_ap, test_auc = test(test_loader)
 end_test_time = time.time()
