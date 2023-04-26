@@ -144,7 +144,8 @@ def train(plotting=True):
 
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    TOP_Ks = [5,10,20]
+    #TOP_Ks = [5,10,20]
+    TOP_Ks = [10]
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
@@ -157,42 +158,46 @@ def train(plotting=True):
 
 
         query_t = batch.t[-1]
+
+        #check if this batch moves to the next day
         if (query_t > label_t):
+
+            # find the node labels from the past day
             label_tuple = dataset.get_node_label(query_t)
             label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
 
-            #! problem with current implementation
-            '''
-            to feed into gnn requires edge index and last update
-            however the nodes might not have been upated recently
-            rel_t = last_update[edge_index[0]] - t
-            IndexError: index 533 is out of bounds for dimension 0 with size 46
-            '''
+            #process all edges that are still in the past day
+            split_id = 0
+            for t_id in range(batch.t.shape[0]):
+                if (batch.t[t_id] > label_t):
+                    split_id = t_id
+                    break
 
-            # must require edges for time dependent embedding
-            # apply edge index as self-loops
-            self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
+            #first update the batch before the day change
+            if (split_id > 0):
+                # the edges in the batch in previous day
+                src, pos_dst, t, msg = batch.src[0:split_id], batch.dst[0:split_id], batch.t[0:split_id], batch.msg[0:split_id]
+                memory.update_state(src, pos_dst, t, msg)
+                neighbor_loader.insert(src, pos_dst)
 
-            #.unique()
+            """
+            modified for node property prediction
+            1. sample neighbors from the neighbor loader for all nodes to be predicted
+            2. extract memory from the sampled neighbors and the nodes
+            3. run gnn with the extracted memory embeddings and the corresponding time and message
+            """
             n_id = label_srcs
-            n_id, mem_edge_index, _ = neighbor_loader(n_id)
-            z, last_update = memory(n_id)
-
-            #! use self loop if there is no memory update yet
-            if (mem_edge_index.shape[1] != last_update.shape[0]):
-                self_loop = torch.zeros(2,label_ts.shape[0], dtype=int).to(device)
-                mem_edge_index = self_loop
-                
-            z = gnn(z, last_update, mem_edge_index, label_ts.to(device),
-                self_msg)
+            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            z, last_update = memory(n_id_neighbors)
+            
+            z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
 
             z = z[0:labels.shape[0]]
 
             #loss and metric computation
-
             pred = node_pred(z)
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
@@ -209,6 +214,10 @@ def train(plotting=True):
             loss.backward()
             optimizer.step()
             total_loss += float(loss)
+
+            # the edges in the batch in the next day
+            src, pos_dst, t, msg = batch.src[split_id:], batch.dst[split_id:], batch.t[split_id:], batch.msg[split_id:]
+
 
         #! only memory update here
         # Update memory and neighbor loader with ground-truth state.
@@ -257,13 +266,32 @@ def test(loader):
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
-            self_msg = torch.ones(label_ts.shape[0],1).float().to(device)
+            #process all edges that are still in the past day
+            split_id = 0
+            for t_id in range(batch.t.shape[0]):
+                if (batch.t[t_id] > label_t):
+                    split_id = t_id
+                    break
 
+            #first update the batch before the day change
+            if (split_id > 0):
+                # the edges in the batch in previous day
+                src, pos_dst, t, msg = batch.src[0:split_id], batch.dst[0:split_id], batch.t[0:split_id], batch.msg[0:split_id]
+                memory.update_state(src, pos_dst, t, msg)
+                neighbor_loader.insert(src, pos_dst)
+
+
+            """
+            modified for node property prediction
+            1. sample neighbors from the neighbor loader for all nodes to be predicted
+            2. extract memory from the sampled neighbors and the nodes
+            3. run gnn with the extracted memory embeddings and the corresponding time and message
+            """
             n_id = label_srcs
-            n_id, mem_edge_index, _ = neighbor_loader(n_id)
-            z, last_update = memory(n_id)
-            z = gnn(z, last_update, mem_edge_index, label_ts.to(device),
-                self_msg)
+            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            z, last_update = memory(n_id_neighbors)
+            z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
+        
 
             z = z[0:labels.shape[0]]
             #loss and metric computation
@@ -276,6 +304,9 @@ def test(loader):
                 total_ncdg[i] += ncdg_score * label_ts.shape[0]
 
             num_labels += label_ts.shape[0]
+            # the edges in the batch in the next day
+            src, pos_dst, t, msg = batch.src[split_id:], batch.dst[split_id:], batch.t[split_id:], batch.msg[split_id:]
+
 
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
