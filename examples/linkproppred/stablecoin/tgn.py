@@ -20,7 +20,6 @@ from tqdm import tqdm
 import timeit
 
 
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TGNMemory, TransformerConv
 from torch_geometric.nn.models.tgn import (
@@ -36,7 +35,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 #! first need to provide pyg dataset support for lastfm dataset
 
-name = "opensky"
+name = "stablecoin"
 dataset = PyGLinkPropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
@@ -130,9 +129,6 @@ def train():
         optimizer.zero_grad()
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
-
-        #to retrieve node features
-        node_feat = dataset.get_node_feat(src)
         
 
         # Sample negative destination nodes.
