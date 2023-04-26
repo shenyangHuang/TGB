@@ -9,7 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat
+from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc
 from tgb.utils.utils import save_pkl, load_pkl
 
 
@@ -47,12 +47,11 @@ class LinkPropPredDataset(object):
         self.root = osp.join(root, self.dir_name)
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
-            self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+            self.meta_dict["fname"] = self.root + "/" + self.name + '_edgelist.csv'
+            self.meta_dict["nodefile"] = None
 
         #TODO update the logic here to load the filenames from info.py
         if (name == "opensky"):
-            self.meta_dict["fname"] = self.root + "/" + 'opensky_edgelist.csv'
-            self.meta_dict["edgefile"] = self.root + "/" + 'opensky_edgelist.csv'
             self.meta_dict["nodefile"] = self.root + "/" + 'airport_node_feat.csv'
 
         #initialize
@@ -122,29 +121,38 @@ class LinkPropPredDataset(object):
         Returns:
             df: pandas data frame
         """
-        if (not osp.exists(self.meta_dict['edgefile'])):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['edgefile']}")
-        if (not osp.exists(self.meta_dict['nodefile'])):
-            raise FileNotFoundError(f"File not found at {self.meta_dict['nodefile']}")
+        node_feat = None
+        if (not osp.exists(self.meta_dict["fname"])):
+            raise FileNotFoundError(f"File not found at {self.meta_dict['fname']}")
+        
+        if (self.meta_dict['nodefile'] is not None):
+            if (not osp.exists(self.meta_dict['nodefile'])):
+                raise FileNotFoundError(f"File not found at {self.meta_dict['nodefile']}")
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_EDGE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_edge")
-        OUT_NODE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_node")
+        if (self.meta_dict['nodefile'] is not None):
+            OUT_NODE_FEAT = self.root + '/' + 'ml_{}.pkl'.format(self.name+"_node")
 
         if osp.exists(OUT_DF):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
             edge_feat = load_pkl(OUT_EDGE_FEAT)
-            node_feat = load_pkl(OUT_NODE_FEAT)
+            if (self.meta_dict['nodefile'] is not None):
+                node_feat = load_pkl(OUT_NODE_FEAT)
 
         else:
             print ("file not processed, generating processed file")
-            df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['edgefile'])  
-            #df = reindex(df, bipartite=False)  #this is simplying shifting the index by 1
-            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+            if (self.name == "opensky"):
+                df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['fname'])  
+            elif (self.name == "stablecoin"):
+                df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])  
+
             save_pkl(edge_feat, OUT_EDGE_FEAT)
-            save_pkl(node_feat, OUT_NODE_FEAT)
             df.to_pickle(OUT_DF)
-            node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+            #df = reindex(df, bipartite=False)  #this is simplying shifting the index by 1
+            if (self.meta_dict['nodefile'] is not None):
+                node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
+                save_pkl(node_feat, OUT_NODE_FEAT)
 
         return df, edge_feat, node_feat
 
@@ -160,13 +168,20 @@ class LinkPropPredDataset(object):
         '''
         #check if path to file is valid 
         df, edge_feat, node_feat = self.generate_processed_files()
-        self._edge_feat = edge_feat
-        self._node_feat = node_feat
         sources = np.array(df['u'])
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
-        y = np.array(df['w'])
+        weights = np.array(df['w'])
+
+        #y should be 1 for all pos edges
+        y = np.ones(len(df))
+        self._edge_feat = edge_feat
+        if (self.name == "stablcoin"):
+            # use weight as edge feature for weighted graph
+            self._edge_feat = weights.reshape(-1,1)
+
+        self._node_feat = node_feat
 
 
         full_data = {
@@ -175,6 +190,7 @@ class LinkPropPredDataset(object):
             'timestamps': timestamps,
             'edge_idxs': edge_idxs,
             'edge_feat': edge_feat,
+            'w': weights,
             'y': y,
         }
         self._full_data = full_data
@@ -284,7 +300,8 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    name = "opensky"
+    #name = "opensky"
+    name = "stablecoin"
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat
@@ -295,10 +312,6 @@ def main():
     dataset.full_data["destinations"]
     dataset.full_data["timestamps"] 
     dataset.full_data["y"]
-
-    train_data = dataset.full_data[dataset.train_mask]
-    val_data = dataset.full_data[dataset.val_mask]
-    test_data = dataset.full_data[dataset.test_mask]
 
 if __name__ == "__main__":
     main()
