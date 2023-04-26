@@ -33,6 +33,9 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 import torch.nn.functional as F
 import time
 
+#hyperparameters
+lr = 0.0001
+
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -115,7 +118,7 @@ node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 
 optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
-    | set(node_pred.parameters()), lr=0.0001)
+    | set(node_pred.parameters()), lr=lr)
 
 criterion = torch.nn.CrossEntropyLoss()
 # Helper vector to map global node indices to local ones.
@@ -144,8 +147,8 @@ def train(plotting=True):
 
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    #TOP_Ks = [5,10,20]
-    TOP_Ks = [10]
+    TOP_Ks = [5,10,20]
+    #TOP_Ks = [10]
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
