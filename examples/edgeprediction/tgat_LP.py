@@ -6,8 +6,9 @@ TGAT
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 
     Spec.:
-        - Memory Updater: RNN
-        - Embedding Module: time
+        - No Memory Module
+        - Embedding Module: Two-Layer Attention with Number of Neighbors = 20
+        - Uniform Sampling of Neighbors (the default is sampling the most recent neighbors)
 """
 
 import os.path as osp
@@ -23,22 +24,20 @@ from torch_geometric.nn import TransformerConv
 from torch_geometric.nn.models.tgn import (
     IdentityMessage,
     LastAggregator,
-    LastNeighborLoader,
+    # LastNeighborLoader,
     TimeEncoder,
 )
 import time
 
 # internal imports
-# from models.tgn import TGNMemory  # there is no memory module for TGAT
+from models.tgn import LastNeighborLoader
 
 # set the global parameters
 LR = 0.0001
 batch_size = 200
-n_epoch = 2
-K = 10  # for computing metrics@k
+n_epoch = 20
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = 'cpu'
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'JODIE')
 dataset = JODIEDataset(path, name='wikipedia')
@@ -58,7 +57,7 @@ val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 num_neighbors = 20
-neighbor_loader = LastNeighborLoader(data.num_nodes, size=num_neighbors, device=device)
+neighbor_loader = LastNeighborLoader(data.num_nodes, size=num_neighbors, device=device, sample_uniform=True)
 
 
 class GraphAttentionEmbedding(torch.nn.Module):
@@ -92,7 +91,7 @@ class LinkPredictor(torch.nn.Module):
     def forward(self, z_src, z_dst):
         h = self.lin_src(z_src) + self.lin_dst(z_dst)
         h = h.relu()
-        return self.lin_final(h)
+        return self.lin_final(h).sigmoid()
 
 
 time_dim = embedding_dim = 100
@@ -135,11 +134,11 @@ def train():
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
-        z = torch.rand((n_id.size(0), embedding_dim), device=device)  # since the datasets mostly do not have (dynamic) node features
+        z = torch.rand((n_id.size(0), embedding_dim), device=device)  # since the datasets mostly do not have node features
         z = gnn(z, data.t[edge_index[0]].to(device), edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]]).sigmoid()
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]]).sigmoid()
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
@@ -155,7 +154,6 @@ def train():
 
 @torch.no_grad()
 def test(loader):
-    # memory.eval()
     gnn.eval()
     link_pred.eval()
 
@@ -173,13 +171,13 @@ def test(loader):
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
-        z = torch.rand((n_id.size(0), embedding_dim), device=device)  # since the datasets mostly do not have (dynamic) node features
+        z = torch.rand((n_id.size(0), embedding_dim), device=device)  # since the datasets mostly do not have node features
         z = gnn(z, data.t[edge_index[0]].to(device), edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
 
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
+        y_pred = torch.cat([pos_out, neg_out], dim=0).cpu()
         y_true = torch.cat(
             [torch.ones(pos_out.size(0)),
              torch.zeros(neg_out.size(0))], dim=0)

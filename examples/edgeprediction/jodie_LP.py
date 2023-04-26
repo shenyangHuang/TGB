@@ -40,7 +40,6 @@ overall_start = time.time()
 LR = 0.0001
 batch_size = 200
 n_epoch = 20
-K = 10  # for computing metrics@k
 
 memory_dim = time_dim = embedding_dim = 100
 
