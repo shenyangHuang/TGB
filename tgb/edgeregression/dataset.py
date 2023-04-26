@@ -245,10 +245,10 @@ class EdgeRegressionDataset(object):
             'y': y
         }
         self._full_data = full_data
-        _train_data, _val_data, _test_data = self.generate_splits(full_data)
-        self._train_data = _train_data
-        self._val_data = _val_data
-        self._test_data = _test_data
+        _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
+        self._train_mask = _train_mask
+        self._val_mask = _val_mask
+        self._test_mask = _test_mask
 
 
 
@@ -279,31 +279,7 @@ class EdgeRegressionDataset(object):
         val_mask = np.logical_and(timestamps <= test_time, timestamps > val_time)
         test_mask = timestamps > test_time
 
-        
-        train_data = {
-            'sources': sources[train_mask],
-            'destinations': destinations[train_mask],
-            'timestamps': timestamps[train_mask],
-            'edge_idxs': edge_idxs[train_mask],
-            'y': y[train_mask]
-        }
-
-        val_data = {
-            'sources': sources[val_mask],
-            'destinations': destinations[val_mask],
-            'timestamps': timestamps[val_mask],
-            'edge_idxs': edge_idxs[val_mask],
-            'y': y[val_mask]
-        }
-
-        test_data = {
-            'sources': sources[test_mask],
-            'destinations': destinations[test_mask],
-            'timestamps': timestamps[test_mask],
-            'edge_idxs': edge_idxs[test_mask],
-            'y': y[test_mask]
-        }
-        return train_data, val_data, test_data
+        return train_mask, val_mask, test_mask
 
        
 
@@ -339,48 +315,47 @@ class EdgeRegressionDataset(object):
         if (self._full_data is None):
             raise ValueError("dataset has not been processed yet, please call pre_process() first")
         return self._full_data
-    
+
 
     @property
-    def train_data(self) -> Dict[str, Any]:
+    def train_mask(self) -> Dict[str, Any]:
         r"""
-        Returns the train data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        Returns the train mask of the dataset 
         Returns:
-            train_data: Dict[str, Any]
+            train_mask: Dict[str, Any]
         """
-        if (self._train_data is None):
-            raise ValueError("dataset has not been processed yet, please call pre_process() first")
-        return self._train_data
+        if (self._train_mask is None):
+            raise ValueError("training split hasn't been loaded")
+        return self._train_mask
     
     @property
-    def val_data(self) -> Dict[str, Any]:
+    def val_mask(self) -> Dict[str, Any]:
         r"""
-        Returns the validation data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        Returns the validation mask of the dataset 
         Returns:
-            val_data: Dict[str, Any]
+            val_mask: Dict[str, Any]
         """
-        if (self._val_data is None):
-            raise ValueError("dataset has not been processed yet, please call pre_process() first")
-        return self._val_data
+        if (self._val_mask is None):
+            raise ValueError("validation split hasn't been loaded")
+        
+        return self._val_mask
     
     @property
-    def test_data(self) -> Dict[str, Any]:
+    def test_mask(self) -> Dict[str, Any]:
         r"""
-        Returns the test data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        Returns the test mask of the dataset:
         Returns:
-            test_data: Dict[str, Any]
+            test_mask: Dict[str, Any]
         """
-        if (self._test_data is None):
-            raise ValueError("dataset has not been processed yet, please call pre_process() first")
-        return self._test_data
+        if (self._test_mask is None):
+            raise ValueError("test split hasn't been loaded")
+        
+        return self._test_mask
+
+
     
 
-
-
-
+    
 def main():
     dataset = EdgeRegressionDataset(name="un_trade", root="datasets", preprocess=True)
     
@@ -393,9 +368,9 @@ def main():
     dataset.full_data["timestamps"] 
     dataset.full_data["y"]
 
-    dataset.train_data
-    dataset.val_data
-    dataset.test_data
+    train_data = dataset.full_data[dataset.train_mask]
+    val_data = dataset.full_data[dataset.val_mask]
+    test_data = dataset.full_data[dataset.test_mask]
 
 if __name__ == "__main__":
     main()
