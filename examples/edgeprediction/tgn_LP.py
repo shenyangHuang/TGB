@@ -34,13 +34,12 @@ overall_start = time.time()
 LR = 0.0001
 batch_size = 200
 K = 10  # for computing metrics@k
-n_epoch = 1
+n_epoch = 20
 
 memory_dim = time_dim = embedding_dim = 100
 
 # set the device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = torch.device('cpu')
 
 # data loading
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'JODIE')
@@ -100,7 +99,7 @@ memory = TGNMemory(
     time_dim,
     message_module=IdentityMessage(data.msg.size(-1), memory_dim, time_dim),
     aggregator_module=LastAggregator(),
-    memory_updater_type='gru'
+    memory_updater_type='gru'  # TGN: 'gru', JODIE & DyRep: 'rnn'
 ).to(device)
 
 gnn = GraphAttentionEmbedding(
@@ -149,8 +148,8 @@ def train():
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]]).sigmoid()
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]]).sigmoid()
 
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
@@ -165,51 +164,6 @@ def train():
         total_loss += float(loss) * batch.num_events
 
     return total_loss / train_data.num_events
-
-
-@torch.no_grad()
-def test_one_pos_vs_one_neg(loader):
-    memory.eval()
-    gnn.eval()
-    link_pred.eval()
-
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
-
-    aps, aucs = [], []
-    for batch in loader:
-        batch = batch.to(device)
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
-
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
-
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
-        n_id, edge_index, e_id = neighbor_loader(n_id)
-        assoc[n_id] = torch.arange(n_id.size(0), device=device)
-
-        z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
-
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
-
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
-             torch.zeros(neg_out.size(0))], dim=0)
-
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
-
-        memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
-
-    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
-                    'auc': float(torch.tensor(aucs).mean()),
-                    }
-
-    return perf_metrics
 
 
 
@@ -437,12 +391,58 @@ def test_exh_one_pos_vs_all(loader):
     return perf_metrics
 
 
+@torch.no_grad()
+def test_one_pos_vs_one_neg(loader):
+    memory.eval()
+    gnn.eval()
+    link_pred.eval()
+
+    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
+
+    aps, aucs = [], []
+    for batch in loader:
+        batch = batch.to(device)
+        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+
+        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
+                                dtype=torch.long, device=device)
+
+        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+
+        z, last_update = memory(n_id)
+        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
+                data.msg[e_id].to(device))
+
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+
+        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
+        y_true = torch.cat(
+            [torch.ones(pos_out.size(0)),
+             torch.zeros(neg_out.size(0))], dim=0)
+
+        aps.append(average_precision_score(y_true, y_pred))
+        aucs.append(roc_auc_score(y_true, y_pred))
+
+        memory.update_state(src, pos_dst, t, msg)
+        neighbor_loader.insert(src, pos_dst)
+
+    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
+                    'auc': float(torch.tensor(aucs).mean()),
+                    }
+
+    return perf_metrics
+
+
+
 # Train & Validation
 print("INFO: =======================================")
 print("INFO: ===========*** TGN model ***===========")
 print("INFO: =======================================")
 
-for epoch in range(n_epoch):
+for epoch in range(1, n_epoch + 1):
     start_epoch_train = time.time()
     loss = train()
     end_epoch_train = time.time()
@@ -452,9 +452,7 @@ for epoch in range(n_epoch):
     print(f'\tVal AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
 
 # ===========
-# Final Test: Since the exhaustive test takes more time, we only do it at the end of training procedure
-
-DLP_EVAL_SETUP = 'any_vs_all'  # 'one_vs_all': each positive edge vs. all relevant negative edges, 'any_vs_all': any positive edges with the same source vs. all relevant negative edges
+DLP_EVAL_SETUP = 'one_vs_one'  # 'one_vs_all': each positive edge vs. all relevant negative edges, 'any_vs_all': any positive edges with the same source vs. all relevant negative edges
 
 start_test = time.time()
 if DLP_EVAL_SETUP == 'any_vs_all':

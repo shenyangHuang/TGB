@@ -4,8 +4,10 @@ JODIE
     - https://github.com/twitter-research/tgn
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 
-Date: 
-    - Apr. 17, 2023
+Differences with TGN:
+    - Memory Updater: RNN
+    - Embedding Module: time
+
 """
 
 import os.path as osp
@@ -65,11 +67,7 @@ train_loader = TemporalDataLoader(train_data, batch_size=batch_size)
 val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
-# neighhorhood sampler
-neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
 
-
-# Embedding module for TGN is 'GraphAttentionEmbedding', for JODIE it should be 'Time'
 class TimeEmbedding(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -86,18 +84,11 @@ class TimeEmbedding(torch.nn.Module):
 
         self.embedding_layer = NormalLinear(1, self.out_channels)
 
-    def forward(self, x, last_update, edge_index, t):
-        # update the involved nodes
-        rel_t = t - last_update[edge_index[0]]
+    def forward(self, x, last_update, t): 
+        rel_t = t - last_update
+        embeddings = x * (1 + self.embedding_layer(rel_t.to(x.dtype).unsqueeze(1)))
 
-        # update the involved nodes
-        source_embeddings = torch.zeros(x.size(), device=device) 
-        source_embeddings[edge_index[0]] = x[edge_index[0]] * (1 + self.embedding_layer(rel_t.to(x.dtype).unsqueeze(1)))
-        
-        # # preserve the other nodes
-        source_embeddings[~edge_index[0]] = x[~edge_index[0]]
-
-        return source_embeddings
+        return embeddings
 
 
 class LinkPredictor(torch.nn.Module):
@@ -112,7 +103,7 @@ class LinkPredictor(torch.nn.Module):
         h = h.relu()
         return self.lin_final(h)
 
-
+# Memory Module
 memory = TGNMemory(
     data.num_nodes,
     data.msg.size(-1),
@@ -123,11 +114,13 @@ memory = TGNMemory(
     memory_updater_type='rnn'  # TGN: 'gru', JODIE & DyRep: 'rnn'
 ).to(device)
 
+# Embedding Module
 emb_module = TimeEmbedding(
     in_channels=memory_dim,
     out_channels=embedding_dim
 ).to(device)
 
+# Decoder: Link Predictor
 link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
 
 optimizer = torch.optim.Adam(
@@ -145,7 +138,6 @@ def train():
     link_pred.train()
 
     memory.reset_state()  # Start with a fresh memory.
-    neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
     for batch in train_loader:
@@ -158,23 +150,30 @@ def train():
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
                                 dtype=torch.long, device=device)
 
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
-        n_id, edge_index, e_id = neighbor_loader(n_id)
+        all_nodes = torch.cat([src, pos_dst, neg_dst])
+        n_id, n_idx, n_counts = torch.unique(all_nodes, return_inverse=True, return_counts=True)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
+
+        # Get the current time for unique nodes
+        all_times = torch.cat([t, t, t])
+        _, idx_sorted = torch.sort(n_idx, stable=True)
+        cum_sum = n_counts.cumsum(0)
+        cum_sum = torch.cat((torch.tensor([0], device=device), cum_sum[:-1]))
+        first_idices = idx_sorted[cum_sum]
+        n_times = all_times[first_idices]
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = memory(n_id)
-        z = emb_module(z, last_update, edge_index, data.t[e_id].to(device))
+        z = emb_module(z, last_update, n_times)
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]]).sigmoid()
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]]).sigmoid()
 
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
 
         loss.backward()
         optimizer.step()
@@ -200,12 +199,20 @@ def test(loader):
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
                                 dtype=torch.long, device=device)
 
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
-        n_id, edge_index, e_id = neighbor_loader(n_id)
+        all_nodes = torch.cat([src, pos_dst, neg_dst])
+        n_id, n_idx, n_counts = torch.unique(all_nodes, return_inverse=True, return_counts=True)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
+        # Get the time of the current edge for unique nodes
+        all_times = torch.cat([t, t, t])
+        _, idx_sorted = torch.sort(n_idx, stable=True)
+        cum_sum = n_counts.cumsum(0)
+        cum_sum = torch.cat((torch.tensor([0], device=device), cum_sum[:-1]))
+        first_idices = idx_sorted[cum_sum]
+        n_times = all_times[first_idices]
+
         z, last_update = memory(n_id)
-        z = emb_module(z, last_update, edge_index, data.t[e_id].to(device))
+        z = emb_module(z, last_update, n_times)
 
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
@@ -219,110 +226,18 @@ def test(loader):
         aucs.append(roc_auc_score(y_true, y_pred))
 
         memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
 
     return float(torch.tensor(aps).mean()), float(torch.tensor(aucs).mean())
 
 
 
-@torch.no_grad()
-def test_exh(loader):
-    """
-    Evaluated the dynamic link prediction in an exhaustive manner
-    """
-    memory.eval()
-    emb_module.eval()
-    link_pred.eval()
-
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
-
-    aps, aucs = [], []
-    for batch in loader:
-        batch = batch.to(device)
-        src_orig, pos_dst_orig, t_orig, msg_orig = batch.src, batch.dst, batch.t, batch.msg
-        batch_size = src_orig.size(0)
-        
-        edges_per_node = gen_eval_set_for_batch(src_orig, pos_dst_orig, min_dst_idx, max_dst_idx)
-
-        pos_out_agg, neg_out_agg = [], []
-        prec_at_k_list, rec_at_k_list, f1_at_k_list = [], [], []
-        for pos_s in src_orig:
-            pos_s = pos_s.item()
-            pos_dst = torch.tensor(edges_per_node[pos_s]['pos'], device=device)
-            pos_src = torch.tensor([pos_s for _ in range(len(edges_per_node[pos_s]['pos']))], device=device)
-
-            neg_dst = torch.tensor(edges_per_node[pos_s]['neg'], device=device)
-            neg_src = torch.tensor([pos_s for _ in range(len(edges_per_node[pos_s]['neg']))], device=device)
-
-            # positive edges 
-            pos_n_id = torch.cat([pos_src, pos_dst]).unique()
-            pos_n_id, pos_edge_index, pos_e_id = neighbor_loader(pos_n_id)
-            assoc[pos_n_id] = torch.arange(pos_n_id.size(0), device=device)
-
-            pos_z, pos_last_update = memory(pos_n_id)
-            pos_z = emb_module(pos_z, pos_last_update, pos_edge_index, data.t[pos_e_id].to(device))
-
-            pos_out = link_pred(pos_z[assoc[pos_src]], pos_z[assoc[pos_dst]])
-            pos_out_agg.append(pos_out)
-
-            # negative edges
-            n_neg_iter = math.ceil(len(neg_dst) / batch_size)
-            for n_iter_idx in range(n_neg_iter):
-                n_start_idx = n_iter_idx * batch_size
-                n_end_idx = min(n_start_idx + batch_size, len(neg_dst))
-
-                neg_src_iter = neg_src[n_start_idx: n_end_idx]
-                neg_dst_iter = neg_dst[n_start_idx: n_end_idx]
-
-                neg_n_id = torch.cat([neg_src_iter, neg_dst_iter]).unique()
-                neg_n_id, neg_edge_index, neg_e_id = neighbor_loader(neg_n_id)
-                assoc[neg_n_id] = torch.arange(neg_n_id.size(0), device=device)
-                neg_z, neg_last_update = memory(neg_n_id)
-                neg_z = emb_module(neg_z, neg_last_update, neg_edge_index, data.t[neg_e_id].to(device))
-
-                neg_out = link_pred(neg_z[assoc[neg_src_iter]], neg_z[assoc[neg_dst_iter]])
-                neg_out_agg.append(neg_out)
-
-            # precision@k & recall@k should be calculated for each positive source node separately
-            # y_true, y_pred_proba
-            y_pred_proba_src = torch.cat([pos_out.squeeze(dim=-1), neg_out.squeeze(dim=-1)], dim=0).sigmoid().cpu()
-            y_true_src = torch.cat([torch.ones(pos_out.size(0)), torch.zeros(neg_out.size(0))], dim=0)
-            prec_at_k, rec_at_k, f1_at_k = metric_at_k_score(y_true_src, y_pred_proba_src, k=K, pos_label=1)
-            prec_at_k_list.append(prec_at_k)
-            rec_at_k_list.append(rec_at_k)
-            f1_at_k_list.append(f1_at_k)
-
-        # metrics per processing each batch of positive edges
-        pos_out_agg = torch.cat([pos_out.squeeze(dim=-1) for pos_out in pos_out_agg], dim=0)
-        neg_out_agg = torch.cat([neg_out.squeeze(dim=-1) for neg_out in neg_out_agg], dim=0)
-        y_pred = torch.cat([pos_out_agg, neg_out_agg], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out_agg.size(0)),
-             torch.zeros(neg_out_agg.size(0))], dim=0)
-
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
-
-        # Update memory and neighbor loader with ground-truth state.
-        memory.update_state(src_orig, pos_dst_orig, t_orig, msg_orig)
-        neighbor_loader.insert(src_orig, pos_dst_orig)
-
-    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
-                    'auc': float(torch.tensor(aucs).mean()),
-                    'prec@k': float(torch.tensor(prec_at_k_list).mean()),
-                    'rec@k': float(torch.tensor(rec_at_k_list).mean()),
-                    'f1@k': float(torch.tensor(f1_at_k_list).mean()),
-                    }
-
-    return perf_metrics
-
 
 # Train & Validation
-print("INFO: =======================================")
-print("INFO: ==========*** JODIE model ***==========")
-print("INFO: =======================================")
+print("=============================================")
+print("=============*** JODIE model ***=============")
+print("=============================================")
 
-for epoch in range(n_epoch):
+for epoch in range(1, n_epoch + 1):
     start_epoch_train = time.time()
     loss = train()
     end_epoch_train = time.time()
@@ -332,13 +247,9 @@ for epoch in range(n_epoch):
 
 # ===========
 # Final Test: Since the exhaustive test takes more time, we only do it at the end of training procedure
-start_test = time.time()
-perf_metrics_test = test_exh(test_loader)
-end_test = time.time()
-for perf_name, perf_value in perf_metrics_test.items():
-    print(f"\tTest: {perf_name}: {perf_value: .4f}")
-print(f'Test: Elapsed Time (s): {end_test - start_test: .4f}')
-
-overall_end = time.time()
-print(f'Overall Elapsed Time (s): {overall_end - overall_start: .4f}')
-print("INFO: =======================================")
+start_test_time = time.time()
+test_ap, test_auc = test(test_loader)
+end_test_time = time.time()
+print("INFO: Final TEST Performance:")
+print(f'\tTest AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}, Elapsed Time (s): {end_test_time - start_test_time: .4f}')
+print("=============================================")
