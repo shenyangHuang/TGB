@@ -100,7 +100,7 @@ class LinkPredictor(torch.nn.Module):
     def forward(self, z_src, z_dst):
         h = self.lin_src(z_src) + self.lin_dst(z_dst)
         h = h.relu()
-        return self.lin_final(h)
+        return self.lin_final(h).sigmoid()
 
 # Memory Module
 memory = TGNMemory(
@@ -165,8 +165,8 @@ def train():
         z, last_update = memory(n_id)
         z = emb_module(z, last_update, n_times)
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]]).sigmoid()
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]]).sigmoid()
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
@@ -216,7 +216,7 @@ def test(loader):
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
+        y_pred = torch.cat([pos_out, neg_out], dim=0).cpu()
         y_true = torch.cat(
             [torch.ones(pos_out.size(0)),
              torch.zeros(neg_out.size(0))], dim=0)
