@@ -4,9 +4,9 @@ JODIE
     - https://github.com/twitter-research/tgn
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 
-Spec.:
-    - Memory Updater: RNN
-    - Embedding Module: time
+    Spec.:
+        - Memory Updater: RNN
+        - Embedding Module: time
 
 """
 

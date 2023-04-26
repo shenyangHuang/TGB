@@ -1,7 +1,8 @@
 """
 TGN pyG: Link Prediction
 
-source: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+Reference: 
+    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
 import os.path as osp
