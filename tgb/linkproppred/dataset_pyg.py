@@ -34,7 +34,6 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         self._test_mask = torch.from_numpy(self.dataset.test_mask)
         super().__init__(root, transform, pre_transform)
         self.node_feat = self.dataset.node_feat
-        print (self.node_feat.shape)
         self.process_data()
 
 
@@ -113,3 +112,5 @@ class PyGLinkPropPredDataset(InMemoryDataset):
 
     def __repr__(self) -> str:
         return f'{self.name.capitalize()}()'
+    
+
