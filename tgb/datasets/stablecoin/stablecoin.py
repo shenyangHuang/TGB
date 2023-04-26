@@ -5,10 +5,6 @@ import csv
 #* 1). # of unique nodes, 2). # of edges. 3). # of unique edges, 4). # of timestamps 5). min & max of edge weights, 6). recurrence of nodes
 '''
 def analyze_csv(fname):
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
-
     node_dict = {}
     edge_dict = {}
     num_edges = 0
@@ -84,12 +80,84 @@ def analyze_csv(fname):
     print ("number of nodes with # edges >= 1000 is ", num_1000)
     print ("----------------------high level statistics-------------------------")
 
+'''
+return a node dict only keeping nodes with > 10 edges
+'''
+def extract_node_dict(fname, freq=10):
+    node_dict = {}
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                line_count += 1
+            else:
+                #t,u,v,w
+                t = row[0]
+                u = row[1]
+                v = row[2]
+                w = float(row[3].strip())
+                if (u not in node_dict):
+                    node_dict[u] = 1
+                else:
+                    node_dict[u] += 1
+                
+                if (v not in node_dict):
+                    node_dict[v] = 1
+                else:
+                    node_dict[v] += 1
+
+    out_dict = {}
+    for node in node_dict:
+        if (node_dict[node] >= freq):
+            out_dict[node] = node_dict[node]
+    return out_dict
+
+
+
+"""
+remove any edges do not contain either src or dst not in the node dict
+"""
+def clean_edgelist(fname, outname, node_dict):
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['time', 'src', 'dst', 'weight']
+        write.writerow(fields)
+        with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            line_count = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    line_count += 1
+                else:
+                    #t,u,v,w
+                    t = row[0]
+                    u = row[1]
+                    v = row[2]
+                    w = float(row[3].strip())
+                    if (u in node_dict and v in node_dict):
+                        write.writerow([t, u, v, w])
+
 
 
 
 
 def main():
-    analyze_csv("coin_edgelistv3.csv")
+
+    '''
+    keeping subgraph of most active nodes
+    '''
+    # freq = 10
+    # fname = "stablecoin_edgelist.csv"
+    # node_dict = extract_node_dict(fname, freq=freq)
+
+    # outname = "stablecoin_freq10.csv"
+    # clean_edgelist(fname, outname, node_dict) 
+
+
+
+    fname = "stablecoin_freq10.csv"
+    analyze_csv(fname)
     
 
 
