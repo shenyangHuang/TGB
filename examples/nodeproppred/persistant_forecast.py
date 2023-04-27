@@ -97,7 +97,6 @@ def test_n_upate(loader):
     total_ncdg = np.zeros(len(TOP_Ks)) 
     num_labels = 0
 
-    print ("training starts")
     for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
@@ -144,7 +143,6 @@ train, val and test for one epoch only
 
 start_time = time.time()
 metric_dict = test_n_upate(train_loader)
-print ("testing persistant forecaster")
 print (metric_dict)
 print("Persistant forecast on Training takes--- %s seconds ---" % (time.time() - start_time))
 

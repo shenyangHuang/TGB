@@ -1,4 +1,5 @@
 #dataset
+*.xz
 *.parquet
 *.gz
 *.tar
@@ -13,6 +14,7 @@
 *.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
+raw/
 *.py[cod]
 *$py.class
 

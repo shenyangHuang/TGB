@@ -150,7 +150,6 @@ def train(plotting=True):
     track_ncdg = []
     num_labels = 0
 
-    print ("training starts")
     for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
@@ -252,7 +251,6 @@ def test(loader):
     total_ncdg = np.zeros(len(TOP_Ks)) 
     num_labels = 0
 
-    print ("testing starts")
     for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
