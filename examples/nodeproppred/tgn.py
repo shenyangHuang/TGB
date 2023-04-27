@@ -128,7 +128,8 @@ def plot_curve(scores, out_name):
     plt.savefig(out_name + ".pdf")
     plt.close()
 
-
+# Helper vector to map global node indices to local ones.
+assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
 def train(plotting=True):
     """
@@ -191,11 +192,12 @@ def train(plotting=True):
             """
             n_id = label_srcs
             n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            assoc[n_id_neighbors] = torch.arange(n_id_neighbors.size(0), device=device)
+
             z, last_update = memory(n_id_neighbors)
             
             z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
-
-            z = z[0:labels.shape[0]]
+            z = z[assoc[n_id]]
 
             #loss and metric computation
             pred = node_pred(z)
@@ -289,11 +291,12 @@ def test(loader):
             """
             n_id = label_srcs
             n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            assoc[n_id_neighbors] = torch.arange(n_id_neighbors.size(0), device=device)
+
             z, last_update = memory(n_id_neighbors)
             z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
-        
+            z = z[assoc[n_id]]
 
-            z = z[0:labels.shape[0]]
             #loss and metric computation
             pred = node_pred(z)
             np_pred = pred.cpu().detach().numpy()
