@@ -1,3 +1,13 @@
+"""
+Source code for torch_geometric.nn.models.tgn
+
+Reference:
+    - https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/tgn.html
+
+Date:
+    - Apr. 17, 2023
+"""
+
 import copy
 from typing import Callable, Dict, Tuple
 
@@ -36,8 +46,9 @@ class TGNMemory(torch.nn.Module):
     """
     def __init__(self, num_nodes: int, raw_msg_dim: int, memory_dim: int,
                  time_dim: int, message_module: Callable,
-                 aggregator_module: Callable,
-                 memory_updater_type: str):
+                 aggregator_module: Callable, memory_updater_type: str,
+                 use_destination_embedding_in_message: bool = False,
+                 use_source_emdbedding_in_message: bool = False):
         super().__init__()
 
         self.num_nodes = num_nodes
@@ -56,6 +67,9 @@ class TGNMemory(torch.nn.Module):
             self.memory_updater = RNNCell(message_module.out_channels, memory_dim)
         else:
             raise ValueError("Undefined memory updater!!! Memory updater can be either 'gru' or 'rnn'.")
+        
+        self.use_source_emdbedding_in_message = use_source_emdbedding_in_message
+        self.use_destination_embedding_in_message = use_destination_embedding_in_message
 
         self.register_buffer('memory', torch.empty(num_nodes, memory_dim))
         last_update = torch.empty(self.num_nodes, dtype=torch.long)
@@ -105,19 +119,19 @@ class TGNMemory(torch.nn.Module):
         return memory, last_update
 
     def update_state(self, src: Tensor, dst: Tensor, t: Tensor,
-                     raw_msg: Tensor):
+                     raw_msg: Tensor, embeddings: Tensor = None, assoc: Tensor = None):
         """Updates the memory with newly encountered interactions
         :obj:`(src, dst, t, raw_msg)`."""
         n_id = torch.cat([src, dst]).unique()
-
+        
         if self.training:
-            self._update_memory(n_id)
+            self._update_memory(n_id, embeddings, assoc)
             self._update_msg_store(src, dst, t, raw_msg, self.msg_s_store)
             self._update_msg_store(dst, src, t, raw_msg, self.msg_d_store)
         else:
             self._update_msg_store(src, dst, t, raw_msg, self.msg_s_store)
             self._update_msg_store(dst, src, t, raw_msg, self.msg_d_store)
-            self._update_memory(n_id)
+            self._update_memory(n_id, embeddings, assoc)
 
     def _reset_message_store(self):
         i = self.memory.new_empty((0, ), device=self.device, dtype=torch.long)
@@ -126,21 +140,21 @@ class TGNMemory(torch.nn.Module):
         self.msg_s_store = {j: (i, i, i, msg) for j in range(self.num_nodes)}
         self.msg_d_store = {j: (i, i, i, msg) for j in range(self.num_nodes)}
 
-    def _update_memory(self, n_id: Tensor):
-        memory, last_update = self._get_updated_memory(n_id)
+    def _update_memory(self, n_id: Tensor, embeddings: Tensor = None, assoc: Tensor = None):
+        memory, last_update = self._get_updated_memory(n_id, embeddings, assoc)
         self.memory[n_id] = memory
         self.last_update[n_id] = last_update
 
-    def _get_updated_memory(self, n_id: Tensor) -> Tuple[Tensor, Tensor]:
+    def _get_updated_memory(self, n_id: Tensor, embeddings: Tensor = None, assoc: Tensor = None) -> Tuple[Tensor, Tensor]:
         self._assoc[n_id] = torch.arange(n_id.size(0), device=n_id.device)
 
         # Compute messages (src -> dst).
         msg_s, t_s, src_s, dst_s = self._compute_msg(n_id, self.msg_s_store,
-                                                     self.msg_s_module)
+                                                     self.msg_s_module, embeddings, assoc)                                          
 
         # Compute messages (dst -> src).
         msg_d, t_d, src_d, dst_d = self._compute_msg(n_id, self.msg_d_store,
-                                                     self.msg_d_module)
+                                                     self.msg_d_module, embeddings, assoc)
 
         # Aggregate messages.
         idx = torch.cat([src_s, src_d], dim=0)
@@ -165,7 +179,7 @@ class TGNMemory(torch.nn.Module):
             msg_store[i] = (src[idx], dst[idx], t[idx], raw_msg[idx])
 
     def _compute_msg(self, n_id: Tensor, msg_store: TGNMessageStoreType,
-                     msg_module: Callable):
+                     msg_module: Callable, embeddings: Tensor = None, assoc: Tensor = None):
         data = [msg_store[i] for i in n_id.tolist()]
         src, dst, t, raw_msg = list(zip(*data))
         src = torch.cat(src, dim=0)
@@ -175,7 +189,32 @@ class TGNMemory(torch.nn.Module):
         t_rel = t - self.last_update[src]
         t_enc = self.time_enc(t_rel.to(raw_msg.dtype))
 
-        msg = msg_module(self.memory[src], self.memory[dst], raw_msg, t_enc)
+        # source nodes
+        source_memory = self.memory[src]
+        if self.use_source_emdbedding_in_message and embeddings != None:
+            if src.size(0) > 0:
+                curr_src, curr_src_idx = [], []
+                for s_idx, s in enumerate(src):
+                    if s in n_id:
+                        curr_src.append(s)
+                        curr_src_idx.append(s_idx)
+
+                source_memory[curr_src_idx] = embeddings[assoc[curr_src]]
+            
+
+        # destination nodes
+        destination_memory = self.memory[dst]
+        if self.use_destination_embedding_in_message and embeddings != None:
+            if dst.size(0) > 0:
+                curr_dst, curr_dst_idx = [], []
+                for d_idx, d in enumerate(dst):
+                    if d in n_id:
+                        curr_dst.append(d)
+                        curr_dst_idx.append(d_idx)
+                destination_memory[curr_dst_idx] = embeddings[assoc[curr_dst]]
+            
+
+        msg = msg_module(source_memory, destination_memory, raw_msg, t_enc)
 
         return msg, t, src, dst
 
@@ -228,7 +267,7 @@ class TimeEncoder(torch.nn.Module):
 
 
 class LastNeighborLoader(object):
-    def __init__(self, num_nodes: int, size: int, device=None, sample_uniform: bool = False):
+    def __init__(self, num_nodes: int, size: int, device=None):
         self.size = size
 
         self.neighbors = torch.empty((num_nodes, size), dtype=torch.long,
@@ -236,8 +275,6 @@ class LastNeighborLoader(object):
         self.e_id = torch.empty((num_nodes, size), dtype=torch.long,
                                 device=device)
         self._assoc = torch.empty(num_nodes, dtype=torch.long, device=device)
-
-        self.sample_uniform = sample_uniform  # when it is true, it samples neighbors uniformly! It's no longer `LastNeighbor`.
 
         self.reset_state()
 
@@ -291,23 +328,9 @@ class LastNeighborLoader(object):
         e_id = torch.cat([self.e_id[n_id, :self.size], dense_e_id], dim=-1)
         neighbors = torch.cat(
             [self.neighbors[n_id, :self.size], dense_neighbors], dim=-1)
-        
-        if self.sample_uniform:
-            # sample neighbors uniformly; ONLY TGAT uses this option
-            # @TODO: this might not be the most efficient implementation!
-            mask = e_id >= 0
-            nei_counts = mask.sum(dim=1).unsqueeze(1)
-            nei_prob = torch.zeros(e_id.size(), device=e_id.device)
-            for i in range(nei_counts.size(0)):
-                prob = 1.0 / nei_counts[i, 0]
-                nei_prob[i, mask[i, :]] = torch.tensor([prob for _ in range(nei_counts[i, 0])], dtype=torch.float, device=e_id.device)
-            # uniform_p = torch.full(e_id.size(), 1.0/self.size).to(e_id.device)
-            perm = nei_prob.multinomial(self.size)
-            e_id = e_id[torch.arange(e_id.size(0)).unsqueeze(1), perm]
-        else:
-            # And sort them based on `e_id`.
-            e_id, perm = e_id.topk(self.size, dim=-1)  # sample the most recent neighbors
 
+        # And sort them based on `e_id`.
+        e_id, perm = e_id.topk(self.size, dim=-1)
         self.e_id[n_id] = e_id
         self.neighbors[n_id] = torch.gather(neighbors, 1, perm)
 
