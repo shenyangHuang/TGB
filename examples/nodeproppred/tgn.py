@@ -1,26 +1,10 @@
-# This code achieves a performance of around 96.60%. However, it is not
-# directly comparable to the results reported by the TGN paper since a
-# slightly different evaluation setup is used here.
-# In particular, predictions in the same batch are made in parallel, i.e.
-# predictions for interactions later in the batch have no access to any
-# information whatsoever about previous interactions in the same batch.
-# On the contrary, when sampling node neighborhoods for interactions later in
-# the batch, the TGN paper code has access to previous interactions in the
-# batch.
-# While both approaches are correct, together with the authors of the paper we
-# decided to present this version here as it is more realsitic and a better
-# test bed for future methods.
-
-import os.path as osp
 from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.metrics import ndcg_score
 from torch.nn import Linear
 
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TGNMemory, TransformerConv
 from torch_geometric.nn.models.tgn import (
@@ -36,6 +20,7 @@ import time
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+torch.manual_seed(12345)
 
 name = "lastfmgenre"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
@@ -131,6 +116,11 @@ def plot_curve(scores, out_name):
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
+def process_edges(src, dst, t, msg):
+    if src.nelement() > 0:
+        memory.update_state(src, dst, t, msg)
+        neighbor_loader.insert(src, dst)
+
 def train(plotting=True):
     """
     also want to track the training curve now
@@ -155,8 +145,7 @@ def train(plotting=True):
     for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
-
+        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         query_t = batch.t[-1]
 
@@ -170,19 +159,11 @@ def train(plotting=True):
             label_srcs = label_srcs.to(device)
 
 
-            #process all edges that are still in the past day
-            split_id = 0
-            for t_id in range(batch.t.shape[0]):
-                if (batch.t[t_id] > label_t):
-                    split_id = t_id
-                    break
-
-            #first update the batch before the day change
-            if (split_id > 0):
-                # the edges in the batch in previous day
-                src, pos_dst, t, msg = batch.src[0:split_id], batch.dst[0:split_id], batch.t[0:split_id], batch.msg[0:split_id]
-                memory.update_state(src, pos_dst, t, msg)
-                neighbor_loader.insert(src, pos_dst)
+            # Process all edges that are still in the past day
+            previous_day_mask = batch.t < label_t
+            process_edges(src[previous_day_mask], dst[previous_day_mask], t[previous_day_mask], msg[previous_day_mask])
+            # Reset edges to be the edges from tomorrow so they can be used later
+            src, dst, t, msg = src[~previous_day_mask], dst[~previous_day_mask], t[~previous_day_mask], msg[~previous_day_mask]
 
             """
             modified for node property prediction
@@ -217,14 +198,8 @@ def train(plotting=True):
             optimizer.step()
             total_loss += float(loss)
 
-            # the edges in the batch in the next day
-            src, pos_dst, t, msg = batch.src[split_id:], batch.dst[split_id:], batch.t[split_id:], batch.msg[split_id:]
-
-
-        #! only memory update here
         # Update memory and neighbor loader with ground-truth state.
-        memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
+        process_edges(src, dst, t, msg)
         memory.detach()
 
     if (plotting):
@@ -246,7 +221,6 @@ def test(loader):
     gnn.eval()
     node_pred.eval()
 
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
     total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
     #TOP_K = 10
@@ -257,7 +231,7 @@ def test(loader):
     print ("testing starts")
     for batch in tqdm(loader):
         batch = batch.to(device)
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         query_t = batch.t[-1]
         if (query_t > label_t):
@@ -268,19 +242,11 @@ def test(loader):
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
-            #process all edges that are still in the past day
-            split_id = 0
-            for t_id in range(batch.t.shape[0]):
-                if (batch.t[t_id] > label_t):
-                    split_id = t_id
-                    break
-
-            #first update the batch before the day change
-            if (split_id > 0):
-                # the edges in the batch in previous day
-                src, pos_dst, t, msg = batch.src[0:split_id], batch.dst[0:split_id], batch.t[0:split_id], batch.msg[0:split_id]
-                memory.update_state(src, pos_dst, t, msg)
-                neighbor_loader.insert(src, pos_dst)
+            # Process all edges that are still in the past day
+            previous_day_mask = batch.t < label_t
+            process_edges(src[previous_day_mask], dst[previous_day_mask], t[previous_day_mask], msg[previous_day_mask])
+            # Reset edges to be the edges from tomorrow so they can be used later
+            src, dst, t, msg = src[~previous_day_mask], dst[~previous_day_mask], t[~previous_day_mask], msg[~previous_day_mask]
 
 
             """
@@ -307,12 +273,8 @@ def test(loader):
                 total_ncdg[i] += ncdg_score * label_ts.shape[0]
 
             num_labels += label_ts.shape[0]
-            # the edges in the batch in the next day
-            src, pos_dst, t, msg = batch.src[split_id:], batch.dst[split_id:], batch.t[split_id:], batch.msg[split_id:]
 
-
-        memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
+        process_edges(src, dst, t, msg)
 
     metric_dict = {}
 
