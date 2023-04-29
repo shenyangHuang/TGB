@@ -78,7 +78,7 @@ def analyze_csv(fname):
 
 def main():
     #fname = "../datasets/flight_raw/opensky/opensky_edgelist.csv"
-    fname = "../datasets/flight_raw/opensky/opensky_edgelist.csv"
+    fname = "../datasets/lastfmgenre/lastfmgenre_raw/lastfmgenre_edgelist.csv"
     analyze_csv(fname)
 
 
