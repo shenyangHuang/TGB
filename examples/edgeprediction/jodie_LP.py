@@ -33,9 +33,6 @@ from models.tgn import TGNMemory
 from edgepred_utils import *
 
 
-# set the clock for tracking the time
-overall_start = time.time()
-
 # set the global parameters
 LR = 0.0001
 batch_size = 200

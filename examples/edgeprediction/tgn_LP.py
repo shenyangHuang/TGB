@@ -384,7 +384,7 @@ def test_exh_one_pos_vs_all(loader):
                     'prec@k': float(torch.tensor(prec_at_k_list).mean()),
                     'rec@k': float(torch.tensor(rec_at_k_list).mean()),
                     'f1@k': float(torch.tensor(f1_at_k_list).mean()),
-                    'hit@k': float(torch.tensor(hist_at_k_list).mean()),
+                    'hits@k': float(torch.tensor(hist_at_k_list).mean()),
                     'mrr': float(torch.tensor(torch.stack(mrr_list)).mean()),
                     # 'mrr_hits@k': float(torch.tensor(torch.stack(hists_mrr)).mean()),
                     }
