@@ -92,46 +92,58 @@ def combine_edgelist_edgefeat(edgefname,
     total_lines = sum(1 for line in open(edgefname))
     subreddit_ids = {}
 
+    missing_ts = 0
+    missing_src = 0
+    missing_dst = 0
+    line_idx = 0
+
+
 
     with open(outname, 'w') as outf:
         write = csv.writer(outf)
         fields = ['ts', 'src', 'dst', 'subreddit', 'num_words', 'score']
         write.writerow(fields)
-        line_idx = 0
         sub_id = 0
         edgelist = open(edgefname, "r")
         edgefeat = open(featfname, "r")
         edgelist.readline()
         edgefeat.readline()
 
-        while (line_idx < total_lines):
+        while (True):
             #'ts', 'src', 'dst', 'edge_id'
             edge_line = edgelist.readline()
-            edge_id = int(edge_line.split(",")[3])
-            ts = int(edge_line.split(",")[0])
-            src = int(edge_line.split(",")[1])
-            dst = int(edge_line.split(",")[2])
+            edge_line = edge_line.split(",")
+            if (len(edge_line) < 4):
+                break
+            edge_id = int(edge_line[3])
+            ts = int(edge_line[0])
+            src = int(edge_line[1])
+            dst = int(edge_line[2])
 
 
             #'edge_id', 'subreddit', 'num_characters', 'num_words', 'score', 'edited_flag'
             feat_line = edgefeat.readline()
-            edge_id_feat = int(feat_line.split(",")[0])
-            subreddit = feat_line.split(",")[1]
+            feat_line = feat_line.split(",")
+            edge_id_feat = int(feat_line[0])
+            subreddit = feat_line[1]
             if (subreddit not in subreddit_ids):
                 subreddit_ids[subreddit] = sub_id
                 sub_id += 1
             subreddit = subreddit_ids[subreddit]
-            num_characters = int(feat_line.split(",")[2])
-            num_words = int(feat_line.split(",")[3])
-            score = int(feat_line.split(",")[4])
-            edited_flag = bool(feat_line.split(",")[5])
+            num_characters = int(feat_line[2])
+            num_words = int(feat_line[3])
+            score = int(feat_line[4])
+            edited_flag = bool(feat_line[5])
 
             #! check if ts, src, dst is -1
             if (ts == -1):
+                missing_ts += 1
                 continue
             if (src == -1):
+                missing_src += 1
                 continue
             if (dst == -1):
+                missing_dst += 1
                 continue
             
 
@@ -142,6 +154,12 @@ def combine_edgelist_edgefeat(edgefname,
                 break
             
             write.writerow([ts, src, dst, subreddit, num_words, score])
+            line_idx += 1
+    print ("processed", line_idx, "lines")
+    # print ("there are lines", missing_ts, " missing timestamps")
+    # print ("there are lines", missing_src, " missing src")
+    # print ("there are lines", missing_dst, " missing dst")
+
 
 
 
