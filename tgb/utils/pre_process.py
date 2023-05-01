@@ -7,14 +7,14 @@ import time
 import csv
 from datetime import datetime
 """
-functions for stablecoin
+functions for redditcomments
 -------------------------------------------
 """
-def csv_to_pd_data_sc(
+def csv_to_pd_data_rc(
         fname: str,
         ) -> pd.DataFrame:
     r'''
-    currently used by open sky dataset
+    currently used by redditcomments dataset
     convert the raw .csv data to pandas dataframe and numpy array
     input .csv file format should be: timestamp, node u, node v, attributes
     Args:
@@ -30,45 +30,122 @@ def csv_to_pd_data_sc(
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
+    node_ids = {}
+    unique_id = 0
+
+
+    '''
+    continue coding here
+    
+    '''
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # 'ts', 'src', 'dst', 'subreddit', 'num_characters', 'num_words', 'score', 'edited_flag', 'edge_id'
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                ts = int(row[0])
+                src = row[1]
+                dst = row[2]
+
+                if (src not in node_ids):
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if (dst not in node_ids):
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+
+                w = float(row[3])
+                if (w == 0):
+                    w = 1 
+
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = np.zeros(feat_size)
+                idx += 1
+
+    
+
+
+
+
+
+
+"""
+functions for stablecoin
+-------------------------------------------
+"""
+def csv_to_pd_data_sc(
+        fname: str,
+        ) -> pd.DataFrame:
+    r'''
+    currently used by stablecoin dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, node u, node v, attributes
+    Parameters:
+        fname: the path to the raw data
+    Returns:
+        df: a pandas dataframe containing the edgelist data
+        feat_l: a numpy array containing the node features
+        node_ids: a dictionary mapping node id to integer
+    '''
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
     print ("numpy allocated")
-    TIME_FORMAT = "%Y-%m-%d" #2019-01-01
     node_ids = {}
     unique_id = 0
 
     with open(fname, "r") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            idx = 0
-            # time,src,dst,weight
-            # 1648811421,0x27cbb0e6885ccb1db2dab7c2314131c94795fbef,0x8426a27add8dca73548f012d92c7f8f4bbd42a3e,800.0
-            for row in tqdm(csv_reader):
-                if (idx == 0):
-                    idx += 1
-                    continue
-                else:
-                    ts = int(row[0])
-                    src = row[1]
-                    dst = row[2]
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # time,src,dst,weight
+        # 1648811421,0x27cbb0e6885ccb1db2dab7c2314131c94795fbef,0x8426a27add8dca73548f012d92c7f8f4bbd42a3e,800.0
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+                continue
+            else:
+                ts = int(row[0])
+                src = row[1]
+                dst = row[2]
 
-                    if (src not in node_ids):
-                        node_ids[src] = unique_id
-                        unique_id += 1
-                    if (dst not in node_ids):
-                        node_ids[dst] = unique_id
-                        unique_id += 1
+                if (src not in node_ids):
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if (dst not in node_ids):
+                    node_ids[dst] = unique_id
+                    unique_id += 1
 
-                    w = float(row[3])
-                    if (w == 0):
-                        w = 1 
+                w = float(row[3])
+                if (w == 0):
+                    w = 1 
 
-                    u = node_ids[src]
-                    i = node_ids[dst]
-                    u_list[idx-1] = u
-                    i_list[idx-1] = i
-                    ts_list[idx-1] = ts
-                    idx_list[idx-1] = idx
-                    w_list[idx-1] = w
-                    feat_l[idx-1] = np.zeros(feat_size)
-                    idx += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = np.zeros(feat_size)
+                idx += 1
 
     #! normalize by log 2 for stablecoin
     w_list = np.log2(w_list)

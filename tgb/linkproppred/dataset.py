@@ -9,7 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc
+from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc
 from tgb.utils.utils import save_pkl, load_pkl
 
 
@@ -146,6 +146,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['fname'])  
             elif (self.name == "stablecoin"):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])  
+            elif (self.name == "redditcomments"):
+                df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict['fname'])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -300,8 +302,9 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    #name = "opensky"
-    name = "stablecoin"
+    # name = "opensky"
+    # name = "stablecoin"
+    name = "redditcomments"
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat
