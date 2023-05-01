@@ -90,12 +90,15 @@ def combine_edgelist_edgefeat(edgefname,
     combine edgelist and edge features
     """
     total_lines = sum(1 for line in open(edgefname))
+    subreddit_ids = {}
+
 
     with open(outname, 'w') as outf:
         write = csv.writer(outf)
-        fields = ['ts', 'src', 'dst', 'subreddit', 'num_characters', 'num_words', 'score', 'edited_flag', 'edge_id']
+        fields = ['ts', 'src', 'dst', 'subreddit', 'num_words', 'score']
         write.writerow(fields)
         line_idx = 0
+        sub_id = 0
         edgelist = open(edgefname, "r")
         edgefeat = open(featfname, "r")
         edgelist.readline()
@@ -114,17 +117,31 @@ def combine_edgelist_edgefeat(edgefname,
             feat_line = edgefeat.readline()
             edge_id_feat = int(feat_line.split(",")[0])
             subreddit = feat_line.split(",")[1]
+            if (subreddit not in subreddit_ids):
+                subreddit_ids[subreddit] = sub_id
+                sub_id += 1
+            subreddit = subreddit_ids[subreddit]
             num_characters = int(feat_line.split(",")[2])
             num_words = int(feat_line.split(",")[3])
             score = int(feat_line.split(",")[4])
             edited_flag = bool(feat_line.split(",")[5])
+
+            #! check if ts, src, dst is -1
+            if (ts == -1):
+                continue
+            if (src == -1):
+                continue
+            if (dst == -1):
+                continue
+            
 
             if (edge_id != edge_id_feat):
                 print("edge_id != edge_id_feat")
                 print(edge_id)
                 print(edge_id_feat)
                 break
-            write.writerow([ts, src, dst, subreddit, num_characters, num_words, score, edited_flag, edge_id])
+            
+            write.writerow([ts, src, dst, subreddit, num_words, score])
 
 
 

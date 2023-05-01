@@ -168,6 +168,8 @@ class LinkPropPredDataset(object):
         Parameters:
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
+        #TODO for link prediction, y =1 because these are all true edges, edge feat = weight + edge feat
+
         #check if path to file is valid 
         df, edge_feat, node_feat = self.generate_processed_files()
         sources = np.array(df['u'])
@@ -178,10 +180,13 @@ class LinkPropPredDataset(object):
 
         #y should be 1 for all pos edges
         y = np.ones(len(df))
-        self._edge_feat = edge_feat
-        if (self.name == "stablcoin"):
-            # use weight as edge feature for weighted graph
-            self._edge_feat = weights.reshape(-1,1)
+        self._edge_feat = edge_feat + weights.reshape(-1,1)  #reshape weights as feature if available
+
+        #TODO to remove
+        # self._edge_feat = edge_feat
+        # if (self.name == "stablcoin"):
+        #     # use weight as edge feature for weighted graph
+        #     self._edge_feat = weights.reshape(-1,1)
 
         self._node_feat = node_feat
 

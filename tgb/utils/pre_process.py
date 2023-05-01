@@ -20,9 +20,10 @@ def csv_to_pd_data_rc(
     Args:
         fname: the path to the raw data
     '''
-    feat_size = 1
+    feat_size = 2 #1 for subreddit, 1 for num words
     num_lines = sum(1 for line in open(fname)) - 1
     print ("number of lines counted", num_lines)
+    print ("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
     ts_list = np.zeros(num_lines)
@@ -31,18 +32,16 @@ def csv_to_pd_data_rc(
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
     node_ids = {}
+
     unique_id = 0
+    max_words = 5000 #counted form statistics 
+    num_subreddits = 15426 #counted from statistics
 
-
-    '''
-    continue coding here
-    
-    '''
 
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         idx = 0
-        # 'ts', 'src', 'dst', 'subreddit', 'num_characters', 'num_words', 'score', 'edited_flag', 'edge_id'
+        # ['ts', 'src', 'dst', 'subreddit', 'num_words', 'score']
         for row in tqdm(csv_reader):
             if (idx == 0):
                 idx += 1
@@ -51,18 +50,19 @@ def csv_to_pd_data_rc(
                 ts = int(row[0])
                 src = row[1]
                 dst = row[2]
+                subreddit = (int(row[3]) / num_subreddits)  #unique id assigned to each subreddit, normalize to [0,1]
+                num_words = (int(row[4]) / max_words) #int number, normalize to [0,1]
+                score = int(row[5]) #int number
 
+
+                #reindexing node and subreddits
                 if (src not in node_ids):
                     node_ids[src] = unique_id
                     unique_id += 1
                 if (dst not in node_ids):
                     node_ids[dst] = unique_id
                     unique_id += 1
-
-                w = float(row[3])
-                if (w == 0):
-                    w = 1 
-
+                w = float(score)
                 u = node_ids[src]
                 i = node_ids[dst]
                 u_list[idx-1] = u
@@ -70,8 +70,18 @@ def csv_to_pd_data_rc(
                 ts_list[idx-1] = ts
                 idx_list[idx-1] = idx
                 w_list[idx-1] = w
-                feat_l[idx-1] = np.zeros(feat_size)
+                feat_l[idx-1] = np.array([subreddit, num_words])
                 idx += 1
+    print ("there are ", len(node_ids), " unique nodes")
+
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'label': label_list,
+                        'idx': idx_list,
+                        'w':w_list}), feat_l, node_ids
+
+
 
     
 
