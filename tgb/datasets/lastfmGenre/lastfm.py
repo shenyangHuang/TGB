@@ -306,18 +306,6 @@ def generate_aggregate_labels(fname: str,
                 
 
 
-
-
-
-
-
-
-
-def load_node_labels():
-    print ("hi")
-
-
-
 # def generate_weekly_labels(
 #                     fname: str,
 #                     days : int = 7,

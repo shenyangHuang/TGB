@@ -65,21 +65,108 @@ def combine_edgelist_edgefeat2subreddits(edgefname,
     print ("processed", line_idx, "lines")
 
 
-def filter_subreddits(fname,
-                      outname):
+def filter_subreddits(fname):
     """
     check the frequency of subreddits
     """
-    print ("hi")
+    subreddit_count = {}
+    node_count = {}
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
-        #callsign,number,icao24,registration,typecode,origin,destination,firstseen,lastseen,day,latitude_1,longitude_1,altitude_1,latitude_2,longitude_2,altitude_2
+        #ts, src, subreddit, num_words, score
         for row in csv_reader:
             if line_count == 0:
                 line_count += 1
             else:
-                row[1]
+                ts = row[0]
+                src = row[1]
+                subreddit = row[2]
+                if (subreddit not in subreddit_count):
+                    subreddit_count[subreddit] = 1
+                else:
+                    subreddit_count[subreddit] += 1
+                if (src not in node_count):
+                    node_count[src] = 1
+                else:
+                    node_count[src] += 1
+    return subreddit_count, node_count
+
+
+def clean_edgelist(fname, 
+                   node_counts, 
+                   outname, 
+                   threshold=1000):
+    """
+    helper function for filtering out low frequency nodes
+    """
+    node_dict = {}
+    
+    for node in node_counts:
+        if (node_counts[node] >= threshold):
+            node_dict[node] = 1
+            
+            
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['ts', 'user', 'subreddit', 'num_words', 'score']
+        write.writerow(fields)
+            
+        with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            line_count = 0
+            #ts, src, subreddit, num_words, score
+            for row in csv_reader:
+                if line_count == 0:
+                    line_count += 1
+                else:
+                    ts = row[0]
+                    src = row[1]
+                    subreddit = row[2]
+                    num_words = int(row[3])
+                    score = int(row[4])
+                    if (src in node_dict):
+                        write.writerow([ts, src, subreddit, num_words, score])
+
+
+def clean_edgelist_reddits(
+                    fname, 
+                   reddit_counts, 
+                   outname, 
+                   threshold=50
+                    ):
+    """
+    helper function for filtering out low frequency subreddits
+    """
+    reddit_dict = {}
+    
+    for reddit in reddit_counts:
+        if (reddit_counts[reddit] >= threshold):
+            reddit_dict[reddit] = 1
+            
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['ts', 'user', 'subreddit', 'num_words', 'score']
+        write.writerow(fields)
+        with open(fname, "r") as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=',')
+                line_count = 0
+                #ts, src, subreddit, num_words, score
+                for row in csv_reader:
+                    if line_count == 0:
+                        line_count += 1
+                    else:
+                        ts = row[0]
+                        src = row[1]
+                        subreddit = row[2]
+                        num_words = int(row[3])
+                        score = int(row[4])
+                        if (subreddit in reddit_dict):
+                            write.writerow([ts, src, subreddit, num_words, score])
+            
+            
+        
+    
 
 
 
@@ -95,18 +182,53 @@ def filter_subreddits(fname,
 
 
 def main():
-    #? see redditcomments.py for the extraction from the raw files
+    # #? see redditcomments.py for the extraction from the raw files
 
-    #! combine edgelist and edge feat file check if the edge_id matches
-    edgefname = "redditcomments_edgelist_2005_2010.csv"
-    featfname = "redditcomments_edgefeat_2005_2010.csv"
-    outname = "subreddits_edgelist.csv"
-    combine_edgelist_edgefeat2subreddits(edgefname, featfname, outname)
-
+    # #! combine edgelist and edge feat file check if the edge_id matches
+    # edgefname = "redditcomments_edgelist_2005_2010.csv"
+    # featfname = "redditcomments_edgefeat_2005_2010.csv"
+    # outname = "subreddits_edgelist.csv"
+    # combine_edgelist_edgefeat2subreddits(edgefname, featfname, outname)
+    
+    
+    # #! frequency count of nodes
+    # fname = "subreddits_edgelist.csv"
+    # outname = "subreddits_edgelist_clean.csv"
+    # subreddit_count, node_count = filter_subreddits(fname)
+    # threshold = 1000
+    # clean_edgelist(fname, node_count, outname, threshold=threshold)
+    # print ("finish cleaning")
+    
+    
+    #! frequency count of reddits
+    fname = "subreddits_edgelist_clean.csv"
+    outname = "subreddits_edgelist_clean_reddit.csv"
+    subreddit_count, node_count = filter_subreddits(fname)
+    clean_edgelist_reddits(fname, subreddit_count, outname, threshold=50)
     
     #! analyze the extracted csv
-    # fname = "subreddits_edgelist.csv"
+    # fname = "subreddits_edgelist_clean_reddit.csv" #"subreddits_edgelist_clean.csv"
     # analyze_csv(fname)
+    # sub_10 = 0
+    # sub_50 = 0 
+    # sub_100 = 0
+    # sub_1000 = 0
+    
+    # for sub in subreddit_count:
+    #     if (subreddit_count[sub] >= 10):
+    #         sub_10 += 1
+    #     if (subreddit_count[sub] >= 50):
+    #         sub_50 += 1
+    #     if (subreddit_count[sub] >= 100):
+    #         sub_100 += 1
+    #     if (subreddit_count[sub] >= 1000):
+    #         sub_1000 += 1
+    # print ("subreddit count:", len(subreddit_count))
+    # print ("subreddit >= 10:", sub_10)
+    # print ("subreddit >= 50:", sub_50)
+    # print ("subreddit >= 100:", sub_100)
+    # print ("subreddit >= 1000:", sub_1000)
+    
 
 
 
