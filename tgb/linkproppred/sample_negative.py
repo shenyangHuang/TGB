@@ -60,7 +60,6 @@ class NegativeEdgeSampler(object):
                 - the list of positive edges (which only contain itself)
                 - the list of possible negative edges to compare against
         """
-        sample_size = pos_src.size(0)
         all_dst = torch.arange(self.first_dst_id, self.last_dst_id + 1)
 
         edges_per_pos_edge = {}
@@ -91,7 +90,6 @@ class NegativeEdgeSampler(object):
                 - the list of positive edges in the batch 
                 - the list of possible negative edges to compare against
         """
-        sample_size = pos_src.size(0)
         all_dst = torch.arange(self.first_dst_id, self.last_dst_id + 1)
 
         edges_per_node = {}
