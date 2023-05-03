@@ -44,7 +44,7 @@ data = data.to(device)
 # set the global parameters
 LR = 0.0001
 batch_size = 200
-n_epoch = 20
+n_epoch = 50
 seed = 123
 memory_dim = time_dim = embedding_dim = 100
 

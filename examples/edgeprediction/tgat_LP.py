@@ -35,7 +35,7 @@ from models.tgn import LastNeighborLoader
 # set the global parameters
 LR = 0.0001
 batch_size = 200
-n_epoch = 20
+n_epoch = 50
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

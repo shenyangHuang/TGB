@@ -7,6 +7,7 @@ JODIE
     Spec.:
         - Memory Updater: RNN
         - Embedding Module: time
+        - (No time encoder)
 
 """
 
@@ -36,7 +37,7 @@ from edgepred_utils import *
 # set the global parameters
 LR = 0.0001
 batch_size = 200
-n_epoch = 20
+n_epoch = 5
 
 memory_dim = time_dim = embedding_dim = 100
 
@@ -160,7 +161,7 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = memory(n_id)
-        z = emb_module(z, last_update, n_times)
+        # z = emb_module(z, last_update, n_times)
 
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
@@ -208,7 +209,7 @@ def test(loader):
         n_times = all_times[first_idices]
 
         z, last_update = memory(n_id)
-        z = emb_module(z, last_update, n_times)
+        # z = emb_module(z, last_update, n_times)
 
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
