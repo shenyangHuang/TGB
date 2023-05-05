@@ -35,7 +35,6 @@ def csv_to_pd_data_rc(
 
     unique_id = 0
     max_words = 5000 #counted form statistics 
-    num_subreddits = 15426 #counted from statistics
 
 
     with open(fname, "r") as csv_file:
@@ -50,9 +49,8 @@ def csv_to_pd_data_rc(
                 ts = int(row[0])
                 src = row[1]
                 dst = row[2]
-                subreddit = (int(row[3]) / num_subreddits)  #unique id assigned to each subreddit, normalize to [0,1]
-                num_words = (int(row[4]) / max_words) #int number, normalize to [0,1]
-                score = int(row[5]) #int number
+                num_words = (int(row[3]) / max_words) #int number, normalize to [0,1]
+                score = int(row[4]) #int number
 
 
                 #reindexing node and subreddits
@@ -70,7 +68,7 @@ def csv_to_pd_data_rc(
                 ts_list[idx-1] = ts
                 idx_list[idx-1] = idx
                 w_list[idx-1] = w
-                feat_l[idx-1] = np.array([subreddit, num_words])
+                feat_l[idx-1] = np.array([num_words])
                 idx += 1
     print ("there are ", len(node_ids), " unique nodes")
 

@@ -88,6 +88,7 @@ def combine_edgelist_edgefeat(edgefname,
                               outname):
     """
     combine edgelist and edge features
+    #! remove subreddit from feature
     """
     total_lines = sum(1 for line in open(edgefname))
     subreddit_ids = {}
@@ -153,7 +154,8 @@ def combine_edgelist_edgefeat(edgefname,
                 print(edge_id_feat)
                 break
             
-            write.writerow([ts, src, dst, subreddit, num_words, score])
+            #write.writerow([ts, src, dst, subreddit, num_words, score])
+            write.writerow([ts, src, dst, num_words, score])
             line_idx += 1
     print ("processed", line_idx, "lines")
     # print ("there are lines", missing_ts, " missing timestamps")
