@@ -250,8 +250,8 @@ def generate_aggregate_labels(fname: str,
                               days: int = 7):
     """
     aggregate the genres over a number of days,  as specified by days
-
-    # TODO generate the labels in a rolling basis
+    #! current generation includes edges from the day of the label, thus the label should be set to be beginning of the day
+    prediction should always be at the first second of the day
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -286,7 +286,7 @@ def generate_aggregate_labels(fname: str,
                 date_prev = date(year,month,day)
                 user_prev = user_id
 
-            if ((date_cur - date_prev).days <= days):
+            if ((date_cur - date_prev).days <= days):  #! this means that the date = [0,7] which includes the current day
                 if (genre not in genre_dict):
                     genre_dict[genre] = w
                 else:
@@ -304,18 +304,6 @@ def generate_aggregate_labels(fname: str,
                 genre_dict = {}
         
                 
-
-
-
-
-
-
-
-
-
-def load_node_labels():
-    print ("hi")
-
 
 
 # def generate_weekly_labels(

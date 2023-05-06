@@ -9,7 +9,7 @@ import requests
 from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc
+from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc
 from tgb.utils.utils import save_pkl, load_pkl
 
 
@@ -146,6 +146,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict['fname'])  
             elif (self.name == "stablecoin"):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])  
+            elif (self.name == "redditcomments"):
+                df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict['fname'])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -166,6 +168,8 @@ class LinkPropPredDataset(object):
         Parameters:
             feat_dim: dimension for feature vectors, padded to 172 with zeros
         '''
+        #TODO for link prediction, y =1 because these are all true edges, edge feat = weight + edge feat
+
         #check if path to file is valid 
         df, edge_feat, node_feat = self.generate_processed_files()
         sources = np.array(df['u'])
@@ -176,10 +180,13 @@ class LinkPropPredDataset(object):
 
         #y should be 1 for all pos edges
         y = np.ones(len(df))
-        self._edge_feat = edge_feat
-        if (self.name == "stablcoin"):
-            # use weight as edge feature for weighted graph
-            self._edge_feat = weights.reshape(-1,1)
+        self._edge_feat = edge_feat + weights.reshape(-1,1)  #reshape weights as feature if available
+
+        #TODO to remove
+        # self._edge_feat = edge_feat
+        # if (self.name == "stablcoin"):
+        #     # use weight as edge feature for weighted graph
+        #     self._edge_feat = weights.reshape(-1,1)
 
         self._node_feat = node_feat
 
@@ -300,8 +307,9 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    #name = "opensky"
-    name = "stablecoin"
+    # name = "opensky"
+    # name = "stablecoin"
+    name = "redditcomments"
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat

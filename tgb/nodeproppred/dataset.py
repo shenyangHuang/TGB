@@ -57,6 +57,9 @@ class NodePropertyDataset(object):
             self.meta_dict["genre_fname"] = self.root + "/genre_list_final.csv"
             self.meta_dict["edge_fname"] = self.root + "/ml_lastfmgenre.pkl"
             self.meta_dict["node_fname"] = self.root + "/ml_lastfmgenre_node.pkl"
+        elif (name == "subreddits"):
+            self.meta_dict["edge_fname"] = self.root + "/" + "subreddits_edgelist.csv"
+            self.meta_dict["node_fname"] = self.root + "/" + "subreddits_node_labels.csv"
 
 
 
@@ -353,7 +356,7 @@ class NodePropertyDataset(object):
 
 def main():
     # download files
-    name = "lastfmgenre"
+    name = "subreddits" #"lastfmgenre"
     dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
 
     

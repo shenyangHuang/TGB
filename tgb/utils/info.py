@@ -26,6 +26,8 @@ DATA_URL_DICT ={
     "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",
     "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
     "stablecoin": "https://object-arbutus.cloud.computecanada.ca/tgb/stablecoin.zip",
+    "redditcomments": "https://object-arbutus.cloud.computecanada.ca/tgb/redditcomments.zip",
+    "subreddits": "https://object-arbutus.cloud.computecanada.ca/tgb/subreddits.zip"
 }
 
 

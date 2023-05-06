@@ -1,4 +1,5 @@
 #dataset
+*.xz
 *.parquet
 *.gz
 *.tar
@@ -13,6 +14,7 @@
 *.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
+raw/
 *.py[cod]
 *$py.class
 
@@ -106,6 +108,7 @@ ipython_config.py
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
+__pycache__/
 
 # Celery stuff
 celerybeat-schedule
@@ -122,6 +125,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+cc_env.sh
 
 # Spyder project settings
 .spyderproject
