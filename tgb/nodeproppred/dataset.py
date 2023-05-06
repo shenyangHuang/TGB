@@ -10,8 +10,7 @@ from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
 from tgb.utils.utils import save_pkl, load_pkl
-from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, _to_pd_data, reindex
-
+from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, load_edgelist_sr, load_labels_rc
 
 # TODO add node label loading code, node label convertion to unix time code etc.
 class NodePropertyDataset(object):
@@ -48,21 +47,12 @@ class NodePropertyDataset(object):
         self.root = osp.join(root, self.dir_name)
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
-            self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+            self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist.csv"
+            self.meta_dict["nodefile"] = self.root + "/" + self.name + "_node_labels.csv"
 
-        #! Attention, this is last fm specific syntax now
         if (name == "lastfmgenre"):
-            #self.meta_dict["edge_fname"] = self.root + "/sorted_lastfm_edgelist.csv"
-            #self.meta_dict["node_fname"] = self.root + "/sorted_7days_node_labels.csv"
             self.meta_dict["genre_fname"] = self.root + "/genre_list_final.csv"
-            self.meta_dict["edge_fname"] = self.root + "/ml_lastfmgenre.pkl"
-            self.meta_dict["node_fname"] = self.root + "/ml_lastfmgenre_node.pkl"
-        elif (name == "subreddits"):
-            self.meta_dict["edge_fname"] = self.root + "/" + "subreddits_edgelist.csv"
-            self.meta_dict["node_fname"] = self.root + "/" + "subreddits_node_labels.csv"
-
-
-
+          
         #initialize
         self._node_feat = None
         self._edge_feat = None
@@ -88,7 +78,7 @@ class NodePropertyDataset(object):
         check if files are already downloaded
         """
         #check if the file already exists
-        if (osp.exists(self.meta_dict["edge_fname"]) and osp.exists(self.meta_dict["genre_fname"]) + osp.exists(self.meta_dict["node_fname"])):
+        if (osp.exists(self.meta_dict["fname"]) and osp.exists(self.meta_dict["nodefile"])):
             print ("file found, skipping download")
             return
 
@@ -102,7 +92,6 @@ class NodePropertyDataset(object):
                     raise Exception("Dataset url not found, download not supported yet.")
                 else:
                     r = requests.get(self.url, stream=True)
-                    #download_dir = self.root + "/" + "download"
                     if osp.isdir(self.root):
                         print("Dataset directory is ", self.root)
                     else:
@@ -145,17 +134,24 @@ class NodePropertyDataset(object):
         else:
             #! now directly load the processed files and not providing the raw files
             print ("file not processed, generating processed file")
-            print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
-            genre_index = load_genre_list(self.meta_dict["genre_fname"])
-            print ("processing temporal edge list")
-            df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
-            #df = reindex(df, bipartite=True)
-            print ("processed edgelist now save to pkl")
-            df.to_pickle(OUT_DF)
-            #save_pkl(user_index, self.root + '/' + "user_index.pkl")
-            print ("processing temporal node labels")
-            node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
-            node_df.to_pickle(OUT_NODE_DF)
+            #print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
+            if (self.name == "subreddits"):
+                df, edge_feat, node_ids, rd_dict = load_edgelist_sr(self.meta_dict["fname"])
+                df.to_pickle(OUT_DF)
+                node_df = load_node_labels(self.meta_dict["nodefile"], node_ids, rd_dict)
+                node_df.to_pickle(OUT_NODE_DF)
+                
+
+            if (self.name == "lastfmgenre"):
+                genre_index = load_genre_list(self.meta_dict["genre_fname"])
+                print ("processing temporal edge list")
+                df, user_index = load_edgelist(self.meta_dict["fname"], genre_index) 
+                print ("processed edgelist now save to pkl")
+                df.to_pickle(OUT_DF)
+                print ("processing temporal node labels")
+                node_df = load_node_labels(self.meta_dict["nodefile"], genre_index, user_index)
+                node_df.to_pickle(OUT_NODE_DF)
+
         return df, node_df
     
 
@@ -172,7 +168,7 @@ class NodePropertyDataset(object):
         '''
 
         #first check if all files exist
-        if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
+        if ("fname" not in self.meta_dict) or ("nodefile" not in self.meta_dict):
             raise Exception("meta_dict does not contain all required filenames")        
         
         df, node_df = self.generate_processed_files()

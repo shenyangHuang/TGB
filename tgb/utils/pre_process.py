@@ -6,6 +6,131 @@ import os.path as osp
 import time
 import csv
 from datetime import datetime
+
+
+"""
+functions for subreddits dataset
+---------------------------------------
+"""
+
+def load_edgelist_sr(fname: str):
+    """
+    load the edgelist into pandas dataframe 
+    also outputs index for the user nodes and genre nodes
+    """
+    feat_size = 2
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    print ("there are ", num_lines, " lines in the raw data")
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    
+    node_ids = {}
+    rd_dict = {}
+    node_uid = 2221  #node ids start after all the genres
+    sr_uid = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = row[0]
+                src = row[1]
+                subreddit = row[2]
+                num_words = int(row[3])
+                score = int(row[4])
+                if (src not in node_ids):
+                    node_ids[src] = node_uid
+                    node_uid += 1
+                if (subreddit not in rd_dict):
+                    rd_dict[subreddit] = sr_uid
+                    sr_uid += 1
+                w = float(score)
+                u = node_ids[src]
+                i = rd_dict[subreddit]
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = np.array([num_words,score])
+                idx += 1
+
+        return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'label': label_list,
+                        'idx': idx_list,
+                        'w':w_list}), feat_l, node_ids, rd_dict
+
+
+def load_labels_rc(fname, 
+                    rd_dict, 
+                    node_ids,):
+    """
+    load the node labels for subreddit dataset
+    #TODO can be further optimized when using numpy and not appending
+    """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
+    
+    # day, user_idx, label_vec
+    label_size = len(rd_dict)
+    label_vec = np.zeros(label_size)
+    ts_prev = 0
+    prev_user = 0
+    
+    ts_list = []
+    node_id_list = []
+    y_list = []
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                user_id = node_ids[int(row[1])]
+                ts = int(row[0])
+                sr_id = int(rd_dict[row[2]])
+                weight = float(row[3])
+                if (i == 1):
+                    ts_prev = ts
+                    prev_user = user_id
+                #the next day
+                if (ts != ts_prev):
+                    ts_list.append(ts_prev)
+                    node_id_list.append(prev_user)
+                    y_list.append(label_vec)
+                    label_vec = np.zeros(label_size)
+                    ts_prev = ts
+                    prev_user = user_id
+                else:
+                    label_vec[sr_id] = weight
+                    
+                if (user_id != prev_user):
+                    ts_list.append(ts_prev)
+                    node_id_list.append(prev_user)
+                    y_list.append(label_vec)
+                    prev_user = user_id
+                    label_vec = np.zeros(label_size)
+                idx += 1
+        return pd.DataFrame({'ts': ts_list,
+                            'node_id': node_id_list,
+                            'y': y_list})
+
+
 """
 functions for redditcomments
 -------------------------------------------
@@ -78,14 +203,6 @@ def csv_to_pd_data_rc(
                         'label': label_list,
                         'idx': idx_list,
                         'w':w_list}), feat_l, node_ids
-
-
-
-    
-
-
-
-
 
 
 """
