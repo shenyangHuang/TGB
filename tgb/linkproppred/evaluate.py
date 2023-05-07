@@ -132,7 +132,7 @@ class Evaluator(object):
             # ~> the positive is ranked last among those with equal score
             pessimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
             ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
-            hitsK_list = (ranking_list <= K).to(torch.float)
+            hitsK_list = (ranking_list <= k).to(torch.float)
             mrr_list = 1./ranking_list.to(torch.float)
 
             return {
