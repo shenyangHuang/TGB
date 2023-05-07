@@ -143,6 +143,8 @@ def train(plotting=True):
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
+    print (query_t)
+    print (label_t)
 
     for batch in tqdm(train_loader):
         batch = batch.to(device)
@@ -300,9 +302,9 @@ for epoch in range(1, 51):
     start_time = time.time()
     test_dict = test(test_loader)
     print (test_dict)
-    dataset.reset_label_time()
     print("Test takes--- %s seconds ---" % (time.time() - start_time))
     print ("------------------------------------")
+    dataset.reset_label_time()
 
 
 

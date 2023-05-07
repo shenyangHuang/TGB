@@ -34,3 +34,9 @@ DATA_URL_DICT ={
 DATA_EVAL_METRIC_DICT = {
     "un_trade": None, # maybe torchmetrics https://torchmetrics.readthedocs.io/en/stable/regression/mean_squared_error.html
 }
+
+
+DATA_NUM_CLASSES = {
+    "lastfmgenre": 514,
+    "subreddits": 2221,
+}

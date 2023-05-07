@@ -115,7 +115,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
         self._data = self.collate([data])
 
     def reset_label_time(self):
-        self.dataset.reset_ctr()
+        self.dataset.reset_label_time()
 
     def get_node_label(self, cur_t):
         label_tuple = self.dataset.find_next_labels_batch(cur_t)
@@ -125,11 +125,17 @@ class PyGNodePropertyDataset(InMemoryDataset):
         label_ts = torch.from_numpy(label_ts).long()
         label_srcs = torch.from_numpy(label_srcs).long()
         labels = torch.from_numpy(labels).float()
+
+        print (label_ts.shape)
+        print (label_srcs.shape)
+        print (labels.shape)
+
         return label_ts, label_srcs, labels
 
     def get_label_time(self):
-        return self.dataset.get_nearest_label_ctr()
-    
+        return self.dataset.return_label_ts()
+
+
 
 
     def __repr__(self) -> str:
