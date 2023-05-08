@@ -246,6 +246,7 @@ def generate_aggregate_labels(fname: str,
     """
     aggregate the genres over a number of days,  as specified by days
     prediction should always be at the first second of the day
+    #! daily labels are always shifted by 1 day
     """
 
     ts_prev = 0
@@ -282,7 +283,7 @@ def generate_aggregate_labels(fname: str,
                             total = sum(user_dict[user].values())
                             subreddit_dict = {k: v / total for k, v in user_dict[user].items()}
                             for subreddit, w in subreddit_dict.items():
-                                write.writerow([ts_prev, user, subreddit, w])
+                                write.writerow([ts_prev + DAY_IN_SEC, user, subreddit, w])
                         user_dict = {}
                         ts_prev = ts_prev + DAY_IN_SEC  #! move label to the next day
                     else:
@@ -350,7 +351,7 @@ def main():
     # fname = "subreddits_edgelist.csv"
     # generate_daily_node_labels(fname,outname)
 
-    #! generate aggregate labels
+    #! generate aggregate labels, the label for each day is shifted by 1 day as it uses the edges from today
     fname = "subreddits_edgelist.csv"
     outname = "subreddits_node_labels.csv"
     generate_aggregate_labels(fname, 
@@ -361,26 +362,6 @@ def main():
     #! analyze the extracted csv
     # fname = "subreddits_edgelist_clean_reddit.csv" #"subreddits_edgelist_clean.csv"
     # analyze_csv(fname)
-    # sub_10 = 0
-    # sub_50 = 0 
-    # sub_100 = 0
-    # sub_1000 = 0
-    
-    # for sub in subreddit_count:
-    #     if (subreddit_count[sub] >= 10):
-    #         sub_10 += 1
-    #     if (subreddit_count[sub] >= 50):
-    #         sub_50 += 1
-    #     if (subreddit_count[sub] >= 100):
-    #         sub_100 += 1
-    #     if (subreddit_count[sub] >= 1000):
-    #         sub_1000 += 1
-    # print ("subreddit count:", len(subreddit_count))
-    # print ("subreddit >= 10:", sub_10)
-    # print ("subreddit >= 50:", sub_50)
-    # print ("subreddit >= 100:", sub_100)
-    # print ("subreddit >= 1000:", sub_1000)
-    
 
 
 
