@@ -844,10 +844,9 @@ def load_edgelist_datetime(fname, label_size=514):
 
                 if (genre not in label_ids):
                     label_ids[genre] = label_uid
-                    label_uid += 1
                     if (label_uid >= label_size):
                         print ("id overlap, terminate")
-                        quit()
+                    label_uid += 1
 
                 u = node_ids[user_id]
                 i = label_ids[genre]
