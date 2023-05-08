@@ -116,19 +116,13 @@ def plot_curve(scores, out_name):
     plt.savefig(out_name + ".pdf")
     plt.close()
 
-# Helper vector to map global node indices to local ones.
-assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
 def process_edges(src, dst, t, msg):
     if src.nelement() > 0:
         memory.update_state(src, dst, t, msg)
         neighbor_loader.insert(src, dst)
 
-def train(plotting=True):
-    """
-    also want to track the training curve now
-    """
-    train_ndcg = []
+def train():
     memory.train()
     gnn.train()
     node_pred.train()
@@ -139,7 +133,6 @@ def train(plotting=True):
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
     TOP_Ks = [5,10,20]
-    #TOP_Ks = [10]
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
@@ -150,9 +143,10 @@ def train(plotting=True):
         src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         query_t = batch.t[-1]
-
         #check if this batch moves to the next day
         if (query_t > label_t):
+            print (query_t)
+            print (label_t)
 
             # find the node labels from the past day
             label_tuple = dataset.get_node_label(query_t)
@@ -203,9 +197,6 @@ def train(plotting=True):
         # Update memory and neighbor loader with ground-truth state.
         process_edges(src, dst, t, msg)
         memory.detach()
-
-    if (plotting):
-        plot_curve(track_ncdg, "training_curve_ncdg10")
 
     metric_dict = {
     "ce":total_loss / num_labels,

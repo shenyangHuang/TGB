@@ -136,23 +136,11 @@ class NodePropertyDataset(object):
             #print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
             if (self.name == "subreddits"):
                 df, edge_feat, node_ids, labels_dict = load_edgelist_sr(self.meta_dict["fname"], label_size=self._num_classes)
-                df.to_pickle(OUT_DF)
-                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
-                save_pkl(node_label_dict, OUT_NODE_DF)
-                # node_df = load_labels_sr(self.meta_dict["nodefile"], node_ids, rd_dict)
-                # node_df.to_pickle(OUT_NODE_DF)
-
-            if (self.name == "lastfmgenre"):
+            elif (self.name == "lastfmgenre"):
                 df, edge_feat, node_ids, labels_dict = load_edgelist_datetime(self.meta_dict["fname"], label_size=self._num_classes) 
-                df.to_pickle(OUT_DF)
-                # save_pkl(node_ids, self.root + '/' +"node_ids.pkl")
-                # save_pkl(labels_dict, self.root + '/' +"labels_dict.pkl")
-                # node_ids = load_pkl(self.root + '/' +"node_ids.pkl")
-                # labels_dict = load_pkl(self.root + '/' +"labels_dict.pkl")
-
-                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict, date_format=True)
-                save_pkl(node_label_dict, OUT_NODE_DF)
-                
+            df.to_pickle(OUT_DF)
+            node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
+            save_pkl(node_label_dict, OUT_NODE_DF)
         return df, node_label_dict
     
 
@@ -241,34 +229,34 @@ class NodePropertyDataset(object):
         except:
             print("node labels need to be reset, please run dataset.reset_label_time()")
             return None
+        
 
-        #! double check the logic here 
-        self.label_ts_idx += 1 #move to the next ts
-        # {ts: {node_id: label_vec}}
-        node_ids = np.array(list(self.label_dict[ts].keys()))
+        # #! double check the logic here 
+        # self.label_ts_idx += 1 #move to the next ts
+        # # {ts: {node_id: label_vec}}
+        # node_ids = np.array(list(self.label_dict[ts].keys()))
 
-        node_labels = []
-        for key in self.label_dict[ts]:
-            node_labels.append(np.array(self.label_dict[ts][key]))
-        node_labels = np.stack(node_labels, axis=0)
-        #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
-        label_ts = np.full(node_ids.shape[0], ts, dtype="int")
-        return (label_ts, node_ids, node_labels)
+        # node_labels = []
+        # for key in self.label_dict[ts]:
+        #     node_labels.append(np.array(self.label_dict[ts][key]))
+        # node_labels = np.stack(node_labels, axis=0)
+        # #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
+        # label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+        # return (label_ts, node_ids, node_labels)
          
-        # if (cur_t >= ts):
-        #     self.label_ts_idx += 1 #move to the next ts
-        #     # {ts: {node_id: label_vec}}
-        #     node_ids = np.array(list(self.label_dict[ts].keys()))
+        if (cur_t >= ts):
+            self.label_ts_idx += 1 #move to the next ts
+            # {ts: {node_id: label_vec}}
+            node_ids = np.array(list(self.label_dict[ts].keys()))
 
-        #     node_labels = []
-        #     for key in self.label_dict[ts]:
-        #         node_labels.append(np.array(self.label_dict[ts][key]))
-        #     node_labels = np.stack(node_labels, axis=0)
-        #     #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
-        #     label_ts = np.full(node_ids.shape[0], ts, dtype="int")
-        #     return (label_ts, node_ids, node_labels)
-        # else:
-        #     return None
+            node_labels = []
+            for key in self.label_dict[ts]:
+                node_labels.append(np.array(self.label_dict[ts][key]))
+            node_labels = np.stack(node_labels, axis=0)
+            label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+            return (label_ts, node_ids, node_labels)
+        else:
+            return None
 
     def reset_label_time(self):
         self.label_ts_idx = 0

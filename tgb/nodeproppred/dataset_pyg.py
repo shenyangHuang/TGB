@@ -95,20 +95,21 @@ class PyGNodePropertyDataset(InMemoryDataset):
 
         
         if (src.dtype != torch.int64 and src.dtype != torch.int32):
-            warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
+            #warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
             src = src.long()
         
         if (dst.dtype != torch.int64 and dst.dtype != torch.int32):
-            warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
+            #warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
             dst = dst.long()
         
         if (t.dtype != torch.int64 and t.dtype != torch.int32):
-            warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
+            #warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
             t = t.long()
 
         if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
-            warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
+            #warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
             msg = msg.float()
+            
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
         if self.pre_transform is not None:
             data = self.pre_transform(data)

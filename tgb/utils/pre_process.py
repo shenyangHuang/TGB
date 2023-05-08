@@ -5,7 +5,7 @@ import pandas as pd
 import os.path as osp
 import time
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 """
@@ -134,8 +134,7 @@ def load_labels_sr(fname,
 
 def load_label_dict(fname: str, 
                     node_ids,
-                    rd_dict,
-                    date_format=False):
+                    rd_dict):
     """
     load node labels into a nested dictionary instead of pandas dataobject
     {ts: {node_id: label_vec}}
@@ -164,13 +163,7 @@ def load_label_dict(fname: str,
                 idx += 1
             else:
                 user_id = node_ids[row[1]]
-                if (date_format):
-                    TIME_FORMAT = "%Y-%m-%d"
-                    ts = datetime.strptime(row[0], TIME_FORMAT)
-                    ts += datetime.timedelta(days=1)
-                    ts = ts.timestamp()
-                else:
-                    ts = int(row[0])
+                ts = int(row[0])
                 sr_id = int(rd_dict[row[2]])
                 weight = float(row[3])
                 if (idx == 1):
@@ -556,7 +549,7 @@ def process_node_feat(
 
 
 """
-functions for lastfmgenre
+functions for un trade
 -------------------------------------------
 """
 
@@ -598,145 +591,77 @@ def clean_rows(
 
 
 
-def sort_edgelist(fname, 
-                  outname = 'sorted_lastfm_edgelist.csv'):
-    r"""
-    sort the edgelist by time
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+
+
+
+"""
+functions for last fm genre
+-------------------------------------------
+"""
+
+# #! data loading functions
+# #! outdated
+# def load_node_labels(fname,
+#                      genre_index,
+#                      user_index):
+#     r"""
+#     load node labels as weight distribution
+#     time, user_id, genre, weight
+#     assume node labels are already sorted by time
+#     convert all time unit to unix time
+#     genre_index: a dictionary mapping genre to index
+#     """
+#     if not osp.exists(fname):
+#         raise FileNotFoundError(f"File not found at {fname}")
+#     #lastfmgenre dataset
+#     edgelist = open(fname, "r")
+#     lines = list(edgelist.readlines())
+#     edgelist.close()
     
-    with open(outname, 'w') as outf:
-        write = csv.writer(outf)
-        fields = ["time", "user_id", "genre", "weight"]              
-        write.writerow(fields)
-        
-        rows_dict = {}
-        for idx in range(1,len(lines)):
-            vals = lines[idx].split(',')
-            user_id = vals[0]
-            time_ts = vals[1][:-7]
-            genre = vals[2]
-            w = float(vals[3].strip())
-            if (time_ts not in rows_dict):
-                rows_dict[time_ts] = [(user_id, genre, w)]
-            else:
-                rows_dict[time_ts].append((user_id, genre, w))
-        
-        time_keys = list(rows_dict.keys())
-        time_keys.sort()
-        
-        for ts in time_keys:
-            rows = rows_dict[ts]
-            for user_id, genre, w in rows:
-                write.writerow([ts, user_id, genre, w])
-                
+#     TIME_FORMAT = "%Y-%m-%d"
 
-
-
-def sort_node_labels(fname,
-                     outname):
-    r"""
-    sort the node labels by time
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+#     # day, user_idx, label_vec
+#     label_size = len(genre_index)
+#     label_vec = np.zeros(label_size)
+#     date_prev = 0
+#     prev_user = 0
     
-    with open(outname, 'w') as outf:
-        write = csv.writer(outf)
-        fields = ["time", 'user_id', 'genre', 'weight']         
-        write.writerow(fields)
-        rows_dict = {}
-        
-        for i in range(1,len(lines)):
-            vals = lines[i].split(',')
-            user_id = vals[0]
-            year = int(vals[1])
-            month = int(vals[2])
-            day = int(vals[3])
-            genre = vals[4]
-            w = float(vals[5])
-            date_cur = datetime(year,month,day)
-            time_ts = date_cur.strftime("%Y-%m-%d")
-            if (time_ts not in rows_dict):
-                rows_dict[time_ts] = [(user_id, genre, w)]
-            else:
-                rows_dict[time_ts].append((user_id, genre, w))
-                
-        time_keys = list(rows_dict.keys())
-        time_keys.sort()
-        
-        for ts in time_keys:
-            rows = rows_dict[ts]
-            for user_id, genre, w in rows:
-                write.writerow([ts, user_id, genre, w])
+#     ts_list = []
+#     node_id_list = []
+#     y_list = []
+    
+
+#     #user_id,year,month,day,genre,weight
+#     for i in tqdm(range(1,len(lines))):
+#         vals = lines[i].split(',')
+#         user_id = user_index[vals[1]]
+#         ts = vals[0]
+#         genre = vals[2]
+#         weight = float(vals[3])
+#         date_cur = datetime.strptime(ts, TIME_FORMAT)
+#         if (i == 1):
+#             date_prev = date_cur
+#             prev_user = user_id
+#         #the next day
+#         if (date_cur != date_prev):
+#             ts_list.append(date_prev.timestamp())
+#             node_id_list.append(prev_user)
+#             y_list.append(label_vec)
+#             label_vec = np.zeros(label_size)
+#             date_prev = date_cur
+#             prev_user = user_id
+#         else:
+#             label_vec[genre_index[genre]] = weight
             
-    
-#! data loading functions
-#! outdated
-def load_node_labels(fname,
-                     genre_index,
-                     user_index):
-    r"""
-    load node labels as weight distribution
-    time, user_id, genre, weight
-    assume node labels are already sorted by time
-    convert all time unit to unix time
-    genre_index: a dictionary mapping genre to index
-    """
-    if not osp.exists(fname):
-        raise FileNotFoundError(f"File not found at {fname}")
-    #lastfmgenre dataset
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
-    
-    TIME_FORMAT = "%Y-%m-%d"
-
-    # day, user_idx, label_vec
-    label_size = len(genre_index)
-    label_vec = np.zeros(label_size)
-    date_prev = 0
-    prev_user = 0
-    
-    ts_list = []
-    node_id_list = []
-    y_list = []
-    
-
-    #user_id,year,month,day,genre,weight
-    for i in tqdm(range(1,len(lines))):
-        vals = lines[i].split(',')
-        user_id = user_index[vals[1]]
-        ts = vals[0]
-        genre = vals[2]
-        weight = float(vals[3])
-        date_cur = datetime.strptime(ts, TIME_FORMAT)
-        if (i == 1):
-            date_prev = date_cur
-            prev_user = user_id
-        #the next day
-        if (date_cur != date_prev):
-            ts_list.append(date_prev.timestamp())
-            node_id_list.append(prev_user)
-            y_list.append(label_vec)
-            label_vec = np.zeros(label_size)
-            date_prev = date_cur
-            prev_user = user_id
-        else:
-            label_vec[genre_index[genre]] = weight
-            
-        if (user_id != prev_user):
-            ts_list.append(date_prev.timestamp())
-            node_id_list.append(prev_user)
-            y_list.append(label_vec)
-            prev_user = user_id
-            label_vec = np.zeros(label_size)
-    return pd.DataFrame({'ts': ts_list,
-                        'node_id': node_id_list,
-                        'y': y_list})
+#         if (user_id != prev_user):
+#             ts_list.append(date_prev.timestamp())
+#             node_id_list.append(prev_user)
+#             y_list.append(label_vec)
+#             prev_user = user_id
+#             label_vec = np.zeros(label_size)
+#     return pd.DataFrame({'ts': ts_list,
+#                         'node_id': node_id_list,
+#                         'y': y_list})
 
 
 
@@ -753,7 +678,6 @@ def load_edgelist_datetime(fname, label_size=514):
     
     time, user_id, genre, weight
     """
-    TIME_FORMAT = "%Y-%m-%d %H:%M:%S"  #2005-02-14 00:00:3
     feat_size = 1
     num_lines = sum(1 for line in open(fname)) - 1
     print ("number of lines counted", num_lines)
@@ -776,11 +700,10 @@ def load_edgelist_datetime(fname, label_size=514):
             if (idx == 0):
                 idx += 1
             else:
-                time_ts = row[0]
+                ts = int(row[0])
                 user_id = row[1]
                 genre = row[2]
                 w = float(row[3])
-                date_object = datetime.strptime(time_ts, TIME_FORMAT)
 
                 if (user_id not in node_ids):
                     node_ids[user_id] = node_uid
@@ -798,7 +721,7 @@ def load_edgelist_datetime(fname, label_size=514):
                 feat = np.zeros((1))
                 u_list[idx-1] = u
                 i_list[idx-1] = i
-                ts_list[idx-1] = date_object.timestamp()
+                ts_list[idx-1] = ts
                 idx_list[idx-1] = idx
                 w_list[idx-1] = w
                 feat_l[idx-1] = feat
@@ -933,22 +856,8 @@ if __name__ == "__main__":
     # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade.csv"
     # outname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade_cleaned.csv"
     # clean_rows(fname, outname)
+    print ("hi")
     
-    # """
-    # sort edgelist by time for lastfm dataset
-    # """
-    # fname = "../datasets/lastfmGenre/lastfm_edgelist_clean.csv"
-    # outname = '../datasets/lastfmGenre/sorted_lastfm_edgelist.csv'
-    # sort_edgelist(fname, 
-    #               outname = outname)
-    
-    """
-    sort node labels by time for lastfm dataset
-    """
-    fname = "../datasets/lastfmGenre/7days_labels.csv"
-    outname = '../datasets/lastfmGenre/sorted_7days_node_labels.csv'
-    sort_node_labels(fname,
-                     outname)
     
     
     
