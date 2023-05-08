@@ -143,8 +143,6 @@ def train(plotting=True):
     total_ncdg = np.zeros(len(TOP_Ks)) 
     track_ncdg = []
     num_labels = 0
-    print (query_t)
-    print (label_t)
 
     for batch in tqdm(train_loader):
         batch = batch.to(device)

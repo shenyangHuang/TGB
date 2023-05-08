@@ -167,6 +167,7 @@ def load_label_dict(fname: str,
                 if (date_format):
                     TIME_FORMAT = "%Y-%m-%d"
                     ts = datetime.strptime(row[0], TIME_FORMAT)
+                    ts += datetime.timedelta(days=1)
                     ts = ts.timestamp()
                 else:
                     ts = int(row[0])

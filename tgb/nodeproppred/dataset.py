@@ -242,21 +242,33 @@ class NodePropertyDataset(object):
             print("node labels need to be reset, please run dataset.reset_label_time()")
             return None
 
-        #! double check the logic here    
-        if (cur_t >= ts):
-            self.label_ts_idx += 1 #move to the next ts
-            # {ts: {node_id: label_vec}}
-            node_ids = np.array(list(self.label_dict[ts].keys()))
+        #! double check the logic here 
+        self.label_ts_idx += 1 #move to the next ts
+        # {ts: {node_id: label_vec}}
+        node_ids = np.array(list(self.label_dict[ts].keys()))
 
-            node_labels = []
-            for key in self.label_dict[ts]:
-                node_labels.append(np.array(self.label_dict[ts][key]))
-            node_labels = np.stack(node_labels, axis=0)
-            #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
-            label_ts = np.full(node_ids.shape[0], ts, dtype="int")
-            return (label_ts, node_ids, node_labels)
-        else:
-            return None
+        node_labels = []
+        for key in self.label_dict[ts]:
+            node_labels.append(np.array(self.label_dict[ts][key]))
+        node_labels = np.stack(node_labels, axis=0)
+        #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
+        label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+        return (label_ts, node_ids, node_labels)
+         
+        # if (cur_t >= ts):
+        #     self.label_ts_idx += 1 #move to the next ts
+        #     # {ts: {node_id: label_vec}}
+        #     node_ids = np.array(list(self.label_dict[ts].keys()))
+
+        #     node_labels = []
+        #     for key in self.label_dict[ts]:
+        #         node_labels.append(np.array(self.label_dict[ts][key]))
+        #     node_labels = np.stack(node_labels, axis=0)
+        #     #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
+        #     label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+        #     return (label_ts, node_ids, node_labels)
+        # else:
+        #     return None
 
     def reset_label_time(self):
         self.label_ts_idx = 0
