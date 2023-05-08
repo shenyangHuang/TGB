@@ -1,8 +1,6 @@
 """
 GNN-based modules used in the architecture of MP-TG models
 
-Reference: 
-    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
 
@@ -11,6 +9,10 @@ import torch
 
 
 class GraphAttentionEmbedding(torch.nn.Module):
+    """
+    Reference: 
+    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+    """
     def __init__(self, in_channels, out_channels, msg_dim, time_enc):
         super().__init__()
         self.time_enc = time_enc

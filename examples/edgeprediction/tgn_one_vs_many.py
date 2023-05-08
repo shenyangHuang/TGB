@@ -1,9 +1,12 @@
 """
-Link Prediction with a TGN model
+Dynamic Link Prediction with a TGN model
 
 Reference: 
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
+
+import math
+import time
 
 import os.path as osp
 import numpy as np
@@ -14,20 +17,28 @@ from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-from torch_geometric.nn import TGNMemory, TransformerConv
-from torch_geometric.nn.models.tgn import (
-    IdentityMessage,
-    LastAggregator,
-    LastNeighborLoader,
-)
-import math
-import time
+
+from torch_geometric.nn import TransformerConv
 
 # internal imports
-from tgb.linkproppred.sample_negative import *
+from tgb.linkproppred.negative_sampler import *
 from tgb.linkproppred.evaluate import Evaluator
 from models.decoder import LinkPredictor
 from models.emb_module import GraphAttentionEmbedding
+
+'''
+ from torch_geometric.nn.models.tgn import (
+     IdentityMessage,
+     LastAggregator,
+     LastNeighborLoader,
+     TGNMemory,
+ )
+# The modularized version of the above is as follows:
+'''
+from models.msg_func import IdentityMessage
+from models.msg_agg import LastAggregator
+from models.neighbor_loader import LastNeighborLoader
+from models.tgn_memory import TGNMemory
 
 
 
@@ -35,8 +46,8 @@ overall_start = time.time()
 
 LR = 0.0001
 batch_size = 200
-K = 10  # for computing metrics@k
-n_epoch = 1
+k = 10  # for computing metrics@k
+n_epoch = 3
 rnd_seed = 1234
 dataset_name = 'wikipedia'
 
@@ -173,17 +184,17 @@ def test_one_vs_many(loader, neg_sampler):
             y_pred = link_pred(z[assoc[src]], z[assoc[dst]])
 
             # hist@k & MRR
-            metrics_mrr_rnk = evaluator.eval_metrics_mrr_rnk(y_pred_pos=y_pred[y_true == 1].squeeze(dim=-1).cpu(), 
-                                                             y_pred_neg=y_pred[y_true == 0].squeeze(dim=-1).cpu(), 
-                                                             type_info='torch', k=K)
-            hist_at_k_list.append(metrics_mrr_rnk['hits@k'])
+            metrics_mrr_rnk = evaluator.eval_rnk_metrics(y_pred_pos=y_pred[y_true == 1].squeeze(dim=-1).cpu(), 
+                                                         y_pred_neg=y_pred[y_true == 0].squeeze(dim=-1).cpu(), 
+                                                         type_info='torch', k=k)
+            hist_at_k_list.append(metrics_mrr_rnk[f'hits@{k}'])
             mrr_list.append(metrics_mrr_rnk['mrr'])
         
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = {'hits@k': float(torch.tensor(hist_at_k_list).mean()),
+    perf_metrics = {f'hits@{k}': float(torch.tensor(hist_at_k_list).mean()),
                     'mrr': float(torch.tensor(mrr_list).mean()),
                     }
     return perf_metrics
@@ -221,19 +232,14 @@ def test_one_vs_one(loader):
             [torch.ones(pos_out.size(0)),
              torch.zeros(neg_out.size(0))], dim=0)
 
-        aps.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='ap'))
-        aucs.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='auc'))
+        aps.append(average_precision_score(y_true, y_pred))
+        aucs.append(roc_auc_score(y_true, y_pred))
 
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
     perf_metrics = {'ap': float(torch.tensor(aps).mean()),
                     'auc': float(torch.tensor(aucs).mean()),
-                    'prec@k': None,
-                    'rec@k': None,
-                    'f1@k': None,
-                    'hits@k': None,
-                    'mrr': None,
                     }
 
     return perf_metrics
@@ -261,6 +267,7 @@ end_train_val = time.time()
 print(f'Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: .4f}')
 
 # ==================================================== Test
+# negative sampler
 num_neg_e_per_pos = 200
 NEG_SAMPLE_MODE = 'RND'  # ['RND', 'HIST_RND']
 if NEG_SAMPLE_MODE == 'RND':
@@ -274,6 +281,7 @@ elif NEG_SAMPLE_MODE == 'HIST_RND':
 else:
     raise ValueError("Undefined Negative Sampling Strategy!")
 
+# testing ...
 start_test = time.time()
 perf_metrics_test = test_one_vs_many(test_loader, neg_sampler)
 end_test = time.time()

@@ -1,8 +1,6 @@
 """
 Decoder modules for dynamic link prediction
 
-Reference: 
-    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
 import torch
@@ -10,6 +8,10 @@ from torch.nn import Linear
 
 
 class LinkPredictor(torch.nn.Module):
+    """
+    Reference: 
+    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+    """
     def __init__(self, in_channels):
         super().__init__()
         self.lin_src = Linear(in_channels, in_channels)
