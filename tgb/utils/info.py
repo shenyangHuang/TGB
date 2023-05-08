@@ -37,6 +37,6 @@ DATA_EVAL_METRIC_DICT = {
 
 
 DATA_NUM_CLASSES = {
-    "lastfmgenre": 514,
-    "subreddits": 2221,
+    "lastfmgenre": 513,
+    "subreddits": 2220,
 }

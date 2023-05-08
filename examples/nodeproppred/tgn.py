@@ -97,7 +97,7 @@ gnn = GraphAttentionEmbedding(
     out_channels=embedding_dim,
     msg_dim=data.msg.size(-1),
     time_enc=memory.time_enc,
-).to(device)
+).to(device).float()
 
 node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 
@@ -119,6 +119,7 @@ def plot_curve(scores, out_name):
 
 def process_edges(src, dst, t, msg):
     if src.nelement() > 0:
+        #msg = msg.to(torch.float32)
         memory.update_state(src, dst, t, msg)
         neighbor_loader.insert(src, dst)
 
@@ -145,15 +146,12 @@ def train():
         query_t = batch.t[-1]
         #check if this batch moves to the next day
         if (query_t > label_t):
-            print (query_t)
-            print (label_t)
 
             # find the node labels from the past day
             label_tuple = dataset.get_node_label(query_t)
             label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
-
 
             # Process all edges that are still in the past day
             previous_day_mask = batch.t < label_t
@@ -178,6 +176,7 @@ def train():
 
             #loss and metric computation
             pred = node_pred(z)
+
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
