@@ -39,4 +39,5 @@ DATA_EVAL_METRIC_DICT = {
 DATA_NUM_CLASSES = {
     "lastfmgenre": 513,
     "subreddits": 2220,
+    "un_trade": 255,
 }

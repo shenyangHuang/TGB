@@ -7,6 +7,139 @@ import time
 import csv
 from datetime import datetime, timedelta
 
+"""
+functions for un_trade dataset
+---------------------------------------
+"""
+
+def load_edgelist_trade(fname: str, 
+                        label_size=255):
+    """
+    load the edgelist into pandas dataframe
+    """
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    print ("numpy allocated")
+    node_ids = {} #dictionary for node ids 
+    node_uid = 0 
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = int(row[0])
+                u = row[1]
+                v = row[2]
+                w = float(row[3])
+
+                if (u not in node_ids):
+                    node_ids[u] = node_uid
+                    node_uid += 1
+                
+                if (v not in node_ids):
+                    node_ids[v] = node_uid
+                    node_uid += 1
+            
+                u = node_ids[u]
+                i = node_ids[v]
+                feat = np.array([w])
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = feat
+                idx += 1
+
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'idx': idx_list,
+                        'w':w_list}), feat_l, node_ids
+
+
+def load_trade_label_dict(fname: str, 
+                    node_ids):
+    """
+    load node labels into a nested dictionary instead of pandas dataobject
+    {ts: {node_id: label_vec}}
+    Parameters:
+        fname: str, name of the input file
+        node_ids: dictionary of user names mapped to integer node ids
+    """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
+    
+    label_size = len(node_ids)
+    label_vec = np.zeros(label_size)
+    ts_prev = 0
+    prev_user = 0
+
+    node_label_dict = {} # {ts: {node_id: label_vec}}
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = int(row[0])
+                u = node_ids[row[1]]
+                v = node_ids[row[2]]
+                weight = float(row[3])
+                if (idx == 1):
+                    ts_prev = ts
+                    prev_user = u
+                #the next day
+                if (ts != ts_prev):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = u
+                    ts_prev = ts
+                else:
+                    label_vec[v] = weight
+                    
+                if (u != prev_user):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = u
+                idx += 1
+        return node_label_dict
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 """
 functions for subreddits dataset

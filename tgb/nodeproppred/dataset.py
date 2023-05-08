@@ -10,7 +10,7 @@ from clint.textui import progress
 
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors, DATA_NUM_CLASSES
 from tgb.utils.utils import save_pkl, load_pkl, find_nearest
-from tgb.utils.pre_process import load_genre_list, load_label_dict, load_edgelist_sr, load_labels_sr, load_edgelist_datetime
+from tgb.utils.pre_process import load_label_dict, load_edgelist_sr, load_edgelist_datetime, load_trade_label_dict, load_edgelist_trade
 
 # TODO add node label loading code, node label convertion to unix time code etc.
 class NodePropertyDataset(object):
@@ -138,8 +138,14 @@ class NodePropertyDataset(object):
                 df, edge_feat, node_ids, labels_dict = load_edgelist_sr(self.meta_dict["fname"], label_size=self._num_classes)
             elif (self.name == "lastfmgenre"):
                 df, edge_feat, node_ids, labels_dict = load_edgelist_datetime(self.meta_dict["fname"], label_size=self._num_classes) 
+            elif (self.name == "un_trade"):
+                df, edge_feat, node_ids = load_edgelist_trade(self.meta_dict["fname"], label_size=self._num_classes)
+
             df.to_pickle(OUT_DF)
-            node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
+            if (self.name == "un_trade"):
+                node_label_dict = load_trade_label_dict(self.meta_dict["nodefile"], node_ids)
+            else:
+                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
             save_pkl(node_label_dict, OUT_NODE_DF)
         return df, node_label_dict
     
@@ -348,7 +354,7 @@ class NodePropertyDataset(object):
 
 def main():
     # download files
-    name = "subreddits" #"lastfmgenre"
+    name = "un_trade" #"subreddits" #"lastfmgenre"
     dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
 
     
