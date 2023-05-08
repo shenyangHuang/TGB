@@ -86,6 +86,10 @@ class NegativeEdgeSampler_HIST_RND(object):
         it is used for sampling negative edges for the task of link prediction.
         negative edges are sampled with 'oen_vs_many' strategy.
         it is assumed that the destination nodes are indexed sequentially with 'first_dst_id' and 'last_dst_id' being the first and last index, respectively.
+        negative edges are divided into two groups:
+            - 50% of the negative edges are randomly selected from almost all possible edges with the same source node (filtered on the positive edges).
+            - 50% of the negative edges are sampled from the edges seen during training or validation that are not repeating during test.
+              Note: historical edges are not necessarily edges with the same source node! they are only historical.
         """
         self.device = device
         self.rnd_seed = rnd_seed

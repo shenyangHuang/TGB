@@ -228,7 +228,9 @@ class TimeEncoder(torch.nn.Module):
 
 
 class LastNeighborLoader(object):
-    def __init__(self, num_nodes: int, size: int, device=None, sample_uniform: bool = False):
+    def __init__(self, num_nodes: int, size: int, device=None, 
+    # sample_uniform: bool = False
+    ):
         self.size = size
 
         self.neighbors = torch.empty((num_nodes, size), dtype=torch.long,
@@ -237,7 +239,7 @@ class LastNeighborLoader(object):
                                 device=device)
         self._assoc = torch.empty(num_nodes, dtype=torch.long, device=device)
 
-        self.sample_uniform = sample_uniform  # when it is true, it samples neighbors uniformly! It's no longer `LastNeighbor`.
+        # self.sample_uniform = sample_uniform  # when it is true, it samples neighbors uniformly! It's no longer `LastNeighbor`.
 
         self.reset_state()
 
@@ -292,21 +294,23 @@ class LastNeighborLoader(object):
         neighbors = torch.cat(
             [self.neighbors[n_id, :self.size], dense_neighbors], dim=-1)
         
-        if self.sample_uniform:
-            # sample neighbors uniformly; ONLY TGAT uses this option
-            # @TODO: this might not be the most efficient implementation!
-            mask = e_id >= 0
-            nei_counts = mask.sum(dim=1).unsqueeze(1)
-            nei_prob = torch.zeros(e_id.size(), device=e_id.device)
-            for i in range(nei_counts.size(0)):
-                prob = 1.0 / nei_counts[i, 0]
-                nei_prob[i, mask[i, :]] = torch.tensor([prob for _ in range(nei_counts[i, 0])], dtype=torch.float, device=e_id.device)
-            # uniform_p = torch.full(e_id.size(), 1.0/self.size).to(e_id.device)
-            perm = nei_prob.multinomial(self.size)
-            e_id = e_id[torch.arange(e_id.size(0)).unsqueeze(1), perm]
-        else:
-            # And sort them based on `e_id`.
-            e_id, perm = e_id.topk(self.size, dim=-1)  # sample the most recent neighbors
+        e_id, perm = e_id.topk(self.size, dim=-1)  # sample the most recent neighbors
+
+        # # for TGAT: ONLY if there is one layer of GNN
+        # if self.sample_uniform:
+        #     # sample neighbors uniformly; ONLY TGAT uses this option
+        #     # @TODO: this might not be the most efficient implementation!
+        #     mask = e_id >= 0
+        #     nei_counts = mask.sum(dim=1).unsqueeze(1)
+        #     nei_prob = torch.zeros(e_id.size(), device=e_id.device)
+        #     for i in range(nei_counts.size(0)):
+        #         prob = 1.0 / nei_counts[i, 0]
+        #         nei_prob[i, mask[i, :]] = torch.tensor([prob for _ in range(nei_counts[i, 0])], dtype=torch.float, device=e_id.device)
+        #     perm = nei_prob.multinomial(self.size)
+        #     e_id = e_id[torch.arange(e_id.size(0)).unsqueeze(1), perm]
+        # else:
+        #     # And sort them based on `e_id`.
+        #     e_id, perm = e_id.topk(self.size, dim=-1)  # sample the most recent neighbors
 
         self.e_id[n_id] = e_id
         self.neighbors[n_id] = torch.gather(neighbors, 1, perm)

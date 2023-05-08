@@ -144,3 +144,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+examples/edgeprediction/arXiv/tgat_LP.py
+examples/edgeprediction/arXiv/tgn_LP.py
