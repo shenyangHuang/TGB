@@ -5,7 +5,140 @@ import pandas as pd
 import os.path as osp
 import time
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
+
+"""
+functions for un_trade dataset
+---------------------------------------
+"""
+
+def load_edgelist_trade(fname: str, 
+                        label_size=255):
+    """
+    load the edgelist into pandas dataframe
+    """
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    print ("numpy allocated")
+    node_ids = {} #dictionary for node ids 
+    node_uid = 0 
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = int(row[0])
+                u = row[1]
+                v = row[2]
+                w = float(row[3])
+
+                if (u not in node_ids):
+                    node_ids[u] = node_uid
+                    node_uid += 1
+                
+                if (v not in node_ids):
+                    node_ids[v] = node_uid
+                    node_uid += 1
+            
+                u = node_ids[u]
+                i = node_ids[v]
+                feat = np.array([w])
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = feat
+                idx += 1
+
+    return pd.DataFrame({'u': u_list,
+                        'i': i_list,
+                        'ts': ts_list,
+                        'idx': idx_list,
+                        'w':w_list}), feat_l, node_ids
+
+
+def load_trade_label_dict(fname: str, 
+                    node_ids):
+    """
+    load node labels into a nested dictionary instead of pandas dataobject
+    {ts: {node_id: label_vec}}
+    Parameters:
+        fname: str, name of the input file
+        node_ids: dictionary of user names mapped to integer node ids
+    """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
+    
+    label_size = len(node_ids)
+    label_vec = np.zeros(label_size)
+    ts_prev = 0
+    prev_user = 0
+
+    node_label_dict = {} # {ts: {node_id: label_vec}}
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = int(row[0])
+                u = node_ids[row[1]]
+                v = node_ids[row[2]]
+                weight = float(row[3])
+                if (idx == 1):
+                    ts_prev = ts
+                    prev_user = u
+                #the next day
+                if (ts != ts_prev):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = u
+                    ts_prev = ts
+                else:
+                    label_vec[v] = weight
+                    
+                if (u != prev_user):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = u
+                idx += 1
+        return node_label_dict
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 """
@@ -13,7 +146,7 @@ functions for subreddits dataset
 ---------------------------------------
 """
 
-def load_edgelist_sr(fname: str):
+def load_edgelist_sr(fname: str, label_size=2221):
     """
     load the edgelist into pandas dataframe 
     also outputs index for the user nodes and genre nodes
@@ -32,7 +165,7 @@ def load_edgelist_sr(fname: str):
     
     node_ids = {}
     rd_dict = {}
-    node_uid = 2221  #node ids start after all the genres
+    node_uid = label_size  #node ids start after all the genres
     sr_uid = 0
 
     with open(fname, "r") as csv_file:
@@ -73,9 +206,9 @@ def load_edgelist_sr(fname: str):
                         'w':w_list}), feat_l, node_ids, rd_dict
 
 
-def load_labels_rc(fname, 
-                    rd_dict, 
-                    node_ids,):
+def load_labels_sr(fname, 
+                    node_ids,
+                    rd_dict,):
     """
     load the node labels for subreddit dataset
     #TODO can be further optimized when using numpy and not appending
@@ -105,7 +238,7 @@ def load_labels_rc(fname,
                 ts = int(row[0])
                 sr_id = int(rd_dict[row[2]])
                 weight = float(row[3])
-                if (i == 1):
+                if (idx == 1):
                     ts_prev = ts
                     prev_user = user_id
                 #the next day
@@ -129,6 +262,69 @@ def load_labels_rc(fname,
         return pd.DataFrame({'ts': ts_list,
                             'node_id': node_id_list,
                             'y': y_list})
+
+
+
+def load_label_dict(fname: str, 
+                    node_ids,
+                    rd_dict):
+    """
+    load node labels into a nested dictionary instead of pandas dataobject
+    {ts: {node_id: label_vec}}
+    Parameters:
+        fname: str, name of the input file
+        node_ids: dictionary of user names mapped to integer node ids
+        rd_dict: dictionary of subreddit names mapped to integer node ids
+    """
+    if not osp.exists(fname):
+        raise FileNotFoundError(f"File not found at {fname}")
+    
+    # day, user_idx, label_vec
+    label_size = len(rd_dict)
+    label_vec = np.zeros(label_size)
+    ts_prev = 0
+    prev_user = 0
+
+    node_label_dict = {} # {ts: {node_id: label_vec}}
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                user_id = node_ids[row[1]]
+                ts = int(row[0])
+                sr_id = int(rd_dict[row[2]])
+                weight = float(row[3])
+                if (idx == 1):
+                    ts_prev = ts
+                    prev_user = user_id
+                #the next day
+                if (ts != ts_prev):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = user_id
+                    ts_prev = ts
+                else:
+                    label_vec[sr_id] = weight
+                    
+                if (user_id != prev_user):
+                    if (ts_prev not in node_label_dict):
+                        node_label_dict[ts_prev] = {prev_user : label_vec}
+                    else:
+                        node_label_dict[ts_prev][prev_user] = label_vec
+                    label_vec = np.zeros(label_size)
+                    prev_user = user_id
+                idx += 1
+        return node_label_dict
+
+
 
 
 """
@@ -486,7 +682,7 @@ def process_node_feat(
 
 
 """
-functions for lastfmgenre
+functions for un trade
 -------------------------------------------
 """
 
@@ -528,199 +724,146 @@ def clean_rows(
 
 
 
-def sort_edgelist(fname, 
-                  outname = 'sorted_lastfm_edgelist.csv'):
-    r"""
-    sort the edgelist by time
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+
+
+
+"""
+functions for last fm genre
+-------------------------------------------
+"""
+
+# #! data loading functions
+# #! outdated
+# def load_node_labels(fname,
+#                      genre_index,
+#                      user_index):
+#     r"""
+#     load node labels as weight distribution
+#     time, user_id, genre, weight
+#     assume node labels are already sorted by time
+#     convert all time unit to unix time
+#     genre_index: a dictionary mapping genre to index
+#     """
+#     if not osp.exists(fname):
+#         raise FileNotFoundError(f"File not found at {fname}")
+#     #lastfmgenre dataset
+#     edgelist = open(fname, "r")
+#     lines = list(edgelist.readlines())
+#     edgelist.close()
     
-    with open(outname, 'w') as outf:
-        write = csv.writer(outf)
-        fields = ["time", "user_id", "genre", "weight"]              
-        write.writerow(fields)
-        
-        rows_dict = {}
-        for idx in range(1,len(lines)):
-            vals = lines[idx].split(',')
-            user_id = vals[0]
-            time_ts = vals[1][:-7]
-            genre = vals[2]
-            w = float(vals[3].strip())
-            if (time_ts not in rows_dict):
-                rows_dict[time_ts] = [(user_id, genre, w)]
-            else:
-                rows_dict[time_ts].append((user_id, genre, w))
-        
-        time_keys = list(rows_dict.keys())
-        time_keys.sort()
-        
-        for ts in time_keys:
-            rows = rows_dict[ts]
-            for user_id, genre, w in rows:
-                write.writerow([ts, user_id, genre, w])
-                
+#     TIME_FORMAT = "%Y-%m-%d"
 
-
-
-def sort_node_labels(fname,
-                     outname):
-    r"""
-    sort the node labels by time
-    """
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+#     # day, user_idx, label_vec
+#     label_size = len(genre_index)
+#     label_vec = np.zeros(label_size)
+#     date_prev = 0
+#     prev_user = 0
     
-    with open(outname, 'w') as outf:
-        write = csv.writer(outf)
-        fields = ["time", 'user_id', 'genre', 'weight']         
-        write.writerow(fields)
-        rows_dict = {}
-        
-        for i in range(1,len(lines)):
-            vals = lines[i].split(',')
-            user_id = vals[0]
-            year = int(vals[1])
-            month = int(vals[2])
-            day = int(vals[3])
-            genre = vals[4]
-            w = float(vals[5])
-            date_cur = datetime(year,month,day)
-            time_ts = date_cur.strftime("%Y-%m-%d")
-            if (time_ts not in rows_dict):
-                rows_dict[time_ts] = [(user_id, genre, w)]
-            else:
-                rows_dict[time_ts].append((user_id, genre, w))
-                
-        time_keys = list(rows_dict.keys())
-        time_keys.sort()
-        
-        for ts in time_keys:
-            rows = rows_dict[ts]
-            for user_id, genre, w in rows:
-                write.writerow([ts, user_id, genre, w])
+#     ts_list = []
+#     node_id_list = []
+#     y_list = []
+    
+
+#     #user_id,year,month,day,genre,weight
+#     for i in tqdm(range(1,len(lines))):
+#         vals = lines[i].split(',')
+#         user_id = user_index[vals[1]]
+#         ts = vals[0]
+#         genre = vals[2]
+#         weight = float(vals[3])
+#         date_cur = datetime.strptime(ts, TIME_FORMAT)
+#         if (i == 1):
+#             date_prev = date_cur
+#             prev_user = user_id
+#         #the next day
+#         if (date_cur != date_prev):
+#             ts_list.append(date_prev.timestamp())
+#             node_id_list.append(prev_user)
+#             y_list.append(label_vec)
+#             label_vec = np.zeros(label_size)
+#             date_prev = date_cur
+#             prev_user = user_id
+#         else:
+#             label_vec[genre_index[genre]] = weight
             
-    
-    
-#! data loading functions
-def load_node_labels(fname,
-                     genre_index,
-                     user_index):
-    r"""
-    load node labels as weight distribution
-    time, user_id, genre, weight
-    assume node labels are already sorted by time
-    convert all time unit to unix time
-    genre_index: a dictionary mapping genre to index
-    """
-    if not osp.exists(fname):
-        raise FileNotFoundError(f"File not found at {fname}")
-    #lastfmgenre dataset
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
-    
-    TIME_FORMAT = "%Y-%m-%d"
-
-    # day, user_idx, label_vec
-    label_size = len(genre_index)
-    label_vec = np.zeros(label_size)
-    date_prev = 0
-    prev_user = 0
-    
-    ts_list = []
-    node_id_list = []
-    y_list = []
-    
-
-    #user_id,year,month,day,genre,weight
-    for i in tqdm(range(1,len(lines))):
-        vals = lines[i].split(',')
-        user_id = user_index[vals[1]]
-        ts = vals[0]
-        genre = vals[2]
-        weight = float(vals[3])
-        date_cur = datetime.strptime(ts, TIME_FORMAT)
-        if (i == 1):
-            date_prev = date_cur
-            prev_user = user_id
-        #the next day
-        if (date_cur != date_prev):
-            ts_list.append(date_prev.timestamp())
-            node_id_list.append(prev_user)
-            y_list.append(label_vec)
-            label_vec = np.zeros(label_size)
-            date_prev = date_cur
-            prev_user = user_id
-        else:
-            label_vec[genre_index[genre]] = weight
-            
-        if (user_id != prev_user):
-            ts_list.append(date_prev.timestamp())
-            node_id_list.append(prev_user)
-            y_list.append(label_vec)
-            prev_user = user_id
-            label_vec = np.zeros(label_size)
-    return pd.DataFrame({'ts': ts_list,
-                        'node_id': node_id_list,
-                        'y': y_list})
+#         if (user_id != prev_user):
+#             ts_list.append(date_prev.timestamp())
+#             node_id_list.append(prev_user)
+#             y_list.append(label_vec)
+#             prev_user = user_id
+#             label_vec = np.zeros(label_size)
+#     return pd.DataFrame({'ts': ts_list,
+#                         'node_id': node_id_list,
+#                         'y': y_list})
 
 
-def load_edgelist(fname, genre_index):
+
+
+
+
+
+def load_edgelist_datetime(fname, label_size=514):
     """
     load the edgelist into a pandas dataframe
+    use numpy array instead of list for faster processing
     assume all edges are already sorted by time
     convert all time unit to unix time
     
     time, user_id, genre, weight
     """
-    TIME_FORMAT = "%Y-%m-%d %H:%M:%S"  #2005-02-14 00:00:3
-    #lastfmgenre dataset
-    edgelist = open(fname, "r")
-    lines = list(edgelist.readlines())
-    edgelist.close()
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print ("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    print ("numpy allocated")
+    node_ids = {} #dictionary for node ids 
+    label_ids = {} #dictionary for label ids
+    node_uid = label_size #node ids start after the genre nodes
+    label_uid = 0
 
-    user_index = {} #map user id to index
-    unique_id = max(genre_index.values()) + 1
-    u_list = []
-    i_list = []
-    ts_list = []
-    label_list = []
-    idx_list = []
-    feat_l = []
-    w_list = []
-    for idx in tqdm(range(1,len(lines))):
-        vals = lines[idx].split(',')
-        time_ts = vals[0]
-        user_id = vals[1]
-        genre = vals[2]
-        w = float(vals[3].strip())
-        date_object = datetime.strptime(time_ts, TIME_FORMAT)
-        if (user_id not in user_index):
-            user_index[user_id] = unique_id
-            unique_id += 1
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        idx = 0
+        for row in tqdm(csv_reader):
+            if (idx == 0):
+                idx += 1
+            else:
+                ts = int(row[0])
+                user_id = row[1]
+                genre = row[2]
+                w = float(row[3])
 
-        u = user_index[user_id]
-        i = genre_index[genre]
-        label = 0
-        feat = np.zeros((1))
-        u_list.append(u)
-        i_list.append(i)
-        ts_list.append(date_object.timestamp())
-        label_list.append(label)
-        idx_list.append(idx)
-        feat_l.append(feat)
-        w_list.append(w)
+                if (user_id not in node_ids):
+                    node_ids[user_id] = node_uid
+                    node_uid += 1
+
+                if (genre not in label_ids):
+                    label_ids[genre] = label_uid
+                    if (label_uid >= label_size):
+                        print ("id overlap, terminate")
+                    label_uid += 1
+
+                u = node_ids[user_id]
+                i = label_ids[genre]
+                feat = np.zeros((1))
+                u_list[idx-1] = u
+                i_list[idx-1] = i
+                ts_list[idx-1] = ts
+                idx_list[idx-1] = idx
+                w_list[idx-1] = w
+                feat_l[idx-1] = feat
+                idx += 1
 
     return pd.DataFrame({'u': u_list,
                         'i': i_list,
                         'ts': ts_list,
-                        'label': label_list,
                         'idx': idx_list,
-                        'w':w_list}), user_index
+                        'w':w_list}), feat_l, node_ids, label_ids
 
 
 def load_genre_list(fname):
@@ -845,22 +988,8 @@ if __name__ == "__main__":
     # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade.csv"
     # outname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade_cleaned.csv"
     # clean_rows(fname, outname)
+    print ("hi")
     
-    # """
-    # sort edgelist by time for lastfm dataset
-    # """
-    # fname = "../datasets/lastfmGenre/lastfm_edgelist_clean.csv"
-    # outname = '../datasets/lastfmGenre/sorted_lastfm_edgelist.csv'
-    # sort_edgelist(fname, 
-    #               outname = outname)
-    
-    """
-    sort node labels by time for lastfm dataset
-    """
-    fname = "../datasets/lastfmGenre/7days_labels.csv"
-    outname = '../datasets/lastfmGenre/sorted_7days_node_labels.csv'
-    sort_node_labels(fname,
-                     outname)
     
     
     
