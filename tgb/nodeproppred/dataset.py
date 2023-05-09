@@ -121,6 +121,19 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
+        OUT_LABEL_DF = self.root + '/' + 'ml_{}_label.pkl'.format(self.name)
+
+        """
+        subreddits dataset node label file too big to save on disc
+        """
+        if (self.name == "subreddits"):
+            if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
+                df = pd.read_pickle(OUT_DF)
+                node_ids = load_pkl(OUT_NODE_DF)
+                labels_dict = load_pkl(OUT_LABEL_DF)
+                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
+                return df, node_label_dict
+
         
         '''
         reprocess the node label dataset again
@@ -142,11 +155,17 @@ class NodePropertyDataset(object):
                 df, edge_feat, node_ids = load_edgelist_trade(self.meta_dict["fname"], label_size=self._num_classes)
 
             df.to_pickle(OUT_DF)
+
             if (self.name == "un_trade"):
                 node_label_dict = load_trade_label_dict(self.meta_dict["nodefile"], node_ids)
             else:
                 node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
-            save_pkl(node_label_dict, OUT_NODE_DF)
+
+            if (self.name != "subreddits"):  #don't save subreddits on disc, the node label file is too big
+                save_pkl(node_label_dict, OUT_NODE_DF)
+            else:
+                save_pkl(node_ids, OUT_NODE_DF)
+                save_pkl(labels_dict, OUT_LABEL_DF)
         return df, node_label_dict
     
 
