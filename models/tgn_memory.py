@@ -11,7 +11,7 @@ from typing import Callable, Dict, Tuple
 
 import torch
 from torch import Tensor
-from torch.nn import GRUCell, Linear
+from torch.nn import GRUCell, RNNCell, Linear
 
 from torch_geometric.nn.inits import zeros
 from torch_geometric.utils import scatter
@@ -50,7 +50,8 @@ class TGNMemory(torch.nn.Module):
     """
     def __init__(self, num_nodes: int, raw_msg_dim: int, memory_dim: int,
                  time_dim: int, message_module: Callable,
-                 aggregator_module: Callable):
+                 aggregator_module: Callable,
+                 memory_updater_cell: str = 'gru'):
         super().__init__()
 
         self.num_nodes = num_nodes
@@ -62,7 +63,13 @@ class TGNMemory(torch.nn.Module):
         self.msg_d_module = copy.deepcopy(message_module)
         self.aggr_module = aggregator_module
         self.time_enc = TimeEncoder(time_dim)
-        self.gru = GRUCell(message_module.out_channels, memory_dim)
+        # self.gru = GRUCell(message_module.out_channels, memory_dim)
+        if memory_updater_cell == 'gru':  # for TGN
+            self.memory_updater = GRUCell(message_module.out_channels, memory_dim)
+        elif memory_updater_cell == 'rnn':  # for JODIE & DyRep
+            self.memory_updater = RNNCell(message_module.out_channels, memory_dim)
+        else:
+            raise ValueError("Undefined memory updater!!! Memory updater can be either 'gru' or 'rnn'.")
 
         self.register_buffer('memory', torch.empty(num_nodes, memory_dim))
         last_update = torch.empty(self.num_nodes, dtype=torch.long)
@@ -88,7 +95,7 @@ class TGNMemory(torch.nn.Module):
         if hasattr(self.aggr_module, 'reset_parameters'):
             self.aggr_module.reset_parameters()
         self.time_enc.reset_parameters()
-        self.gru.reset_parameters()
+        self.memory_updater.reset_parameters()
         self.reset_state()
 
     def reset_state(self):
@@ -156,7 +163,7 @@ class TGNMemory(torch.nn.Module):
         aggr = self.aggr_module(msg, self._assoc[idx], t, n_id.size(0))
 
         # Get local copy of updated memory.
-        memory = self.gru(aggr, self.memory[n_id])
+        memory = self.memory_updater(aggr, self.memory[n_id])
 
         # Get local copy of updated `last_update`.
         dim_size = self.last_update.size(0)
