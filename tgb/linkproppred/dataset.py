@@ -148,10 +148,11 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])  
             elif (self.name == "redditcomments"):
                 df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict['fname'])
+            elif (self.name == "amazonreview"):
+                df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
-            #df = reindex(df, bipartite=False)  #this is simplying shifting the index by 1
             if (self.meta_dict['nodefile'] is not None):
                 node_feat = process_node_feat(self.meta_dict['nodefile'], node_ids)
                 save_pkl(node_feat, OUT_NODE_FEAT)
@@ -181,13 +182,6 @@ class LinkPropPredDataset(object):
         #y should be 1 for all pos edges
         y = np.ones(len(df))
         self._edge_feat = edge_feat + weights.reshape(-1,1)  #reshape weights as feature if available
-
-        #TODO to remove
-        # self._edge_feat = edge_feat
-        # if (self.name == "stablcoin"):
-        #     # use weight as edge feature for weighted graph
-        #     self._edge_feat = weights.reshape(-1,1)
-
         self._node_feat = node_feat
 
 
