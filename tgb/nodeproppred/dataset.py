@@ -21,9 +21,13 @@ class NodePropertyDataset(object):
         meta_dict: Optional[dict] = None,
         preprocess: Optional[bool] = True,
         ):
-        r"""Dataset class for edge regression tasks. Stores meta information about each dataset such as evaluation metrics etc.
+        r"""Dataset class for the node property prediction task. Stores meta information about each dataset such as evaluation metrics etc.
         also automatically pre-processes the dataset.
-        Args:
+        [!] node property prediction datasets requires the following:
+        self.meta_dict["fname"]: path to the edge list file
+        self.meta_dict["nodefile"]: path to the node label file
+        
+        Parameters:
             name: name of the dataset
             root: root directory to store the dataset folder
             meta_dict: dictionary containing meta information about the dataset, should contain key 'dir_name' which is the name of the dataset folder

@@ -14,6 +14,7 @@ from torch_geometric.nn.models.tgn import (
 )
 
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.evaluate import Evaluator
 import torch.nn.functional as F
 import time
 
@@ -34,6 +35,8 @@ test_mask = dataset.test_mask
 num_classes = dataset.num_classes
 data = dataset.data[0]
 data = data.to(device)
+
+evaluator = Evaluator(name=name)
 
 
 train_data = data[train_mask]
@@ -133,9 +136,7 @@ def train():
 
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    TOP_Ks = [5,10,20]
-    total_ncdg = np.zeros(len(TOP_Ks)) 
-    track_ncdg = []
+    total_mse = 0
     num_labels = 0
 
     for batch in tqdm(train_loader):
@@ -180,13 +181,12 @@ def train():
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
-
-            for i in range(len(TOP_Ks)):
-                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
-                total_ncdg[i] += ncdg_score * label_ts.shape[0]
-                if (TOP_Ks[i] == 10):
-                    track_ncdg.append(ncdg_score)
-
+            
+            
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['mse']}
+            result_dict = evaluator.eval(input_dict) 
+            mse = result_dict['mse']
+            total_mse += mse
             num_labels += label_ts.shape[0]
 
             loss.backward()
@@ -200,10 +200,7 @@ def train():
     metric_dict = {
     "ce":total_loss / num_labels,
     }
-
-    for i in range(len(TOP_Ks)):
-        k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
+    metric_dict['mse'] = total_mse / num_labels
     return metric_dict
 
 
@@ -215,9 +212,7 @@ def test(loader):
 
     total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    #TOP_K = 10
-    TOP_Ks = [5,10,20]
-    total_ncdg = np.zeros(len(TOP_Ks)) 
+    total_mse = 0
     num_labels = 0
 
     for batch in tqdm(loader):
@@ -259,19 +254,16 @@ def test(loader):
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            for i in range(len(TOP_Ks)):
-                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
-                total_ncdg[i] += ncdg_score * label_ts.shape[0]
-
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['mse']}
+            result_dict = evaluator.eval(input_dict) 
+            mse = result_dict['mse']
+            total_mse += mse
             num_labels += label_ts.shape[0]
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-
-    for i in range(len(TOP_Ks)):
-        k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
+    metric_dict['mse'] = total_mse / num_labels
     return metric_dict
 
 for epoch in range(1, 51):
