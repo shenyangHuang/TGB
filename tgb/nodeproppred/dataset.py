@@ -12,7 +12,7 @@ from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors, DATA_NUM_CLASSES
 from tgb.utils.utils import save_pkl, load_pkl, find_nearest
 from tgb.utils.pre_process import load_label_dict, load_edgelist_sr, load_edgelist_datetime, load_trade_label_dict, load_edgelist_trade
 
-# TODO add node label loading code, node label convertion to unix time code etc.
+#! can retire meta_dict as input to the class
 class NodePropertyDataset(object):
     def __init__(
         self, 
@@ -20,7 +20,7 @@ class NodePropertyDataset(object):
         root: Optional[str] = 'datasets', 
         meta_dict: Optional[dict] = None,
         preprocess: Optional[bool] = True,
-        ):
+        ) -> None:
         r"""Dataset class for the node property prediction task. Stores meta information about each dataset such as evaluation metrics etc.
         also automatically pre-processes the dataset.
         [!] node property prediction datasets requires the following:
@@ -32,6 +32,8 @@ class NodePropertyDataset(object):
             root: root directory to store the dataset folder
             meta_dict: dictionary containing meta information about the dataset, should contain key 'dir_name' which is the name of the dataset folder
             preprocess: whether to pre-process the dataset
+        Returns:
+            None
         """
         self.name = name ## original name
         #check if dataset url exist 
@@ -65,7 +67,6 @@ class NodePropertyDataset(object):
         if osp.isdir(self.root):
             print("Dataset directory is ", self.root)
         else:
-            #os.makedirs(self.root)
             raise FileNotFoundError(f"Directory not found at {self.root}")
 
         if preprocess:
@@ -74,10 +75,12 @@ class NodePropertyDataset(object):
         self.label_ts_idx = 0  #index for which node lables to return now
 
 
-    def download(self):
-        """
+    def download(self) -> None:
+        r"""
         downloads this dataset from url
         check if files are already downloaded
+        Returns:
+            None
         """
         #check if the file already exists
         if (osp.exists(self.meta_dict["fname"]) and osp.exists(self.meta_dict["nodefile"])):
@@ -115,21 +118,19 @@ class NodePropertyDataset(object):
                     BColors.FAIL + "Data not found error, download " + self.name + " failed")
 
 
-    def generate_processed_files(self) -> pd.DataFrame:
+    def generate_processed_files(self
+                                 ) -> Tuple[pd.DataFrame, Dict[int, Dict[str, Any]]]:
         r"""
         returns an edge list of pandas data frame
-        Parameters:
-            fname: path to raw data file
         Returns:
-            df: pandas data frame
+            df: pandas data frame storing the temporal edge list
+            node_label_dict: dictionary with key as timestamp and item as dictionary of node labels
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
         OUT_LABEL_DF = self.root + '/' + 'ml_{}_label.pkl'.format(self.name)
 
-        """
-        subreddits dataset node label file too big to save on disc
-        """
+        #* logic for subreddits, as node label file is too big to store on disc
         if (self.name == "subreddits"):
             if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
                 df = pd.read_pickle(OUT_DF)
@@ -137,20 +138,14 @@ class NodePropertyDataset(object):
                 labels_dict = load_pkl(OUT_LABEL_DF)
                 node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
                 return df, node_label_dict
-
-        
-        '''
-        reprocess the node label dataset again
-        '''     
+            
+        #* load the preprocessed file if possible   
         if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
             node_label_dict = load_pkl(OUT_NODE_DF)
-            #node_df = pd.read_pickle(OUT_NODE_DF)
-        else:
-            #! now directly load the processed files and not providing the raw files
+        else:   #* process the file 
             print ("file not processed, generating processed file")
-            #print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
             if (self.name == "subreddits"):
                 df, edge_feat, node_ids, labels_dict = load_edgelist_sr(self.meta_dict["fname"], label_size=self._num_classes)
             elif (self.name == "lastfmgenre"):
@@ -176,14 +171,12 @@ class NodePropertyDataset(object):
 
 
 
-    def pre_process(self):
+    def pre_process(self) -> None:
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
-        generates self.full_data, self.train_data, self.val_data, self.test_data
-        Parameters:
-            feat_dim: dimension for feature vectors, padded to 172 with zeros
+        Returns:
+            None
         '''
-
         #first check if all files exist
         if ("fname" not in self.meta_dict) or ("nodefile" not in self.meta_dict):
             raise Exception("meta_dict does not contain all required filenames")        
@@ -205,8 +198,8 @@ class NodePropertyDataset(object):
             'y': y,
         }
         self._full_data = full_data
-
-        #! store the masks here instead of full arrays
+        
+        #storing the split masks
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
         
         self._train_mask = _train_mask
@@ -218,22 +211,21 @@ class NodePropertyDataset(object):
         self.label_ts = np.sort(self.label_ts) 
 
 
-    # TODO load from fixed split index from disc
-
     def generate_splits(self,
                         full_data: Dict[str, Any],
                         val_ratio=0.15, 
                         test_ratio=0.15,
-                        ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
-        r"""Generates train, validation, and test splits from the full dataset
-        Args:
+                        ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""
+        Generates train, validation, and test splits from the full dataset
+        Parameters:
             full_data: dictionary containing the full dataset
             val_ratio: ratio of validation data
             test_ratio: ratio of test data
         Returns:
-            train_data: dictionary containing the training dataset
-            val_data: dictionary containing the validation dataset
-            test_data: dictionary containing the test dataset
+            train_mask: boolean mask for training data
+            val_mask: boolean mask for validation data
+            test_mask: boolean mask for test data
         """
         val_time, test_time = list(np.quantile(full_data['timestamps'], [(1 - val_ratio - test_ratio), (1 - test_ratio)]))
         timestamps = full_data['timestamps']
@@ -243,9 +235,11 @@ class NodePropertyDataset(object):
 
         return train_mask, val_mask, test_mask   
 
-    def find_next_labels_batch(self, cur_t):
+    def find_next_labels_batch(self, 
+                               cur_t: int,
+                               ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
-        this function simply returns the next day's label if the cur_t >= current label ts
+        this returns the node labels closest to cur_t (for that given day)
         Parameters:
             cur_t: current timestamp of the batch of edges
         Returns:
@@ -258,20 +252,6 @@ class NodePropertyDataset(object):
         except:
             print("node labels need to be reset, please run dataset.reset_label_time()")
             return None
-        
-
-        # #! double check the logic here 
-        # self.label_ts_idx += 1 #move to the next ts
-        # # {ts: {node_id: label_vec}}
-        # node_ids = np.array(list(self.label_dict[ts].keys()))
-
-        # node_labels = []
-        # for key in self.label_dict[ts]:
-        #     node_labels.append(np.array(self.label_dict[ts][key]))
-        # node_labels = np.stack(node_labels, axis=0)
-        # #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
-        # label_ts = np.full(node_ids.shape[0], ts, dtype="int")
-        # return (label_ts, node_ids, node_labels)
          
         if (cur_t >= ts):
             self.label_ts_idx += 1 #move to the next ts
@@ -287,11 +267,21 @@ class NodePropertyDataset(object):
         else:
             return None
 
-    def reset_label_time(self):
+    def reset_label_time(self) -> None:
+        r"""
+        reset the pointer for node label once the entire dataset has been iterated once
+        Returns:
+            None
+        """
         self.label_ts_idx = 0
 
 
-    def return_label_ts(self):
+    def return_label_ts(self) -> int:
+        """
+        return the current label timestamp that the pointer is at
+        Returns: 
+            ts: int, the timestamp of the node labels
+        """
         return self.label_ts[self.label_ts_idx]
 
 
@@ -299,10 +289,12 @@ class NodePropertyDataset(object):
     def num_classes(self) -> int:
         """
         number of classes in the node label
+        Returns:
+            num_classes: int, number of classes
         """    
         return self._num_classes
-
-
+    
+    #TODO not sure needed, to be removed
     @property
     def node_feat(self) -> Optional[np.ndarray]:
         r"""
@@ -312,7 +304,8 @@ class NodePropertyDataset(object):
         """
         return self._node_feat
     
-
+    
+    #TODO not sure needed, to be removed
     @property
     def edge_feat(self) -> Optional[np.ndarray]:
         r"""
@@ -322,7 +315,7 @@ class NodePropertyDataset(object):
         """
         return self._edge_feat
     
-
+    
     @property
     def full_data(self) -> Dict[str, Any]:
         r"""
@@ -337,18 +330,18 @@ class NodePropertyDataset(object):
     
     
     @property
-    def train_mask(self) -> Dict[str, Any]:
+    def train_mask(self) -> np.ndarray:
         r"""
         Returns the train mask of the dataset 
         Returns:
-            train_mask: Dict[str, Any]
+            train_mask
         """
         if (self._train_mask is None):
             raise ValueError("training split hasn't been loaded")
         return self._train_mask
     
     @property
-    def val_mask(self) -> Dict[str, Any]:
+    def val_mask(self) -> np.ndarray:
         r"""
         Returns the validation mask of the dataset 
         Returns:
@@ -360,7 +353,7 @@ class NodePropertyDataset(object):
         return self._val_mask
     
     @property
-    def test_mask(self) -> Dict[str, Any]:
+    def test_mask(self) -> np.ndarray:
         r"""
         Returns the test mask of the dataset:
         Returns:
