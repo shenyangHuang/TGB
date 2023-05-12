@@ -27,6 +27,8 @@ import time
 # internal imports
 from models.tgn import TGNMemory
 from edgepred_utils import *
+from tgb.linkproppred.sample_negative import *
+from tgb.linkproppred.evaluate import Evaluator
 
 
 
@@ -35,7 +37,9 @@ overall_start = time.time()
 LR = 0.0001
 batch_size = 200
 K = 10  # for computing metrics@k
-n_epoch = 20
+n_epoch = 1
+rnd_seed = 1234
+dataset_name = 'wikipedia'
 
 memory_dim = time_dim = embedding_dim = 100
 
@@ -44,7 +48,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # data loading
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'JODIE')
-dataset = JODIEDataset(path, name='wikipedia')
+dataset = JODIEDataset(path, name=dataset_name)
 data = dataset[0]
 
 # For small datasets, we can put the whole dataset on GPU and thus avoid
@@ -137,6 +141,7 @@ def train():
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         # Sample negative destination nodes.
+        # @TODO: do we need to have a separate negative sampler for training?
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
                                 dtype=torch.long, device=device)
 
@@ -169,7 +174,7 @@ def train():
 
 
 @torch.no_grad()
-def test_exh_any_pos_vs_all(loader):
+def test_any_vs_all(loader):
     """
     Evaluated the dynamic link prediction in an exhaustive manner
     """
@@ -177,26 +182,29 @@ def test_exh_any_pos_vs_all(loader):
     gnn.eval()
     link_pred.eval()
 
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
+    torch.manual_seed(rnd_seed)  # Ensure deterministic sampling across epochs.
+
+    # Negative Sampler
+    neg_sampler = NegativeEdgeSampler(first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, device=device, nes_mode='any_vs_all', rnd_seed=rnd_seed)
 
     aps, aucs = [], []
     prec_at_k_list, rec_at_k_list, f1_at_k_list = [], [], []
     hist_at_k_list, mrr_list = [], []
-    # hists_mrr = []
     for batch in loader:
         batch = batch.to(device)
         src_orig, pos_dst_orig, t_orig, msg_orig = batch.src, batch.dst, batch.t, batch.msg
         batch_size = src_orig.size(0)
         
-        edges_per_node = gen_eval_set_for_batch_multi_pos(src_orig, pos_dst_orig, min_dst_idx, max_dst_idx)
+        # NOTE: for each positive source node returns a dictionary including 'positive destinations' and 'negative destination' nodes
+        edges_per_node = neg_sampler.generate_any_vs_all_negatives(src_orig, pos_dst_orig)
 
         pos_out_pbatch, neg_out_pbatch = [], []
         for pos_s in src_orig:
             pos_s = pos_s.item()
-            pos_dst = torch.tensor(edges_per_node[pos_s]['pos'], device=device)
+            pos_dst = edges_per_node[pos_s]['pos']
             pos_src = torch.tensor([pos_s for _ in range(len(edges_per_node[pos_s]['pos']))], device=device)
 
-            neg_dst = torch.tensor(edges_per_node[pos_s]['neg'], device=device)
+            neg_dst = edges_per_node[pos_s]['neg']
             neg_src = torch.tensor([pos_s for _ in range(len(edges_per_node[pos_s]['neg']))], device=device)
 
             # positive edges 
@@ -239,19 +247,17 @@ def test_exh_any_pos_vs_all(loader):
             y_true_src = torch.cat([torch.ones(pos_out.size(0)), torch.zeros(neg_out_nbatch.size(0))], dim=0)
 
             # precition@k, recall@k, f1@k
-            metrics_at_k = metric_at_k_score(y_true_src, y_pred_proba_src, k=K, pos_label=1)
-            prec_at_k_list.append(metrics_at_k['precision@k'])
-            rec_at_k_list.append(metrics_at_k['recall@k'])
-            f1_at_k_list.append(metrics_at_k['f1@k'])
+            metrics_cls_rnk = evaluator.eval_metrics_cls_rnk(y_true=y_true_src, y_pred=y_pred_proba_src, k=K)
+            prec_at_k_list.append(metrics_cls_rnk['prec@k'])
+            rec_at_k_list.append(metrics_cls_rnk['rec@k'])
+            f1_at_k_list.append(metrics_cls_rnk['f1@k'])
 
-            # hist@K
-            hist_at_k = eval_hits(pos_out.squeeze(dim=-1).sigmoid().cpu(), neg_out_nbatch.squeeze(dim=-1).sigmoid().cpu(), type_info='torch', K=K)
-            hist_at_k_list.append(hist_at_k)
-
-            # MRR
-            mrr_metrics = eval_mrr(pos_out.squeeze(dim=-1).sigmoid().cpu(), neg_out_nbatch.squeeze(dim=-1).sigmoid().cpu(), type_info='torch', K=K)
-            mrr_list.append(mrr_metrics['mrr_list'])
-            # hists_mrr.append(mrr_metrics['hits@k'])
+            # hist@k & MRR
+            metrics_mrr_rnk = evaluator.eval_metrics_mrr_rnk(y_pred_pos=pos_out.squeeze(dim=-1).sigmoid().cpu(), 
+                                                   y_pred_neg=neg_out_nbatch.squeeze(dim=-1).sigmoid().cpu(), 
+                                                   type_info='torch', k=K)
+            hist_at_k_list.append(metrics_mrr_rnk['hits@k'])
+            mrr_list.append(metrics_mrr_rnk['mrr'])
 
 
         # metrics per processing each batch of positive edges
@@ -262,8 +268,8 @@ def test_exh_any_pos_vs_all(loader):
             [torch.ones(pos_out_pbatch.size(0)),
              torch.zeros(neg_out_pbatch.size(0))], dim=0)
 
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
+        aps.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='ap'))
+        aucs.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='auc'))
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(src_orig, pos_dst_orig, t_orig, msg_orig)
@@ -274,139 +280,30 @@ def test_exh_any_pos_vs_all(loader):
                     'prec@k': float(torch.tensor(prec_at_k_list).mean()),
                     'rec@k': float(torch.tensor(rec_at_k_list).mean()),
                     'f1@k': float(torch.tensor(f1_at_k_list).mean()),
-                    'hit@k': float(torch.tensor(hist_at_k_list).mean()),
+                    'hits@k': float(torch.tensor(hist_at_k_list).mean()),
                     'mrr': float(torch.tensor(torch.stack(mrr_list)).mean()),
-                    # 'mrr_hits@k': float(torch.tensor(torch.stack(hists_mrr)).mean()),
-                    }
-
-    return perf_metrics
-
-@torch.no_grad()
-def test_exh_one_pos_vs_all(loader):
-    """
-    Evaluated the dynamic link prediction in an exhaustive manner
-    """
-    memory.eval()
-    gnn.eval()
-    link_pred.eval()
-
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
-
-    aps, aucs = [], []
-    prec_at_k_list, rec_at_k_list, f1_at_k_list = [], [], []
-    hist_at_k_list, mrr_list = [], []
-    # hists_mrr = []
-    for batch in loader:
-        batch = batch.to(device)
-        src_orig, pos_dst_orig, t_orig, msg_orig = batch.src, batch.dst, batch.t, batch.msg
-        batch_size = src_orig.size(0)
-        
-        edges_for_evaluation = gen_eval_set_for_batch_one_pos(src_orig, pos_dst_orig, min_dst_idx, max_dst_idx)
-
-        pos_out_pbatch, neg_out_pbatch = [], []
-        for (pos_s, pos_d) in zip(src_orig, pos_dst_orig):
-            pos_edge = (pos_s.item(), pos_d.item())
-            neg_dst = torch.tensor(edges_for_evaluation[pos_edge]['neg'], device=device)
-            neg_src = torch.tensor([pos_s.item() for _ in range(len(edges_for_evaluation[pos_edge]['neg']))], device=device)
-
-            # positive edges 
-            pos_n_id = torch.tensor([pos_s, pos_d], device=device).unique()
-            pos_n_id, pos_edge_index, pos_e_id = neighbor_loader(pos_n_id)
-            assoc[pos_n_id] = torch.arange(pos_n_id.size(0), device=device)
-
-            pos_z, pos_last_update = memory(pos_n_id)
-            pos_z = gnn(pos_z, pos_last_update, pos_edge_index, data.t[pos_e_id].to(device),
-                    data.msg[pos_e_id].to(device))
-
-            pos_out = link_pred(pos_z[assoc[pos_s]], pos_z[assoc[pos_d]])
-            pos_out_pbatch.append(pos_out)
-
-            # negative edges
-            n_neg_iter = math.ceil(len(neg_dst) / batch_size)
-            neg_out_nbatch = []
-            for n_iter_idx in range(n_neg_iter):
-                n_start_idx = n_iter_idx * batch_size
-                n_end_idx = min(n_start_idx + batch_size, len(neg_dst))
-
-                neg_src_iter = neg_src[n_start_idx: n_end_idx]
-                neg_dst_iter = neg_dst[n_start_idx: n_end_idx]
-
-                neg_n_id = torch.cat([neg_src_iter, neg_dst_iter]).unique()
-                neg_n_id, neg_edge_index, neg_e_id = neighbor_loader(neg_n_id)
-                assoc[neg_n_id] = torch.arange(neg_n_id.size(0), device=device)
-                neg_z, neg_last_update = memory(neg_n_id)
-                neg_z = gnn(neg_z, neg_last_update, neg_edge_index, data.t[neg_e_id].to(device),
-                        data.msg[neg_e_id].to(device))
-
-                neg_out = link_pred(neg_z[assoc[neg_src_iter]], neg_z[assoc[neg_dst_iter]])
-                neg_out_nbatch.append(neg_out)
-                neg_out_pbatch.append(neg_out)
-
-            # precision@k & recall@k should be calculated for each positive source node separately
-            # y_true, y_pred_proba
-            neg_out_nbatch = torch.cat([neg_out.squeeze(dim=-1) for neg_out in neg_out_nbatch], dim=0)
-            y_pred_proba_src = torch.cat([pos_out, neg_out_nbatch.squeeze(dim=-1)], dim=0).sigmoid().cpu()
-            y_true_src = torch.cat([torch.ones(pos_out.size(0)), torch.zeros(neg_out_nbatch.size(0))], dim=0)
-
-            # precition@k, recall@k, f1@k
-            metrics_at_k = metric_at_k_score(y_true_src, y_pred_proba_src, k=K, pos_label=1)
-            prec_at_k_list.append(metrics_at_k['precision@k'])
-            rec_at_k_list.append(metrics_at_k['recall@k'])
-            f1_at_k_list.append(metrics_at_k['f1@k'])
-
-            # hist@K
-            hist_at_k = eval_hits(pos_out.sigmoid().cpu(), neg_out_nbatch.squeeze(dim=-1).sigmoid().cpu(), type_info='torch', K=K)
-            hist_at_k_list.append(hist_at_k)
-
-            # MRR
-            mrr_metrics = eval_mrr(pos_out.sigmoid().cpu(), neg_out_nbatch.squeeze(dim=-1).sigmoid().cpu(), type_info='torch', K=K)
-            mrr_list.append(mrr_metrics['mrr_list'])
-            # hists_mrr.append(mrr_metrics['hits@k'])
-
-
-        # metrics per processing each batch of positive edges
-        pos_out_pbatch = torch.cat([pos_out for pos_out in pos_out_pbatch], dim=0)
-        neg_out_pbatch = torch.cat([neg_out.squeeze(dim=-1) for neg_out in neg_out_pbatch], dim=0)
-        y_pred = torch.cat([pos_out_pbatch, neg_out_pbatch], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out_pbatch.size(0)),
-             torch.zeros(neg_out_pbatch.size(0))], dim=0)
-
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
-
-        # Update memory and neighbor loader with ground-truth state.
-        memory.update_state(src_orig, pos_dst_orig, t_orig, msg_orig)
-        neighbor_loader.insert(src_orig, pos_dst_orig)
-
-    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
-                    'auc': float(torch.tensor(aucs).mean()),
-                    'prec@k': float(torch.tensor(prec_at_k_list).mean()),
-                    'rec@k': float(torch.tensor(rec_at_k_list).mean()),
-                    'f1@k': float(torch.tensor(f1_at_k_list).mean()),
-                    'hit@k': float(torch.tensor(hist_at_k_list).mean()),
-                    'mrr': float(torch.tensor(torch.stack(mrr_list)).mean()),
-                    # 'mrr_hits@k': float(torch.tensor(torch.stack(hists_mrr)).mean()),
                     }
 
     return perf_metrics
 
 
 @torch.no_grad()
-def test_one_pos_vs_one_neg(loader):
+def test_one_vs_one(loader):
     memory.eval()
     gnn.eval()
     link_pred.eval()
 
-    torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
+    torch.manual_seed(rnd_seed)  # Ensure deterministic sampling across epochs.
+
+    # Negative Sampler
+    neg_sampler = NegativeEdgeSampler(first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, device=device, nes_mode='one_vs_one', rnd_seed=rnd_seed)
 
     aps, aucs = [], []
     for batch in loader:
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
+        neg_dst = neg_sampler.generate_one_vs_one_negatives(src, pos_dst)
 
         n_id = torch.cat([src, pos_dst, neg_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
@@ -424,54 +321,56 @@ def test_one_pos_vs_one_neg(loader):
             [torch.ones(pos_out.size(0)),
              torch.zeros(neg_out.size(0))], dim=0)
 
-        aps.append(average_precision_score(y_true, y_pred))
-        aucs.append(roc_auc_score(y_true, y_pred))
+        aps.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='ap'))
+        aucs.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='auc'))
 
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
     perf_metrics = {'ap': float(torch.tensor(aps).mean()),
                     'auc': float(torch.tensor(aucs).mean()),
+                    'prec@k': None,
+                    'rec@k': None,
+                    'f1@k': None,
+                    'hits@k': None,
+                    'mrr': None,
                     }
 
     return perf_metrics
 
 
 
-# Train & Validation
-print("INFO: =======================================")
-print("INFO: ===========*** TGN model ***===========")
-print("INFO: =======================================")
 
+print("========================================================")
+print("=================*** TGN model: ANY-VS-ALL ***===========")
+print("========================================================")
+
+evaluator = Evaluator(name=dataset_name)
+
+# ==================================================== Train & Validation
+start_train_val = time.time()
 for epoch in range(1, n_epoch + 1):
     start_epoch_train = time.time()
     loss = train()
     end_epoch_train = time.time()
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}')
-    val_perf_metrics = test_one_pos_vs_one_neg(val_loader)
+    val_perf_metrics = test_one_vs_one(val_loader)  # used for validation only
     val_ap, val_auc = val_perf_metrics['ap'], val_perf_metrics['auc']
     print(f'\tVal AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
+end_train_val = time.time()
+print(f'Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: .4f}')
 
-# ===========
-DLP_EVAL_SETUP = 'one_vs_one'  # 'one_vs_all': each positive edge vs. all relevant negative edges, 'any_vs_all': any positive edges with the same source vs. all relevant negative edges
-
+# ==================================================== Test
 start_test = time.time()
-if DLP_EVAL_SETUP == 'any_vs_all':
-    perf_metrics_test = test_exh_any_pos_vs_all(test_loader)
-elif DLP_EVAL_SETUP == 'one_vs_all':
-    perf_metrics_test = test_exh_one_pos_vs_all(test_loader)
-elif DLP_EVAL_SETUP == 'one_vs_one':
-    perf_metrics_test = test_one_pos_vs_one_neg(test_loader)
-else:
-    raise ValueError("Undefined test evaluation setup for dynamic link prediction!!!")
-
+perf_metrics_test = test_any_vs_all(test_loader)
 end_test = time.time()
-print(f"INFO: Test Evaluation Setup: {DLP_EVAL_SETUP}")
-print(f"INFO: >>> K={K}")
+
+print(f"INFO: Test Evaluation Setting: >>> ANY-VS-ALL <<< ")
 for perf_name, perf_value in perf_metrics_test.items():
     print(f"\tTest: {perf_name}: {perf_value: .4f}")
 print(f'Test: Elapsed Time (s): {end_test - start_test: .4f}')
 
+
 overall_end = time.time()
 print(f'Overall Elapsed Time (s): {overall_end - overall_start: .4f}')
-print("INFO: =======================================")
+print("==============================================================")
