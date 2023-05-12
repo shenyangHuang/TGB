@@ -87,16 +87,16 @@ class PyGLinkPropPredDataset(InMemoryDataset):
         msg = torch.from_numpy(self.dataset.full_data['edge_feat'])  #use edge features here if available
 
         
-        if (src.dtype != torch.int64 and src.dtype != torch.int32):
-            warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
+        if (src.dtype != torch.int64):
+            #warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
             src = src.long()
         
-        if (dst.dtype != torch.int64 and dst.dtype != torch.int32):
-            warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
+        if (dst.dtype != torch.int64):
+            #warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
             dst = dst.long()
         
-        if (t.dtype != torch.int64 and t.dtype != torch.int32):
-            warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
+        if (t.dtype != torch.int64):
+            #warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
             t = t.long()
 
         #! this is required for some reason, investigate more in the future

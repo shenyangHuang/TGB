@@ -94,28 +94,29 @@ class PyGNodePropertyDataset(InMemoryDataset):
         msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
 
         
-        if (src.dtype != torch.int64 and src.dtype != torch.int32):
-            warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
+        if (src.dtype != torch.int64):
+            #warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
             src = src.long()
         
-        if (dst.dtype != torch.int64 and dst.dtype != torch.int32):
-            warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
+        if (dst.dtype != torch.int64):
+            #warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
             dst = dst.long()
         
-        if (t.dtype != torch.int64 and t.dtype != torch.int32):
-            warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
+        if (t.dtype != torch.int64):
+            #warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
             t = t.long()
 
-        if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
-            warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
-            msg = msg.float()
+        if (msg.dtype != torch.float32):
+            #warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
+            msg = msg.to(torch.float32)
+            
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
         if self.pre_transform is not None:
             data = self.pre_transform(data)
         self._data = self.collate([data])
 
     def reset_label_time(self):
-        self.dataset.reset_ctr()
+        self.dataset.reset_label_time()
 
     def get_node_label(self, cur_t):
         label_tuple = self.dataset.find_next_labels_batch(cur_t)
@@ -124,12 +125,13 @@ class PyGNodePropertyDataset(InMemoryDataset):
         label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
         label_ts = torch.from_numpy(label_ts).long()
         label_srcs = torch.from_numpy(label_srcs).long()
-        labels = torch.from_numpy(labels).float()
+        labels = torch.from_numpy(labels).to(torch.float32)
         return label_ts, label_srcs, labels
 
     def get_label_time(self):
-        return self.dataset.get_nearest_label_ctr()
-    
+        return self.dataset.return_label_ts()
+
+
 
 
     def __repr__(self) -> str:

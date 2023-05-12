@@ -8,10 +8,9 @@ import zipfile
 import requests
 from clint.textui import progress
 
-from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.utils import save_pkl, load_pkl
-from tgb.utils.pre_process import load_genre_list, load_node_labels, load_edgelist, _to_pd_data, reindex
-
+from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors, DATA_NUM_CLASSES
+from tgb.utils.utils import save_pkl, load_pkl, find_nearest
+from tgb.utils.pre_process import load_label_dict, load_edgelist_sr, load_edgelist_datetime, load_trade_label_dict, load_edgelist_trade
 
 # TODO add node label loading code, node label convertion to unix time code etc.
 class NodePropertyDataset(object):
@@ -22,9 +21,13 @@ class NodePropertyDataset(object):
         meta_dict: Optional[dict] = None,
         preprocess: Optional[bool] = True,
         ):
-        r"""Dataset class for edge regression tasks. Stores meta information about each dataset such as evaluation metrics etc.
+        r"""Dataset class for the node property prediction task. Stores meta information about each dataset such as evaluation metrics etc.
         also automatically pre-processes the dataset.
-        Args:
+        [!] node property prediction datasets requires the following:
+        self.meta_dict["fname"]: path to the edge list file
+        self.meta_dict["nodefile"]: path to the node label file
+        
+        Parameters:
             name: name of the dataset
             root: root directory to store the dataset folder
             meta_dict: dictionary containing meta information about the dataset, should contain key 'dir_name' which is the name of the dataset folder
@@ -48,25 +51,15 @@ class NodePropertyDataset(object):
         self.root = osp.join(root, self.dir_name)
         self.meta_dict = meta_dict
         if ("fname" not in self.meta_dict):
-            self.meta_dict["fname"] = self.root + "/" + self.name + ".csv"
+            self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist.csv"
+            self.meta_dict["nodefile"] = self.root + "/" + self.name + "_node_labels.csv"
 
-        #! Attention, this is last fm specific syntax now
-        if (name == "lastfmgenre"):
-            #self.meta_dict["edge_fname"] = self.root + "/sorted_lastfm_edgelist.csv"
-            #self.meta_dict["node_fname"] = self.root + "/sorted_7days_node_labels.csv"
-            self.meta_dict["genre_fname"] = self.root + "/genre_list_final.csv"
-            self.meta_dict["edge_fname"] = self.root + "/ml_lastfmgenre.pkl"
-            self.meta_dict["node_fname"] = self.root + "/ml_lastfmgenre_node.pkl"
-
-
+        self._num_classes = DATA_NUM_CLASSES[self.name]
 
         #initialize
         self._node_feat = None
         self._edge_feat = None
         self._full_data = None
-        self._train_data = None
-        self._val_data = None
-        self._test_data = None
         self.download()
         #check if the root directory exists, if not create it
         if osp.isdir(self.root):
@@ -78,6 +71,8 @@ class NodePropertyDataset(object):
         if preprocess:
             self.pre_process()
 
+        self.label_ts_idx = 0  #index for which node lables to return now
+
 
     def download(self):
         """
@@ -85,7 +80,7 @@ class NodePropertyDataset(object):
         check if files are already downloaded
         """
         #check if the file already exists
-        if (osp.exists(self.meta_dict["edge_fname"]) and osp.exists(self.meta_dict["genre_fname"]) + osp.exists(self.meta_dict["node_fname"])):
+        if (osp.exists(self.meta_dict["fname"]) and osp.exists(self.meta_dict["nodefile"])):
             print ("file found, skipping download")
             return
 
@@ -99,7 +94,6 @@ class NodePropertyDataset(object):
                     raise Exception("Dataset url not found, download not supported yet.")
                 else:
                     r = requests.get(self.url, stream=True)
-                    #download_dir = self.root + "/" + "download"
                     if osp.isdir(self.root):
                         print("Dataset directory is ", self.root)
                     else:
@@ -131,6 +125,19 @@ class NodePropertyDataset(object):
         """
         OUT_DF = self.root + '/' + 'ml_{}.pkl'.format(self.name)
         OUT_NODE_DF = self.root + '/' + 'ml_{}_node.pkl'.format(self.name)
+        OUT_LABEL_DF = self.root + '/' + 'ml_{}_label.pkl'.format(self.name)
+
+        """
+        subreddits dataset node label file too big to save on disc
+        """
+        if (self.name == "subreddits"):
+            if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
+                df = pd.read_pickle(OUT_DF)
+                node_ids = load_pkl(OUT_NODE_DF)
+                labels_dict = load_pkl(OUT_LABEL_DF)
+                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
+                return df, node_label_dict
+
         
         '''
         reprocess the node label dataset again
@@ -138,29 +145,38 @@ class NodePropertyDataset(object):
         if (osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF)):
             print ("loading processed file")
             df = pd.read_pickle(OUT_DF)
-            node_df = pd.read_pickle(OUT_NODE_DF)
+            node_label_dict = load_pkl(OUT_NODE_DF)
+            #node_df = pd.read_pickle(OUT_NODE_DF)
         else:
             #! now directly load the processed files and not providing the raw files
             print ("file not processed, generating processed file")
-            print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
-            genre_index = load_genre_list(self.meta_dict["genre_fname"])
-            print ("processing temporal edge list")
-            df, user_index = load_edgelist(self.meta_dict["edge_fname"], genre_index) 
-            #df = reindex(df, bipartite=True)
-            print ("processed edgelist now save to pkl")
+            #print ("processing will take around 10 minutes and then the panda dataframe object will be saved to disc")
+            if (self.name == "subreddits"):
+                df, edge_feat, node_ids, labels_dict = load_edgelist_sr(self.meta_dict["fname"], label_size=self._num_classes)
+            elif (self.name == "lastfmgenre"):
+                df, edge_feat, node_ids, labels_dict = load_edgelist_datetime(self.meta_dict["fname"], label_size=self._num_classes) 
+            elif (self.name == "un_trade"):
+                df, edge_feat, node_ids = load_edgelist_trade(self.meta_dict["fname"], label_size=self._num_classes)
+
             df.to_pickle(OUT_DF)
-            #save_pkl(user_index, self.root + '/' + "user_index.pkl")
-            print ("processing temporal node labels")
-            node_df = load_node_labels(self.meta_dict["node_fname"], genre_index, user_index)
-            node_df.to_pickle(OUT_NODE_DF)
-        return df, node_df
+
+            if (self.name == "un_trade"):
+                node_label_dict = load_trade_label_dict(self.meta_dict["nodefile"], node_ids)
+            else:
+                node_label_dict = load_label_dict(self.meta_dict["nodefile"], node_ids, labels_dict)
+
+            if (self.name != "subreddits"):  #don't save subreddits on disc, the node label file is too big
+                save_pkl(node_label_dict, OUT_NODE_DF)
+            else:
+                save_pkl(node_ids, OUT_NODE_DF)
+                save_pkl(labels_dict, OUT_LABEL_DF)
+        return df, node_label_dict
     
 
 
 
 
-    def pre_process(self, 
-                    feat_dim=172):
+    def pre_process(self):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
         generates self.full_data, self.train_data, self.val_data, self.test_data
@@ -169,25 +185,24 @@ class NodePropertyDataset(object):
         '''
 
         #first check if all files exist
-        if ("edge_fname" not in self.meta_dict) or ("genre_fname" not in self.meta_dict) or ("node_fname" not in self.meta_dict):
+        if ("fname" not in self.meta_dict) or ("nodefile" not in self.meta_dict):
             raise Exception("meta_dict does not contain all required filenames")        
         
-        df, node_df = self.generate_processed_files()
-
-        self._node_feat = np.zeros((df.shape[0], feat_dim))
-        self._edge_feat = np.zeros((df.shape[0], feat_dim))
+        df, node_label_dict = self.generate_processed_files() 
         sources = np.array(df['u'])
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
-        y = np.array(df['w'])
+        y = np.ones(sources.shape[0])
+        self._edge_feat = np.array(df['w'])
 
         full_data = {
             'sources': sources,
             'destinations': destinations,
             'timestamps': timestamps,
             'edge_idxs': edge_idxs,
-            'y': y
+            'edge_feat': self._edge_feat,
+            'y': y,
         }
         self._full_data = full_data
 
@@ -198,17 +213,9 @@ class NodePropertyDataset(object):
         self._val_mask = _val_mask
         self._test_mask = _test_mask
 
-        #now process the node label data
-        labels = np.array(node_df['y'])
-        label_ts = np.array(node_df['ts'])
-        label_srcs = np.array(node_df['node_id'])
-        self.label_dict = {
-            'labels': labels,
-            'label_ts': label_ts,
-            'label_srcs': label_srcs
-        }
-        self.label_ctr = 0 #use this to track which rows the labels should start next
-        self._num_classes = node_df['y'][0].shape[0]
+        self.label_dict = node_label_dict
+        self.label_ts = np.array(list(node_label_dict.keys()))
+        self.label_ts = np.sort(self.label_ts) 
 
 
     # TODO load from fixed split index from disc
@@ -236,39 +243,56 @@ class NodePropertyDataset(object):
 
         return train_mask, val_mask, test_mask   
 
-
-    #! problem, which if the batch size is large and > # of edges in a day
-    def find_next_labels_batch(self, cur_t, time_gap=86400):
+    def find_next_labels_batch(self, cur_t):
         r"""
-        this functions returns the next batch of node labels with timestamps <= to cur_t but difference less than a day
+        this function simply returns the next day's label if the cur_t >= current label ts
         Parameters:
-            cur_t: the current time of the last edge in a batch
-            time_gap: the largest timegap between edge and label
-        return ts, source_idx, labels
+            cur_t: current timestamp of the batch of edges
+        Returns:
+            ts: timestamp of the node labels
+            source_idx: node ids
+            labels: the stacked label vectors
         """
-        labels = self.label_dict['labels']
-        label_ts = self.label_dict['label_ts']
-        label_srcs = self.label_dict['label_srcs']
-        DAYS_IN_SEC = 86400
-        s_ctr = self.label_ctr
+        try:
+            ts = self.label_ts[self.label_ts_idx]
+        except:
+            print("node labels need to be reset, please run dataset.reset_label_time()")
+            return None
+        
 
-        for i in range(self.label_ctr, label_ts.shape[0]):
-            if (label_ts[i] >= cur_t):
-                return (np.asarray(label_ts[s_ctr:self.label_ctr]), np.asarray(label_srcs[s_ctr:self.label_ctr]), np.stack(labels[s_ctr:self.label_ctr], axis=0))
-            self.label_ctr += 1
+        # #! double check the logic here 
+        # self.label_ts_idx += 1 #move to the next ts
+        # # {ts: {node_id: label_vec}}
+        # node_ids = np.array(list(self.label_dict[ts].keys()))
 
-           
-    def get_nearest_label_ctr(self):
-        return self.label_dict['label_ts'][self.label_ctr]
+        # node_labels = []
+        # for key in self.label_dict[ts]:
+        #     node_labels.append(np.array(self.label_dict[ts][key]))
+        # node_labels = np.stack(node_labels, axis=0)
+        # #node_labels = np.stack(list(self.label_dict[ts].items()), axis=0)
+        # label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+        # return (label_ts, node_ids, node_labels)
+         
+        if (cur_t >= ts):
+            self.label_ts_idx += 1 #move to the next ts
+            # {ts: {node_id: label_vec}}
+            node_ids = np.array(list(self.label_dict[ts].keys()))
+
+            node_labels = []
+            for key in self.label_dict[ts]:
+                node_labels.append(np.array(self.label_dict[ts][key]))
+            node_labels = np.stack(node_labels, axis=0)
+            label_ts = np.full(node_ids.shape[0], ts, dtype="int")
+            return (label_ts, node_ids, node_labels)
+        else:
+            return None
+
+    def reset_label_time(self):
+        self.label_ts_idx = 0
 
 
-
-
-
-    def reset_ctr(self):
-        self.label_ctr = 0
-
-
+    def return_label_ts(self):
+        return self.label_ts[self.label_ts_idx]
 
 
     @property
@@ -353,7 +377,7 @@ class NodePropertyDataset(object):
 
 def main():
     # download files
-    name = "lastfmgenre"
+    name = "un_trade" #"subreddits" #"lastfmgenre"
     dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
 
     

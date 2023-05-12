@@ -26,9 +26,20 @@ DATA_URL_DICT ={
     "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",
     "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
     "stablecoin": "https://object-arbutus.cloud.computecanada.ca/tgb/stablecoin.zip",
+    "redditcomments": "https://object-arbutus.cloud.computecanada.ca/tgb/redditcomments.zip",
+    "subreddits": "https://object-arbutus.cloud.computecanada.ca/tgb/subreddits.zip",
+    "amazonreview": "https://object-arbutus.cloud.computecanada.ca/tgb/amazonreview.zip",
 }
 
 
 DATA_EVAL_METRIC_DICT = {
     "un_trade": None, # maybe torchmetrics https://torchmetrics.readthedocs.io/en/stable/regression/mean_squared_error.html
+}
+
+# "subreddits": 2220,
+
+DATA_NUM_CLASSES = {
+    "lastfmgenre": 513,
+    "subreddits": 2221,
+    "un_trade": 255,
 }
