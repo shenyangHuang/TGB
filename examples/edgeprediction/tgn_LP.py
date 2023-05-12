@@ -1,9 +1,12 @@
 """
-TGN pyG: Link Prediction
+Dynamic Link Prediction with a TGN model
 
 Reference: 
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
+
+import math
+import time
 
 import os.path as osp
 import numpy as np
@@ -14,21 +17,28 @@ from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-# from torch_geometric.nn import TGNMemory, TransformerConv
+
 from torch_geometric.nn import TransformerConv
-from torch_geometric.nn.models.tgn import (
-    IdentityMessage,
-    LastAggregator,
-    LastNeighborLoader,
-)
-import math
-import time
 
 # internal imports
-from models.tgn import TGNMemory
-from edgepred_utils import *
-from tgb.linkproppred.sample_negative import *
+from tgb.linkproppred.negative_sampler import *
 from tgb.linkproppred.evaluate import Evaluator
+from models.decoder import LinkPredictor
+from models.emb_module import GraphAttentionEmbedding
+
+'''
+ from torch_geometric.nn.models.tgn import (
+     IdentityMessage,
+     LastAggregator,
+     LastNeighborLoader,
+     TGNMemory,
+ )
+# The modularized version of the above is as follows:
+'''
+from models.msg_func import IdentityMessage
+from models.msg_agg import LastAggregator
+from models.neighbor_loader import LastNeighborLoader
+from models.tgn_memory import TGNMemory
 
 
 
@@ -36,7 +46,7 @@ overall_start = time.time()
 
 LR = 0.0001
 batch_size = 200
-K = 10  # for computing metrics@k
+k = 10  # for computing metrics@k
 n_epoch = 1
 rnd_seed = 1234
 dataset_name = 'wikipedia'
@@ -69,42 +79,13 @@ test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 # neighhorhood sampler
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
 
-class GraphAttentionEmbedding(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, msg_dim, time_enc):
-        super().__init__()
-        self.time_enc = time_enc
-        edge_dim = msg_dim + time_enc.out_channels
-        self.conv = TransformerConv(in_channels, out_channels // 2, heads=2,
-                                    dropout=0.1, edge_dim=edge_dim)
-
-    def forward(self, x, last_update, edge_index, t, msg):
-        rel_t = last_update[edge_index[0]] - t
-        rel_t_enc = self.time_enc(rel_t.to(x.dtype))
-        edge_attr = torch.cat([rel_t_enc, msg], dim=-1)
-        return self.conv(x, edge_index, edge_attr)
-
-
-class LinkPredictor(torch.nn.Module):
-    def __init__(self, in_channels):
-        super().__init__()
-        self.lin_src = Linear(in_channels, in_channels)
-        self.lin_dst = Linear(in_channels, in_channels)
-        self.lin_final = Linear(in_channels, 1)
-
-    def forward(self, z_src, z_dst):
-        h = self.lin_src(z_src) + self.lin_dst(z_dst)
-        h = h.relu()
-        return self.lin_final(h)
-
-
 memory = TGNMemory(
     data.num_nodes,
     data.msg.size(-1),
     memory_dim,
     time_dim,
     message_module=IdentityMessage(data.msg.size(-1), memory_dim, time_dim),
-    aggregator_module=LastAggregator(),
-    memory_updater_type='gru'  # TGN: 'gru', JODIE & DyRep: 'rnn'
+    aggregator_module=LastAggregator()
 ).to(device)
 
 gnn = GraphAttentionEmbedding(
@@ -141,7 +122,6 @@ def train():
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         # Sample negative destination nodes.
-        # @TODO: do we need to have a separate negative sampler for training?
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
                                 dtype=torch.long, device=device)
 
@@ -154,8 +134,8 @@ def train():
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]]).sigmoid()
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]]).sigmoid()
+        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
+        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
@@ -174,89 +154,111 @@ def train():
 
 
 @torch.no_grad()
-def test_one_vs_one(loader):
+def test_one_vs_many(loader, neg_sampler, split_mode):
+    """
+    Evaluated the dynamic link prediction in an exhaustive manner
+    """
     memory.eval()
     gnn.eval()
     link_pred.eval()
 
     torch.manual_seed(rnd_seed)  # Ensure deterministic sampling across epochs.
 
-    # Negative Sampler
-    neg_sampler = NegativeEdgeSampler(first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, device=device, nes_mode='one_vs_one', rnd_seed=rnd_seed)
+    hist_at_k_list, mrr_list = [], []
 
-    aps, aucs = [], []
-    for batch in loader:
-        batch = batch.to(device)
-        src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+    for pos_batch in loader:
+        pos_src, pos_dst, pos_t, pos_msg = pos_batch.src, pos_batch.dst, pos_batch.t, pos_batch.msg
 
-        neg_dst = neg_sampler.generate_one_vs_one_negatives(src, pos_dst)
+        neg_batch_list = neg_sampler.query_batch(pos_batch, split_mode=split_mode)
 
-        n_id = torch.cat([src, pos_dst, neg_dst]).unique()
-        n_id, edge_index, e_id = neighbor_loader(n_id)
-        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+        for idx, neg_batch in enumerate(neg_batch_list):
+            src = torch.full((1 + len(neg_batch), ), pos_src[idx], device=device)
+            dst = torch.tensor(np.concatenate(([np.array([pos_dst.cpu().numpy()[idx]]), np.array(neg_batch)]), axis=0), device=device)
 
-        z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
+            n_id = torch.cat([src, dst]).unique()
+            n_id, edge_index, e_id = neighbor_loader(n_id)
+            assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
-        pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
-        neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
+            # Get updated memory of all nodes involved in the computation.
+            z, last_update = memory(n_id)
+            z = gnn(z, last_update, edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
 
-        y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
-        y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
-             torch.zeros(neg_out.size(0))], dim=0)
+            y_pred = link_pred(z[assoc[src]], z[assoc[dst]])
 
-        aps.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='ap'))
-        aucs.append(evaluator.eval_metrics_cls(y_true, y_pred, eval_metric='auc'))
+            # hist@k & MRR
+            metrics_mrr_rnk = evaluator.eval_rnk_metrics(y_pred_pos=y_pred[0, :].squeeze(dim=-1).cpu(),  # first element is a positive edge
+                                                         y_pred_neg=y_pred[1:, :].squeeze(dim=-1).cpu(),  # the rests are the negative edges
+                                                         type_info='torch', k=k)
+            hist_at_k_list.append(metrics_mrr_rnk[f'hits@{k}'])
+            mrr_list.append(metrics_mrr_rnk['mrr'])
+        
+        # Update memory and neighbor loader with ground-truth state.
+        memory.update_state(pos_src, pos_dst, pos_t, pos_msg)
+        neighbor_loader.insert(pos_src, pos_dst)
 
-        memory.update_state(src, pos_dst, t, msg)
-        neighbor_loader.insert(src, pos_dst)
-
-    perf_metrics = {'ap': float(torch.tensor(aps).mean()),
-                    'auc': float(torch.tensor(aucs).mean()),
-                    'prec@k': None,
-                    'rec@k': None,
-                    'f1@k': None,
-                    'hits@k': None,
-                    'mrr': None,
+    perf_metrics = {f'hits@{k}': float(torch.tensor(hist_at_k_list).mean()),
+                    'mrr': float(torch.tensor(mrr_list).mean()),
                     }
-
     return perf_metrics
 
 
 
 
-print("========================================================")
-print("=================*** TGN model: ONE-VS-ONE ***===========")
-print("========================================================")
+print("==========================================================")
+print("=================*** TGN model: ONE-VS-MANY ***===========")
+print("==========================================================")
 
 evaluator = Evaluator(name=dataset_name)
 
+# negative sampler
+num_neg_e_per_pos = 200
+NEG_SAMPLE_MODE = 'RND'
+neg_sampler = NegativeEdgeSampler_RND(dataset_name=dataset_name, first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, 
+                                      num_neg_e=num_neg_e_per_pos, 
+                                      device=device, rnd_seed=rnd_seed)
+
+# TODO the following two lines should be deleted after generating the evaluation samples
+neg_sampler.generate_negative_samples(val_data, split_mode='val', partial_path=path)
+neg_sampler.generate_negative_samples(test_data, split_mode='test', partial_path=path)
+
 # ==================================================== Train & Validation
+# loading the validation negative samples
+neg_sampler.load_eval_set(split_mode='val', partial_path=path)
+
 start_train_val = time.time()
 for epoch in range(1, n_epoch + 1):
+    # training
     start_epoch_train = time.time()
     loss = train()
     end_epoch_train = time.time()
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}')
-    val_perf_metrics = test_one_vs_one(val_loader)
-    val_ap, val_auc = val_perf_metrics['ap'], val_perf_metrics['auc']
-    print(f'\tVal AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
+    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}')
+
+    # validation
+    start_val = time.time()
+    perf_metrics_val = test_one_vs_many(val_loader, neg_sampler, split_mode='val')
+    end_val = time.time()
+    for perf_name, perf_value in perf_metrics_val.items():
+        print(f"\tValidation: {perf_name}: {perf_value: .4f}")
+    print(f"\tValidation: Elapsed time (s): {end_val - start_val: .4f}")
+
 end_train_val = time.time()
 print(f'Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: .4f}')
 
 # ==================================================== Test
+# loading the test negative samples
+neg_sampler.load_eval_set(split_mode='test', partial_path=path)
+
+# testing ...
 start_test = time.time()
-perf_metrics_test = test_one_vs_one(test_loader)
+perf_metrics_test = test_one_vs_many(test_loader, neg_sampler, split_mode='test')
 end_test = time.time()
 
-print(f"INFO: Test Evaluation Setting: >>> ONE-VS-ONE <<< ")
+print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY --- NS-Mode: {NEG_SAMPLE_MODE} <<< ")
 for perf_name, perf_value in perf_metrics_test.items():
     print(f"\tTest: {perf_name}: {perf_value: .4f}")
-print(f'Test: Elapsed Time (s): {end_test - start_test: .4f}')
+print(f"\tTest: Elapsed Time (s): {end_test - start_test: .4f}")
 
 
 overall_end = time.time()
 print(f'Overall Elapsed Time (s): {overall_end - overall_start: .4f}')
-print("========================================================")
+print("==============================================================")
