@@ -4,7 +4,8 @@ nav:
   - Overview: index.md
   - About: about.md
   - API:
-    - tgb.edgeregression: api/tgb.edgeregression.md
+    - tgb.linkproppred: api/tgb.linkproppred.md
+    - tgb.nodeproppred: api/tgb.nodeproppred.md
     - tgb.utils: api/tgb.utils.md
 
 theme:

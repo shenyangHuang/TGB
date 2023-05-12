@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import csv
 from typing import Optional, Dict, Any, Tuple
 import datetime
-from datetime import date
+from datetime import date, timedelta
 from difflib import SequenceMatcher
+
 
 # similarity_dict = {('electronic', 'electronica'): 0.9523809523809523, ('electronic', 'electro'): 0.8235294117647058, ('alternative', 'alternative rock'): 0.8148148148148148, ('nu jazz', 'nu-jazz'): 0.8571428571428571, 
 #                    ('funky', 'funk'): 0.8888888888888888, ('funky', 'funny'): 0.8, ('post rock', 'pop rock'): 0.8235294117647058, ('post rock', 'post-rock'): 0.8888888888888888, 
@@ -250,8 +251,8 @@ def generate_aggregate_labels(fname: str,
                               days: int = 7):
     """
     aggregate the genres over a number of days,  as specified by days
-
-    # TODO generate the labels in a rolling basis
+    #! current generation includes edges from the day of the label, thus the label should be set to be beginning of the day
+    prediction should always be at the first second of the day
     """
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
@@ -286,7 +287,7 @@ def generate_aggregate_labels(fname: str,
                 date_prev = date(year,month,day)
                 user_prev = user_id
 
-            if ((date_cur - date_prev).days <= days):
+            if ((date_cur - date_prev).days <= days):  #! this means that the date = [0,7] which includes the current day
                 if (genre not in genre_dict):
                     genre_dict[genre] = w
                 else:
@@ -308,80 +309,6 @@ def generate_aggregate_labels(fname: str,
 
 
 
-
-
-
-
-
-def load_node_labels():
-    print ("hi")
-
-
-
-# def generate_weekly_labels(
-#                     fname: str,
-#                     days : int = 7,
-#                     ):
-#     """
-#     load daily node labels, generate weekly node labels
-#     if there is a tie, choose early genre
-#     """
-#     edgelist = open(fname, "r")
-#     lines = list(edgelist.readlines())
-#     edgelist.close()
-
-
-#     with open('weekly_avg_labels.csv', 'w') as outf:
-#         outf.write("year,month,day,user_id,fav_genre\n")
-#         for i in range(1,len(lines)):
-#             vals = lines[i].split(',')
-#             year = int(vals[0])
-#             month = int(vals[1])
-#             day = int(vals[2])
-#             user_id = vals[3]
-#             fav_genre = vals[4]
-#             fav_list = []
-
-#             #check next 7 lines to generate the label
-#             cur_date = date(year, month, day)
-#             if ((i + days) < len(lines)):
-#                 for j in range(days):
-#                     vals = lines[i+j].split(',')
-#                     n_year = int(vals[0])
-#                     n_month = int(vals[1])
-#                     n_day = int(vals[2])
-#                     n_user_id = vals[3]
-#                     n_fav_genre = vals[4]
-#                     n_date = date(n_year, n_month, n_day)
-#                     diff = (n_date - cur_date).days
-#                     if (n_user_id != user_id):
-#                         break
-#                     if (diff <= days):
-#                         fav_list.append(n_fav_genre)
-#                     else:
-#                         break
-#             if (len(fav_list) < 1):
-#                 print ("finished processing at line " + str(i))
-#                 return None
-#             label = most_frequent(fav_list)
-#             outf.write(str(year) + "," + str(month) +"," + str(day) + "," + user_id + "," + label.strip("\n") + "\n")
-
-            
-
-            
-
-#         # date = date(year, month, day)
-#         # diff_days = (date - prev_date).days
-
-#         # #check if the duration has passed
-#         # if (diff_days > days):
-#         #     label = most_frequent(fav_list)
-#         #     prev_date = prev_date + datetime.timedelta(days=days)
-#         #     fav_list = []
-#         # fav_list.append(fav_genre)
-
-
-
 def most_frequent(List):
     '''
     helper function to find the most frequent element in a list
@@ -399,7 +326,136 @@ def most_frequent(List):
 
 
 
+def convert_ts_unix(fname: str,
+                    outname: str):
+    """
+    convert all time from datetime to unix time
+    """
+    TIME_FORMAT = "%Y-%m-%d"
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['ts', 'user_id', 'genre', 'weight']
+        write.writerow(fields)
 
+        with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            line_count = 0
+            # time,user_id,genre,weight
+            for row in csv_reader:
+                if line_count == 0:
+                    line_count += 1
+                else:
+                    ts = datetime.datetime.strptime(row[0], TIME_FORMAT)
+                    ts += timedelta(days=1)
+                    ts = int(ts.timestamp())
+                    user_id = row[1]
+                    genre = row[2]
+                    weight = float(row[3])
+                    write.writerow([ts, user_id, genre, weight])
+                    
+
+def convert_ts_edgelist(fname: str,
+                    outname: str):
+    """
+    convert all time from datetime to unix time
+    """
+    TIME_FORMAT = "%Y-%m-%d %H:%M:%S" 
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ['ts', 'user_id', 'genre', 'weight']
+        write.writerow(fields)
+
+        with open(fname, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            line_count = 0
+            # time,user_id,genre,weight
+            for row in csv_reader:
+                if line_count == 0:
+                    line_count += 1
+                else:
+                    ts = datetime.datetime.strptime(row[0], TIME_FORMAT)
+                    ts = int(ts.timestamp())
+                    user_id = row[1]
+                    genre = row[2]
+                    weight = float(row[3])
+                    write.writerow([ts, user_id, genre, weight])
+                    
+
+def sort_node_labels(fname,
+                     outname):
+    r"""
+    sort the node labels by time
+    """
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+    
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ["time", 'user_id', 'genre', 'weight']         
+        write.writerow(fields)
+        rows_dict = {}
+        
+        for i in range(1,len(lines)):
+            vals = lines[i].split(',')
+            user_id = vals[0]
+            year = int(vals[1])
+            month = int(vals[2])
+            day = int(vals[3])
+            genre = vals[4]
+            w = float(vals[5])
+            date_cur = datetime(year,month,day)
+            time_ts = date_cur.strftime("%Y-%m-%d")
+            if (time_ts not in rows_dict):
+                rows_dict[time_ts] = [(user_id, genre, w)]
+            else:
+                rows_dict[time_ts].append((user_id, genre, w))
+                
+        time_keys = list(rows_dict.keys())
+        time_keys.sort()
+        
+        for ts in time_keys:
+            rows = rows_dict[ts]
+            for user_id, genre, w in rows:
+                write.writerow([ts, user_id, genre, w])
+            
+
+
+
+
+def sort_edgelist(fname, 
+                  outname = 'sorted_lastfm_edgelist.csv'):
+    r"""
+    sort the edgelist by time
+    """
+    edgelist = open(fname, "r")
+    lines = list(edgelist.readlines())
+    edgelist.close()
+    
+    with open(outname, 'w') as outf:
+        write = csv.writer(outf)
+        fields = ["time", "user_id", "genre", "weight"]              
+        write.writerow(fields)
+        
+        rows_dict = {}
+        for idx in range(1,len(lines)):
+            vals = lines[idx].split(',')
+            user_id = vals[0]
+            time_ts = vals[1][:-7]
+            genre = vals[2]
+            w = float(vals[3].strip())
+            if (time_ts not in rows_dict):
+                rows_dict[time_ts] = [(user_id, genre, w)]
+            else:
+                rows_dict[time_ts].append((user_id, genre, w))
+        
+        time_keys = list(rows_dict.keys())
+        time_keys.sort()
+        
+        for ts in time_keys:
+            rows = rows_dict[ts]
+            for user_id, genre, w in rows:
+                write.writerow([ts, user_id, genre, w])
 
 
 
@@ -423,14 +479,31 @@ if __name__ == "__main__":
     #load_node_labels("/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv")
 
 
-    #! generate normalized weekly node labels
-    generate_aggregate_labels("daily_labels.csv", days=7)
-    
-    
-    
+    # #! generate normalized weekly node labels
+    # generate_aggregate_labels("daily_labels.csv", days=7)\
 
 
-    #! generate the rolling weekly labels
-    # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/lastfmGenre/daily_labels.csv"
-    # generate_weekly_labels(fname, days=7)
+    # """
+    # sort edgelist by time for lastfm dataset
+    # """
+    # fname = "../datasets/lastfmGenre/lastfm_edgelist_clean.csv"
+    # outname = '../datasets/lastfmGenre/sorted_lastfm_edgelist.csv'
+    # sort_edgelist(fname, 
+    #               outname = outname)
+    
+    # """
+    # sort node labels by time for lastfm dataset
+    # """
+    # fname = "../datasets/lastfmGenre/7days_labels.csv"
+    # outname = '../datasets/lastfmGenre/sorted_7days_node_labels.csv'
+    # sort_node_labels(fname,
+    #                  outname)
+
+
+    # #! convert from date to ts
+    # convert_ts_unix("lastfmgenre_node_labels_datetime.csv",
+    #                 "lastfmgenre_node_labels.csv")
+    convert_ts_edgelist("lastfmgenre_edgelist.csv",
+                    "lastfmgenre_edgelist_ts.csv")
+    
 

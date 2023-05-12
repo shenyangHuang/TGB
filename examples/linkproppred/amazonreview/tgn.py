@@ -12,10 +12,13 @@
 # test bed for future methods.
 
 import os.path as osp
-from tqdm import tqdm
+
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
+from tqdm import tqdm
+import timeit
+
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
@@ -26,25 +29,20 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
-import torch.nn.functional as F
+from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 #! first need to provide pyg dataset support for lastfm dataset
 
-name = "lastfmgenre"
-dataset = PyGNodePropertyDataset(name=name, root="datasets")
+name = "amazonreview"
+dataset = PyGLinkPropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
-num_classes = dataset.num_classes
 data = dataset.data[0]
-data.t = data.t.long()
 data = data.to(device)
-
-
 
 train_data = data[train_mask]
 val_data = data[val_mask]
@@ -53,11 +51,10 @@ test_data = data[test_mask]
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-batch_size = 200
 
-train_loader = TemporalDataLoader(train_data, batch_size=batch_size)
-val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
-test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
+train_loader = TemporalDataLoader(train_data, batch_size=200)
+val_loader = TemporalDataLoader(val_data, batch_size=200)
+test_loader = TemporalDataLoader(test_data, batch_size=200)
 
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
 
@@ -90,7 +87,6 @@ class LinkPredictor(torch.nn.Module):
         return self.lin_final(h)
 
 
-
 memory_dim = time_dim = embedding_dim = 100
 
 memory = TGNMemory(
@@ -115,6 +111,7 @@ optimizer = torch.optim.Adam(
     set(memory.parameters()) | set(gnn.parameters())
     | set(link_pred.parameters()), lr=0.0001)
 criterion = torch.nn.BCEWithLogitsLoss()
+
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
@@ -126,12 +123,14 @@ def train():
 
     memory.reset_state()  # Start with a fresh memory.
     neighbor_loader.reset_state()  # Start with an empty graph.
+
     total_loss = 0
-    for batch in train_loader:
+    for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+        
 
         # Sample negative destination nodes.
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
@@ -145,7 +144,6 @@ def train():
         z, last_update = memory(n_id)
         z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
                 data.msg[e_id].to(device))
-
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
@@ -164,7 +162,6 @@ def train():
     return total_loss / train_data.num_events
 
 
-
 @torch.no_grad()
 def test(loader):
     memory.eval()
@@ -174,8 +171,7 @@ def test(loader):
     torch.manual_seed(12345)  # Ensure deterministic sampling across epochs.
 
     aps, aucs = [], []
-    print ("testing starts")
-    for batch in tqdm(loader):
+    for batch in loader:
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
@@ -208,8 +204,10 @@ def test(loader):
 
 
 for epoch in range(1, 51):
+    starttime = timeit.default_timer()
     loss = train()
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
+    print("The time difference is :", timeit.default_timer() - starttime)
     val_ap, val_auc = test(val_loader)
     test_ap, test_auc = test(test_loader)
     print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
