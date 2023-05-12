@@ -21,33 +21,18 @@ from torch.nn import Linear
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TransformerConv
-# from torch_geometric.nn.models.tgn import (
-#     IdentityMessage,
-#     LastAggregator,
-#     LastNeighborLoader,
-# )
 import math
 import time
 
 # internal imports
 from tgb.linkproppred.negative_sampler import *
 from tgb.linkproppred.evaluate import Evaluator
-'''
- from torch_geometric.nn.models.tgn import (
-     IdentityMessage,
-     LastAggregator,
-     LastNeighborLoader,
-     TGNMemory,
- )
-# The modularized version of the above is as follows:
-'''
-from models.msg_func import IdentityMessage
-from models.msg_agg import LastAggregator
-from models.neighbor_loader import LastNeighborLoader
-from models.tgn_memory import TGNMemory
-from edgepred_utils import *
-from models.emb_module import TimeEmbedding
-from models.decoder import LinkPredictor
+from modules.msg_func import IdentityMessage
+from modules.msg_agg import LastAggregator
+from modules.neighbor_loader import LastNeighborLoader
+from modules.tgn_memory import TGNMemory
+from modules.emb_module import TimeEmbedding
+from modules.decoder import LinkPredictor
 
 
 overall_start = time.time()

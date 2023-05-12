@@ -23,22 +23,12 @@ from torch_geometric.nn import TransformerConv
 # internal imports
 from tgb.linkproppred.negative_sampler import *
 from tgb.linkproppred.evaluate import Evaluator
-from models.decoder import LinkPredictor
-from models.emb_module import GraphAttentionEmbedding
-
-'''
- from torch_geometric.nn.models.tgn import (
-     IdentityMessage,
-     LastAggregator,
-     LastNeighborLoader,
-     TGNMemory,
- )
-# The modularized version of the above is as follows:
-'''
-from models.msg_func import IdentityMessage
-from models.msg_agg import LastAggregator
-from models.neighbor_loader import LastNeighborLoader
-from models.tgn_memory import TGNMemory
+from modules.decoder import LinkPredictor
+from modules.emb_module import GraphAttentionEmbedding
+from modules.msg_func import IdentityMessage
+from modules.msg_agg import LastAggregator
+from modules.neighbor_loader import LastNeighborLoader
+from modules.tgn_memory import TGNMemory
 
 
 
