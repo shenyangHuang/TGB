@@ -17,12 +17,12 @@ class NegativeEdgeSampler(object):
     def __init__(
         self,
         dataset_name: str,
-        strategy: str = 'rnd',
+        strategy: str,
         device: str,
-    ):
+        ):
         r"""
-        Negative Edge Sampler class
-        TODO
+        Negative Edge Sampler 
+            Loads and query the negative batches based on the positive batches provided.
         """
         self.device = device
         self.dataset_name = dataset_name
@@ -37,7 +37,8 @@ class NegativeEdgeSampler(object):
         """
         assert split_mode in ['val', 'test'], 'Invalid split-mode! It should be `val`, `test`!'
 
-        filename = partial_path + "/" + self.dataset_name + '_' + self.strategy + '_' + split_mode + '.pkl'
+        filename = partial_path + '/processed/negative_samples/' + self.dataset_name + '_' + self.strategy + '_' + split_mode + '.pkl'
+        print(f"INFO: loading {split_mode} set from {filename}")
         if not os.path.exists(filename):
             raise ValueError(f"No file found! Please generate the negative samples for '{split_mode}' set first!")
 
@@ -67,6 +68,6 @@ class NegativeEdgeSampler(object):
             if (pos_s, pos_d, pos_t) not in self.eval_set[split_mode]:
                 raise ValueError(f"The edge ({pos_s}, {pos_d}, {pos_t}) is not in the '{split_mode}' evaluation set! Please check the implementation.")
             else:
-                neg_samples.append(self.eval_set[split_mode][(pos_s, pos_d, pos_t)])
+                neg_samples.append([int(neg_dst) for neg_dst in self.eval_set[split_mode][(pos_s, pos_d, pos_t)]])
 
         return neg_samples

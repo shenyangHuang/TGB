@@ -21,7 +21,7 @@ from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TransformerConv
 
 # internal imports
-from tgb.linkproppred.negative_sampler import *
+from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.linkproppred.evaluate import Evaluator
 from modules.decoder import LinkPredictor
 from modules.emb_module import GraphAttentionEmbedding
@@ -201,19 +201,14 @@ print("==========================================================")
 evaluator = Evaluator(name=dataset_name)
 
 # negative sampler
-num_neg_e_per_pos = 200
-NEG_SAMPLE_MODE = 'RND'
-neg_sampler = NegativeEdgeSampler_RND(dataset_name=dataset_name, first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, 
-                                      num_neg_e=num_neg_e_per_pos, 
-                                      device=device, rnd_seed=rnd_seed)
-
-# TODO the following two lines should be deleted after generating the evaluation samples
-neg_sampler.generate_negative_samples(val_data, split_mode='val', partial_path=path)
-neg_sampler.generate_negative_samples(test_data, split_mode='test', partial_path=path)
+num_neg_e_per_pos = 100
+NEG_SAMPLE_MODE = 'hist_rnd'
+neg_sampler = NegativeEdgeSampler(dataset_name=dataset_name, strategy=NEG_SAMPLE_MODE, device=device)
 
 # ==================================================== Train & Validation
 # loading the validation negative samples
-neg_sampler.load_eval_set(split_mode='val', partial_path=path)
+partial_path = f'{path}/{dataset_name}/'
+neg_sampler.load_eval_set(split_mode='val', partial_path=partial_path)
 
 start_train_val = time.time()
 for epoch in range(1, n_epoch + 1):
@@ -236,7 +231,7 @@ print(f'Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: 
 
 # ==================================================== Test
 # loading the test negative samples
-neg_sampler.load_eval_set(split_mode='test', partial_path=path)
+neg_sampler.load_eval_set(split_mode='test', partial_path=partial_path)
 
 # testing ...
 start_test = time.time()
