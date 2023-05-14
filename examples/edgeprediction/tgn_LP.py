@@ -1,6 +1,5 @@
 """
 Dynamic Link Prediction with a TGN model
-
 Reference: 
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
@@ -21,24 +20,14 @@ from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TransformerConv
 
 # internal imports
-from tgb.linkproppred.negative_sampler import *
+from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.linkproppred.evaluate import Evaluator
-from models.decoder import LinkPredictor
-from models.emb_module import GraphAttentionEmbedding
-
-'''
- from torch_geometric.nn.models.tgn import (
-     IdentityMessage,
-     LastAggregator,
-     LastNeighborLoader,
-     TGNMemory,
- )
-# The modularized version of the above is as follows:
-'''
-from models.msg_func import IdentityMessage
-from models.msg_agg import LastAggregator
-from models.neighbor_loader import LastNeighborLoader
-from models.tgn_memory import TGNMemory
+from modules.decoder import LinkPredictor
+from modules.emb_module import GraphAttentionEmbedding
+from modules.msg_func import IdentityMessage
+from modules.msg_agg import LastAggregator
+from modules.neighbor_loader import LastNeighborLoader
+from modules.tgn_memory import TGNMemory
 
 
 
@@ -122,7 +111,6 @@ def train():
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         # Sample negative destination nodes.
-        # @TODO: do we need to have a separate negative sampler for training?
         neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
                                 dtype=torch.long, device=device)
 
@@ -212,19 +200,15 @@ print("==========================================================")
 evaluator = Evaluator(name=dataset_name)
 
 # negative sampler
-num_neg_e_per_pos = 200
-NEG_SAMPLE_MODE = 'RND'
-neg_sampler = NegativeEdgeSampler_RND(dataset_name=dataset_name, first_dst_id=min_dst_idx, last_dst_id=max_dst_idx, 
-                                      num_neg_e=num_neg_e_per_pos, 
-                                      device=device, rnd_seed=rnd_seed)
-
-# TODO the following two lines should be deleted after generating the evaluation samples
-neg_sampler.generate_negative_samples(val_data, split_mode='val', partial_path=path)
-neg_sampler.generate_negative_samples(test_data, split_mode='test', partial_path=path)
-
-neg_sampler.load_eval_set(split_mode='val', partial_path=path)
+num_neg_e_per_pos = 100
+NEG_SAMPLE_MODE = 'hist_rnd'
+neg_sampler = NegativeEdgeSampler(dataset_name=dataset_name, strategy=NEG_SAMPLE_MODE, device=device)
 
 # ==================================================== Train & Validation
+# loading the validation negative samples
+partial_path = f'{path}/{dataset_name}/'
+neg_sampler.load_eval_set(split_mode='val', partial_path=partial_path)
+
 start_train_val = time.time()
 for epoch in range(1, n_epoch + 1):
     # training
@@ -245,8 +229,8 @@ end_train_val = time.time()
 print(f'Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: .4f}')
 
 # ==================================================== Test
-
-neg_sampler.load_eval_set(split_mode='test', partial_path=path)
+# loading the test negative samples
+neg_sampler.load_eval_set(split_mode='test', partial_path=partial_path)
 
 # testing ...
 start_test = time.time()
