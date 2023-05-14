@@ -7,6 +7,9 @@ nav:
     - tgb.linkproppred: api/tgb.linkproppred.md
     - tgb.nodeproppred: api/tgb.nodeproppred.md
     - tgb.utils: api/tgb.utils.md
+  - Tutorials:
+    - Access Edge Data in PyG: tutorials/Edge_data_pyg.ipynb
+    - Access Edge Data in Numpy: tutorials/Edge_data_numpy.ipynb
 
 theme:
   name: material
@@ -84,6 +87,5 @@ plugins:
             heading_level: 3
             show_root_full_path: false
 
-  # - mkdocs-jupyter:
-  #     execute: false
-  #     # kernel_name: python3
+  - mkdocs-jupyter:
+      execute: false

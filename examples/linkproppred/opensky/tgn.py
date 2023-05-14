@@ -20,7 +20,6 @@ from tqdm import tqdm
 import timeit
 
 
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TGNMemory, TransformerConv
 from torch_geometric.nn.models.tgn import (

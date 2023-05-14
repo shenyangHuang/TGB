@@ -213,8 +213,8 @@ class NodePropertyDataset(object):
 
     def generate_splits(self,
                         full_data: Dict[str, Any],
-                        val_ratio=0.15, 
-                        test_ratio=0.15,
+                        val_ratio : float = 0.15, 
+                        test_ratio : float = 0.15,
                         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
         Generates train, validation, and test splits from the full dataset
@@ -319,8 +319,8 @@ class NodePropertyDataset(object):
     @property
     def full_data(self) -> Dict[str, Any]:
         r"""
-        Returns the full data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        the full data of the dataset as a dictionary with keys: 'sources', 'destinations', 'timestamps', 'edge_idxs', 'edge_feat', 'w', 'edge_label',
+
         Returns:
             full_data: Dict[str, Any]
         """

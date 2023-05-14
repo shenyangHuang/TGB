@@ -3,7 +3,6 @@ import os
 import os.path as osp
 import numpy as np
 import pandas as pd
-import shutil
 import zipfile
 import requests
 from clint.textui import progress
@@ -165,9 +164,7 @@ class LinkPropPredDataset(object):
     def pre_process(self):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
-        generates self.full_data, self.train_data, self.val_data, self.test_data
-        Parameters:
-            feat_dim: dimension for feature vectors, padded to 172 with zeros
+        generates the edge data and different train, val, test splits 
         '''
         #TODO for link prediction, y =1 because these are all true edges, edge feat = weight + edge feat
 
@@ -203,8 +200,8 @@ class LinkPropPredDataset(object):
 
     def generate_splits(self,
                         full_data: Dict[str, Any],
-                        val_ratio=0.15, 
-                        test_ratio=0.15,
+                        val_ratio: float = 0.15, 
+                        test_ratio: float = 0.15,
                         ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         r"""Generates train, validation, and test splits from the full dataset
         Args:
@@ -251,8 +248,8 @@ class LinkPropPredDataset(object):
     @property
     def full_data(self) -> Dict[str, Any]:
         r"""
-        Returns the full data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        the full data of the dataset as a dictionary with keys: 'sources', 'destinations', 'timestamps', 'edge_idxs', 'edge_feat', 'w', 'edge_label',
+        
         Returns:
             full_data: Dict[str, Any]
         """
@@ -298,9 +295,7 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    # name = "opensky"
-    # name = "stablecoin"
-    name = "redditcomments"
+    name = "redditcomments" # name = "opensky"
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat
@@ -310,7 +305,7 @@ def main():
     dataset.full_data["sources"]
     dataset.full_data["destinations"]
     dataset.full_data["timestamps"] 
-    dataset.full_data["label"]
+    dataset.full_data["edge_label"]
 
 if __name__ == "__main__":
     main()

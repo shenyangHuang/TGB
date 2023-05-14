@@ -42,7 +42,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
 
 
     @property
-    def num_classes(self):
+    def num_classes(self) -> int:
         """
         how many classes are in the node label
         Returns:
@@ -206,7 +206,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
         return self.dataset.return_label_ts()
     
 
-    def len(self):
+    def len(self) -> int:
         """
         size of the dataset 
         Returns:

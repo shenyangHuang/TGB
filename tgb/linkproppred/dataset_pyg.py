@@ -1,6 +1,5 @@
 import torch
-import os.path as osp
-from typing import Optional, Dict, Any, Optional, Callable
+from typing import Optional, Optional, Callable
 
 from torch_geometric.data import Dataset, TemporalData
 from tgb.linkproppred.dataset import LinkPropPredDataset
@@ -177,7 +176,7 @@ class PyGLinkPropPredDataset(Dataset):
                             y=self._edge_label)
         return data
     
-    def len(self):
+    def len(self) -> int:
         """
         size of the dataset 
         Returns:
