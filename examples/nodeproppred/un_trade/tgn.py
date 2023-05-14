@@ -33,7 +33,7 @@ val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 
 num_classes = dataset.num_classes
-data = dataset.data[0]
+data = dataset.get_TemporalData()
 data = data.to(device)
 
 evaluator = Evaluator(name=name)

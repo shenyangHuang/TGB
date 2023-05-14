@@ -23,8 +23,7 @@ device = 'cpu'
 name = "lastfmgenre"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
-data = dataset.data[0]
-data.t = data.t.long()
+data = dataset.get_TemporalData()
 data = data.to(device)
 print ("finished setting up dataset")
 
