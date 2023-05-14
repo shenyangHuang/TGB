@@ -4,20 +4,12 @@ Reference:
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
-import math
 import time
-
-import os.path as osp
 import numpy as np
-
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.nn import Linear
-
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-
-from torch_geometric.nn import TransformerConv
+from tqdm import tqdm
 
 # internal imports
 from tgb.linkproppred.evaluate import Evaluator
@@ -102,7 +94,7 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
-    for batch in train_loader:
+    for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
 
@@ -153,7 +145,7 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
 
     hist_at_k_list, mrr_list = [], []
 
-    for pos_batch in loader:
+    for pos_batch in tqdm(loader):
         pos_src, pos_dst, pos_t, pos_msg = pos_batch.src, pos_batch.dst, pos_batch.t, pos_batch.msg
 
         neg_batch_list = neg_sampler.query_batch(pos_batch, split_mode=split_mode)
@@ -195,7 +187,7 @@ print("==========================================================")
 print("=================*** TGN model: ONE-VS-MANY ***===========")
 print("==========================================================")
 
-evaluator = Evaluator(name=dataset_name)
+evaluator = Evaluator(name=name)
 
 # negative sampler
 num_neg_e_per_pos = 100

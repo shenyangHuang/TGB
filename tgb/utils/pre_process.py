@@ -8,6 +8,36 @@ import csv
 from datetime import datetime, timedelta
 
 """
+functions for wikipedia dataset
+---------------------------------------
+"""
+def load_edgelist_wiki(fname: str) -> pd.DataFrame:
+    """
+    loading wikipedia dataset into pandas dataframe
+    similar processing to 
+    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/datasets/jodie.html
+
+    Parameters:
+        fname: str, name of the input file
+    Returns:
+        df: a pandas dataframe containing the edgelist data
+    """
+    df = pd.read_csv(fname, skiprows=1, header=None)
+    src = df.iloc[:, 0].values
+    dst = df.iloc[:, 1].values
+    dst += int(src.max()) + 1
+    t = df.iloc[:, 2].values
+    msg = df.iloc[:, 4:].values
+    idx = np.arange(t.shape[0])
+    w = np.ones(t.shape[0])
+
+    return pd.DataFrame({'u': src,
+                        'i': dst,
+                        'ts': t,
+                        'idx': idx,
+                        'w':w}), msg, None
+
+"""
 functions for un_trade dataset
 ---------------------------------------
 """

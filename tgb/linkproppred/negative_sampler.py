@@ -17,34 +17,32 @@ class NegativeEdgeSampler(object):
     def __init__(
         self,
         dataset_name: str,
-        strategy: str,
-        device: str,
+        strategy: str = 'hist_rnd',
         ):
         r"""
         Negative Edge Sampler 
             Loads and query the negative batches based on the positive batches provided.
         """
-        self.device = device
         self.dataset_name = dataset_name
         assert strategy in ['rnd', 'hist_rnd'], "The supported strategies are `rnd` or `hist_rnd`!"
         self.strategy = strategy
-
         self.eval_set = {}
 
-    def load_eval_set(self, split_mode, partial_path):
+    def load_eval_set(self, 
+                      fname: str,
+                      split_mode: str = 'val',) -> None:
         r"""
-        Load the evaluation set from disk
+        Load the evaluation set from disk, can be either val or test set ns samples 
+        Parameters:
+            fname: the file name of the evaluation ns on disk
+            split_mode: the split mode of the evaluation set, can be either `val` or `test`
         """
-        assert split_mode in ['val', 'test'], 'Invalid split-mode! It should be `val`, `test`!'
-
-        filename = partial_path + '/processed/negative_samples/' + self.dataset_name + '_' + self.strategy + '_' + split_mode + '.pkl'
-        print(f"INFO: loading {split_mode} set from {filename}")
-        if not os.path.exists(filename):
-            raise ValueError(f"No file found! Please generate the negative samples for '{split_mode}' set first!")
-
-        self.eval_set[split_mode] = load_pkl(filename)
+        assert split_mode in ['val', 'test'], 'Invalid split-mode! It should be `val`, `test`'
+        if not os.path.exists(fname):
+            raise FileNotFoundError(f"File not found at {fname}")
+        self.eval_set[split_mode] = load_pkl(fname)
     
-    def reset_eval_set(self, split_mode, partial_path):
+    def reset_eval_set(self, split_mode):
         r"""
         Reset evaluation set
         """

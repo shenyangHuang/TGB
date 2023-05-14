@@ -7,8 +7,9 @@ import zipfile
 import requests
 from clint.textui import progress
 
+from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc
+from tgb.utils.pre_process import csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc, load_edgelist_wiki
 from tgb.utils.utils import save_pkl, load_pkl
 
 
@@ -71,6 +72,9 @@ class LinkPropPredDataset(object):
 
         if preprocess:
             self.pre_process()
+
+        self.ns_sampler = NegativeEdgeSampler(dataset_name=self.name, 
+                                              strategy='hist_rnd')
 
 
     def download(self):
@@ -149,6 +153,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict['fname'])
             elif (self.name == "amazonreview"):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])
+            elif (self.name == "wikipedia"):
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict['fname'])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -221,8 +227,31 @@ class LinkPropPredDataset(object):
         test_mask = timestamps > test_time
 
         return train_mask, val_mask, test_mask
+    
 
-       
+    @property
+    def negative_sampler(self) -> NegativeEdgeSampler:
+        r"""
+        Returns the negative sampler of the dataset, will load negative samples from disc
+        Returns:
+            negative_sampler: NegativeEdgeSampler
+        """
+        return self.ns_sampler
+    
+    def load_val_ns(self) -> None:
+        r"""
+        load the negative samples for the validation set
+        """
+        self.ns_sampler.load_eval_set(fname = self.root + '/' + self.name + "_val_ns.pkl",
+                      split_mode= 'val')
+
+
+    def load_test_ns(self) -> None:
+        r"""
+        load the negative samples for the test set
+        """
+        self.ns_sampler.load_eval_set(fname = self.root + '/' + self.name + "_test_ns.pkl",
+                      split_mode= 'test')
 
 
     @property

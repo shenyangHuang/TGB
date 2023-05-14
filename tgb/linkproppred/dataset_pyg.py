@@ -3,6 +3,7 @@ from typing import Optional, Optional, Callable
 
 from torch_geometric.data import Dataset, TemporalData
 from tgb.linkproppred.dataset import LinkPropPredDataset
+from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 import warnings
 
 
@@ -39,6 +40,33 @@ class PyGLinkPropPredDataset(Dataset):
         else:
             self._node_feat = torch.from_numpy(self._node_feat).float()
         self.process_data()
+
+        self._ns_sampler = self.dataset.negative_sampler
+
+    
+    @property
+    def negative_sampler(self) -> NegativeEdgeSampler:
+        r"""
+        Returns the negative sampler of the dataset, will load negative samples from disc
+        Returns:
+            negative_sampler: NegativeEdgeSampler
+        """
+        return self._ns_sampler
+    
+
+    def load_val_ns(self) -> None:
+        r"""
+        load the negative samples for the validation set
+        """
+        self.dataset.load_val_ns()
+
+
+    def load_test_ns(self) -> None:
+        r"""
+        load the negative samples for the test set
+        """
+        self.dataset.load_test_ns()
+
 
 
 
