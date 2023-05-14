@@ -9,16 +9,6 @@ import warnings
 
 
 class PyGLinkPropPredDataset(Dataset):
-    r"""
-    PyG wrapper for the LinkPropPredDataset
-    can return pytorch tensors for src,dst,t,msg,label
-    can return Temporal Data object
-    Parameters:
-        name: name of the dataset, passed to `LinkPropPredDataset`
-        root (string): Root directory where the dataset should be saved, passed to `LinkPropPredDataset`
-        transform (callable, optional): A function/transform that takes in an, not used in this case
-        pre_transform (callable, optional): A function/transform that takes in, not used in this case
-    """
     def __init__(
         self,
         name: str,
@@ -26,6 +16,16 @@ class PyGLinkPropPredDataset(Dataset):
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
     ):
+        r"""
+        PyG wrapper for the LinkPropPredDataset
+        can return pytorch tensors for src,dst,t,msg,label
+        can return Temporal Data object
+        Parameters:
+            name: name of the dataset, passed to `LinkPropPredDataset`
+            root (string): Root directory where the dataset should be saved, passed to `LinkPropPredDataset`
+            transform (callable, optional): A function/transform that takes in an, not used in this case
+            pre_transform (callable, optional): A function/transform that takes in, not used in this case
+        """
         self.name = name
         self.root = root
         self.dataset = LinkPropPredDataset(name=name, root=root)
@@ -122,25 +122,24 @@ class PyGLinkPropPredDataset(Dataset):
         return self._edge_feat
     
     @property
-    def label(self) -> torch.Tensor:
+    def edge_label(self) -> torch.Tensor:
         r"""
-        Returns the labels of the dataset
+        Returns the edge labels of the dataset
         Returns:
-            label: the labels of the edges
+            edge_label: the labels of the edges
         """
-        return self._label
+        return self._edge_label
 
 
-    def process_data(self):
+    def process_data(self) -> None:
+        r"""
+        convert the numpy arrays from dataset to pytorch tensors
         """
-        collate on the data from the EdgeRegressionDataset
-        """
-
         src = torch.from_numpy(self.dataset.full_data["sources"])
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         ts = torch.from_numpy(self.dataset.full_data["timestamps"])
-        msg = torch.from_numpy(self.dataset.full_data['edge_feat'])  #use edge features here if available
-        y = torch.from_numpy(self.dataset.full_data["y"]) #this is the label indicating if an edge is a true edge, always 1 for true edges
+        msg = torch.from_numpy(self.dataset.full_data["edge_feat"])  #use edge features here if available
+        edge_label = torch.from_numpy(self.dataset.full_data["edge_label"]) #this is the label indicating if an edge is a true edge, always 1 for true edges
 
         #* first check typing for all tensors
         #source tensor must be of type int64
@@ -163,7 +162,7 @@ class PyGLinkPropPredDataset(Dataset):
         self._src = src
         self._dst = dst
         self._ts = ts
-        self._label = y
+        self._edge_label = edge_label
         self._edge_feat = msg
 
 
@@ -175,7 +174,7 @@ class PyGLinkPropPredDataset(Dataset):
                             dst=self._dst, 
                             t=self._ts, 
                             msg=self._edge_feat, 
-                            y=self._label)
+                            y=self._edge_label)
         return data
     
     def len(self):
@@ -199,7 +198,7 @@ class PyGLinkPropPredDataset(Dataset):
                             dst=self._dst[idx], 
                             t=self._ts[idx], 
                             msg=self._edge_feat[idx], 
-                            y=self._label[idx])
+                            y=self._edge_label[idx])
         return data
     
 

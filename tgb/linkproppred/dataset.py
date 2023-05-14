@@ -179,8 +179,7 @@ class LinkPropPredDataset(object):
         edge_idxs = np.array(df['idx'])
         weights = np.array(df['w'])
 
-        #y should be 1 for all pos edges
-        y = np.ones(len(df))
+        edge_label = np.ones(len(df)) #should be 1 for all pos edges
         self._edge_feat = edge_feat + weights.reshape(-1,1)  #reshape weights as feature if available
         self._node_feat = node_feat
 
@@ -192,7 +191,7 @@ class LinkPropPredDataset(object):
             'edge_idxs': edge_idxs,
             'edge_feat': edge_feat,
             'w': weights,
-            'y': y,
+            'edge_label': edge_label,
         }
         self._full_data = full_data
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
@@ -263,18 +262,18 @@ class LinkPropPredDataset(object):
     
 
     @property
-    def train_mask(self) -> Dict[str, Any]:
+    def train_mask(self) -> np.ndarray:
         r"""
         Returns the train mask of the dataset 
         Returns:
-            train_mask: Dict[str, Any]
+            train_mask: training masks 
         """
         if (self._train_mask is None):
             raise ValueError("training split hasn't been loaded")
         return self._train_mask
     
     @property
-    def val_mask(self) -> Dict[str, Any]:
+    def val_mask(self) -> np.ndarray:
         r"""
         Returns the validation mask of the dataset 
         Returns:
@@ -282,11 +281,10 @@ class LinkPropPredDataset(object):
         """
         if (self._val_mask is None):
             raise ValueError("validation split hasn't been loaded")
-        
         return self._val_mask
     
     @property
-    def test_mask(self) -> Dict[str, Any]:
+    def test_mask(self) -> np.ndarray:
         r"""
         Returns the test mask of the dataset:
         Returns:
@@ -294,7 +292,6 @@ class LinkPropPredDataset(object):
         """
         if (self._test_mask is None):
             raise ValueError("test split hasn't been loaded")
-        
         return self._test_mask
 
 
@@ -313,7 +310,7 @@ def main():
     dataset.full_data["sources"]
     dataset.full_data["destinations"]
     dataset.full_data["timestamps"] 
-    dataset.full_data["y"]
+    dataset.full_data["label"]
 
 if __name__ == "__main__":
     main()

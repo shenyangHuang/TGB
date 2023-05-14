@@ -186,7 +186,7 @@ class NodePropertyDataset(object):
         destinations = np.array(df['i'])
         timestamps = np.array(df['ts'])
         edge_idxs = np.array(df['idx'])
-        y = np.ones(sources.shape[0])
+        edge_label = np.ones(sources.shape[0])
         self._edge_feat = np.array(df['w'])
 
         full_data = {
@@ -195,7 +195,7 @@ class NodePropertyDataset(object):
             'timestamps': timestamps,
             'edge_idxs': edge_idxs,
             'edge_feat': self._edge_feat,
-            'y': y,
+            'edge_label': edge_label,
         }
         self._full_data = full_data
         

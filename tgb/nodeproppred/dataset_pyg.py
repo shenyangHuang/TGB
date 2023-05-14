@@ -121,13 +121,13 @@ class PyGNodePropertyDataset(InMemoryDataset):
         return self._edge_feat
     
     @property
-    def label(self) -> torch.Tensor:
+    def edge_label(self) -> torch.Tensor:
         r"""
-        Returns the labels of the dataset
+        Returns the edge labels of the dataset
         Returns:
-            label: the labels of the edges
+            edge_label: the labels of the edges (all one tensor)
         """
-        return self._label
+        return self._edge_label
 
     
     
@@ -139,7 +139,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
         src = torch.from_numpy(self.dataset.full_data["sources"])
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
-        y = torch.from_numpy(self.dataset.full_data["y"])
+        edge_label = torch.from_numpy(self.dataset.full_data["edge_label"])
         msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
 
         #* check typing
@@ -158,7 +158,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
         self._src = src
         self._dst = dst
         self._ts = t
-        self._label = y
+        self._edge_label = edge_label
         self._edge_feat = msg
 
     def get_TemporalData(self,
@@ -172,7 +172,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
                             dst=self._dst, 
                             t=self._ts, 
                             msg=self._edge_feat, 
-                            y=self._label)
+                            y=self._edge_label)
         return data
             
     def reset_label_time(self) -> None:
@@ -227,7 +227,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
                             dst=self._dst[idx], 
                             t=self._ts[idx], 
                             msg=self._edge_feat[idx], 
-                            y=self._label[idx])
+                            y=self._edge_label[idx])
         return data
 
 
