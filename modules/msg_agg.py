@@ -12,7 +12,6 @@ from torch_geometric.utils import scatter
 from torch_scatter import scatter_max
 
 
-
 class LastAggregator(torch.nn.Module):
     def forward(self, msg: Tensor, index: Tensor, t: Tensor, dim_size: int):
         _, argmax = scatter_max(t, index, dim=0, dim_size=dim_size)
@@ -24,4 +23,4 @@ class LastAggregator(torch.nn.Module):
 
 class MeanAggregator(torch.nn.Module):
     def forward(self, msg: Tensor, index: Tensor, t: Tensor, dim_size: int):
-        return scatter(msg, index, dim=0, dim_size=dim_size, reduce='mean')
+        return scatter(msg, index, dim=0, dim_size=dim_size, reduce="mean")

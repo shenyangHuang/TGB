@@ -8,12 +8,12 @@ from torch.nn import Linear
 import torch.nn.functional as F
 
 
-
 class LinkPredictor(torch.nn.Module):
     """
-    Reference: 
+    Reference:
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
     """
+
     def __init__(self, in_channels):
         super().__init__()
         self.lin_src = Linear(in_channels, in_channels)
@@ -24,7 +24,7 @@ class LinkPredictor(torch.nn.Module):
         h = self.lin_src(z_src) + self.lin_dst(z_dst)
         h = h.relu()
         return self.lin_final(h).sigmoid()
-    
+
 
 class NodePredictor(torch.nn.Module):
     def __init__(self, in_dim, out_dim):

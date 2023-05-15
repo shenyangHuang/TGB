@@ -1,5 +1,6 @@
 import os.path as osp
 import os
+
 r"""
 General space to store global information used elsewhere such as url links, evaluation metrics etc.
 """
@@ -10,17 +11,19 @@ class BColors:
     """
     A class to change the colors of the strings.
     """
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-DATA_URL_DICT ={
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+
+DATA_URL_DICT = {
     "wikipedia": "https://object-arbutus.cloud.computecanada.ca/tgb/wikipedia.zip",
     "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
     "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
@@ -34,9 +37,9 @@ DATA_URL_DICT ={
 
 
 DATA_EVAL_METRIC_DICT = {
-    "un_trade": 'ndcg', 
-    "subreddits": 'ndcg',
-    "lastfmgenre": 'ndcg',
+    "un_trade": "ndcg",
+    "subreddits": "ndcg",
+    "lastfmgenre": "ndcg",
 }
 
 

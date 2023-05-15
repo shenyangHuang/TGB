@@ -16,10 +16,8 @@ class LastNeighborLoader:
     def __init__(self, num_nodes: int, size: int, device=None):
         self.size = size
 
-        self.neighbors = torch.empty((num_nodes, size), dtype=torch.long,
-                                     device=device)
-        self.e_id = torch.empty((num_nodes, size), dtype=torch.long,
-                                device=device)
+        self.neighbors = torch.empty((num_nodes, size), dtype=torch.long, device=device)
+        self.e_id = torch.empty((num_nodes, size), dtype=torch.long, device=device)
         self._assoc = torch.empty(num_nodes, dtype=torch.long, device=device)
 
         self.reset_state()
@@ -47,8 +45,9 @@ class LastNeighborLoader:
         # Collect central nodes, their neighbors and the current event ids.
         neighbors = torch.cat([src, dst], dim=0)
         nodes = torch.cat([dst, src], dim=0)
-        e_id = torch.arange(self.cur_e_id, self.cur_e_id + src.size(0),
-                            device=src.device).repeat(2)
+        e_id = torch.arange(
+            self.cur_e_id, self.cur_e_id + src.size(0), device=src.device
+        ).repeat(2)
         self.cur_e_id += src.numel()
 
         # Convert newly encountered interaction ids so that they point to
@@ -62,7 +61,7 @@ class LastNeighborLoader:
         dense_id = torch.arange(nodes.size(0), device=nodes.device) % self.size
         dense_id += self._assoc[nodes].mul_(self.size)
 
-        dense_e_id = e_id.new_full((n_id.numel() * self.size, ), -1)
+        dense_e_id = e_id.new_full((n_id.numel() * self.size,), -1)
         dense_e_id[dense_id] = e_id
         dense_e_id = dense_e_id.view(-1, self.size)
 
@@ -71,9 +70,10 @@ class LastNeighborLoader:
         dense_neighbors = dense_neighbors.view(-1, self.size)
 
         # Collect new and old interactions...
-        e_id = torch.cat([self.e_id[n_id, :self.size], dense_e_id], dim=-1)
+        e_id = torch.cat([self.e_id[n_id, : self.size], dense_e_id], dim=-1)
         neighbors = torch.cat(
-            [self.neighbors[n_id, :self.size], dense_neighbors], dim=-1)
+            [self.neighbors[n_id, : self.size], dense_neighbors], dim=-1
+        )
 
         # And sort them based on `e_id`.
         e_id, perm = e_id.topk(self.size, dim=-1)

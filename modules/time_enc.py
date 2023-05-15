@@ -11,8 +11,6 @@ from torch import Tensor
 from torch.nn import Linear
 
 
-
-
 class TimeEncoder(torch.nn.Module):
     def __init__(self, out_channels: int):
         super().__init__()

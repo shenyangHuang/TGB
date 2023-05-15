@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class PersistantForecaster:
     def __init__(self, num_class):
         self.dict = {}
@@ -19,7 +20,6 @@ class PersistantForecaster:
             return self.dict[node_id]
         else:
             return np.zeros(self.num_class)
-        
 
 
 class MovingAverage:
@@ -29,11 +29,11 @@ class MovingAverage:
         self.window = window
 
     def update_dict(self, node_id, label):
-        if (node_id in self.dict):
-            total = self.dict[node_id] * (self.window-1) + label
+        if node_id in self.dict:
+            total = self.dict[node_id] * (self.window - 1) + label
             self.dict[node_id] = total / self.window
         else:
-            self.dict[node_id] = label 
+            self.dict[node_id] = label
 
     def query_dict(self, node_id):
         r"""
@@ -46,5 +46,3 @@ class MovingAverage:
             return self.dict[node_id]
         else:
             return np.zeros(self.num_class)
-
-

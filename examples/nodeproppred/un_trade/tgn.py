@@ -21,15 +21,15 @@ from tgb.utils.stats import plot_curve
 import torch.nn.functional as F
 import time
 
-#hyperparameters
+# hyperparameters
 seed = 1
 torch.manual_seed(seed)
 set_random_seed(seed)
 
 lr = 0.0001
-epochs = 10 #50
+epochs = 10  # 50
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "un_trade"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
@@ -70,18 +70,23 @@ memory = TGNMemory(
     aggregator_module=LastAggregator(),
 ).to(device)
 
-gnn = GraphAttentionEmbedding(
-    in_channels=memory_dim,
-    out_channels=embedding_dim,
-    msg_dim=data.msg.size(-1),
-    time_enc=memory.time_enc,
-).to(device).float()
+gnn = (
+    GraphAttentionEmbedding(
+        in_channels=memory_dim,
+        out_channels=embedding_dim,
+        msg_dim=data.msg.size(-1),
+        time_enc=memory.time_enc,
+    )
+    .to(device)
+    .float()
+)
 
 node_pred = NodePredictor(in_dim=embedding_dim, out_dim=num_classes).to(device)
 
 optimizer = torch.optim.Adam(
-    set(memory.parameters()) | set(gnn.parameters())
-    | set(node_pred.parameters()), lr=lr)
+    set(memory.parameters()) | set(gnn.parameters()) | set(node_pred.parameters()),
+    lr=lr,
+)
 
 criterion = torch.nn.CrossEntropyLoss()
 # Helper vector to map global node indices to local ones.
@@ -97,9 +102,10 @@ def plot_curve(scores, out_name):
 
 def process_edges(src, dst, t, msg):
     if src.nelement() > 0:
-        #msg = msg.to(torch.float32)
+        # msg = msg.to(torch.float32)
         memory.update_state(src, dst, t, msg)
         neighbor_loader.insert(src, dst)
+
 
 def train():
     memory.train()
@@ -110,30 +116,43 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
-    label_t = dataset.get_label_time() #check when does the first label start
+    label_t = dataset.get_label_time()  # check when does the first label start
     num_labels = 0
     total_score = 0
 
     for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
-        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg       
+        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         query_t = batch.t[-1]
-        #check if this batch moves to the next day
-        if (query_t > label_t):
-
+        # check if this batch moves to the next day
+        if query_t > label_t:
             # find the node labels from the past day
             label_tuple = dataset.get_node_label(query_t)
-            label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
+            label_ts, label_srcs, labels = (
+                label_tuple[0],
+                label_tuple[1],
+                label_tuple[2],
+            )
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
             # Process all edges that are still in the past day
             previous_day_mask = batch.t < label_t
-            process_edges(src[previous_day_mask], dst[previous_day_mask], t[previous_day_mask], msg[previous_day_mask])
+            process_edges(
+                src[previous_day_mask],
+                dst[previous_day_mask],
+                t[previous_day_mask],
+                msg[previous_day_mask],
+            )
             # Reset edges to be the edges from tomorrow so they can be used later
-            src, dst, t, msg = src[~previous_day_mask], dst[~previous_day_mask], t[~previous_day_mask], msg[~previous_day_mask]
+            src, dst, t, msg = (
+                src[~previous_day_mask],
+                dst[~previous_day_mask],
+                t[~previous_day_mask],
+                msg[~previous_day_mask],
+            )
 
             """
             modified for node property prediction
@@ -142,24 +161,33 @@ def train():
             3. run gnn with the extracted memory embeddings and the corresponding time and message
             """
             n_id = label_srcs
-            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id)
             assoc[n_id_neighbors] = torch.arange(n_id_neighbors.size(0), device=device)
 
             z, last_update = memory(n_id_neighbors)
-            
-            z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
+
+            z = gnn(
+                z,
+                last_update,
+                mem_edge_index,
+                data.t[e_id].to(device),
+                data.msg[e_id].to(device),
+            )
             z = z[assoc[n_id]]
 
-            #loss and metric computation
+            # loss and metric computation
             pred = node_pred(z)
 
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
-            
-            
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': [eval_metric]}
-            result_dict = evaluator.eval(input_dict) 
+
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
+            result_dict = evaluator.eval(input_dict)
             score = result_dict[eval_metric]
             total_score += score
             num_labels += label_ts.shape[0]
@@ -173,7 +201,7 @@ def train():
         memory.detach()
 
     metric_dict = {
-    "ce":total_loss / num_labels,
+        "ce": total_loss / num_labels,
     }
     metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
@@ -186,7 +214,7 @@ def test(loader):
     node_pred.eval()
 
     total_score = 0
-    label_t = dataset.get_label_time() #check when does the first label start
+    label_t = dataset.get_label_time()  # check when does the first label start
     num_labels = 0
 
     for batch in tqdm(loader):
@@ -194,20 +222,33 @@ def test(loader):
         src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
         query_t = batch.t[-1]
-        if (query_t > label_t):
+        if query_t > label_t:
             label_tuple = dataset.get_node_label(query_t)
-            if (label_tuple is None):
+            if label_tuple is None:
                 break
-            label_ts, label_srcs, labels = label_tuple[0], label_tuple[1], label_tuple[2]
+            label_ts, label_srcs, labels = (
+                label_tuple[0],
+                label_tuple[1],
+                label_tuple[2],
+            )
             label_t = dataset.get_label_time()
             label_srcs = label_srcs.to(device)
 
             # Process all edges that are still in the past day
             previous_day_mask = batch.t < label_t
-            process_edges(src[previous_day_mask], dst[previous_day_mask], t[previous_day_mask], msg[previous_day_mask])
+            process_edges(
+                src[previous_day_mask],
+                dst[previous_day_mask],
+                t[previous_day_mask],
+                msg[previous_day_mask],
+            )
             # Reset edges to be the edges from tomorrow so they can be used later
-            src, dst, t, msg = src[~previous_day_mask], dst[~previous_day_mask], t[~previous_day_mask], msg[~previous_day_mask]
-
+            src, dst, t, msg = (
+                src[~previous_day_mask],
+                dst[~previous_day_mask],
+                t[~previous_day_mask],
+                msg[~previous_day_mask],
+            )
 
             """
             modified for node property prediction
@@ -216,20 +257,30 @@ def test(loader):
             3. run gnn with the extracted memory embeddings and the corresponding time and message
             """
             n_id = label_srcs
-            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id) 
+            n_id_neighbors, mem_edge_index, e_id = neighbor_loader(n_id)
             assoc[n_id_neighbors] = torch.arange(n_id_neighbors.size(0), device=device)
 
             z, last_update = memory(n_id_neighbors)
-            z = gnn(z, last_update, mem_edge_index, data.t[e_id].to(device), data.msg[e_id].to(device))
+            z = gnn(
+                z,
+                last_update,
+                mem_edge_index,
+                data.t[e_id].to(device),
+                data.msg[e_id].to(device),
+            )
             z = z[assoc[n_id]]
 
-            #loss and metric computation
+            # loss and metric computation
             pred = node_pred(z)
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': [eval_metric]}
-            result_dict = evaluator.eval(input_dict) 
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
+            result_dict = evaluator.eval(input_dict)
             score = result_dict[eval_metric]
             total_score += score
             num_labels += label_ts.shape[0]
@@ -248,32 +299,28 @@ test_curve = []
 for epoch in range(1, epochs + 1):
     start_time = time.time()
     train_dict = train()
-    print ("------------------------------------")
-    print(f'training Epoch: {epoch:02d}')
-    print (train_dict)
+    print("------------------------------------")
+    print(f"training Epoch: {epoch:02d}")
+    print(train_dict)
     train_curve.append(train_dict[eval_metric])
     print("Training takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     val_dict = test(val_loader)
-    print (val_dict)
+    print(val_dict)
     val_curve.append(val_dict[eval_metric])
     print("Validation takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     test_dict = test(test_loader)
-    print (test_dict)
+    print(test_dict)
     test_curve.append(test_dict[eval_metric])
     print("Test takes--- %s seconds ---" % (time.time() - start_time))
-    print ("------------------------------------")
+    print("------------------------------------")
     dataset.reset_label_time()
 
 
-#code for plotting
+# code for plotting
 plot_curve(train_curve, "train_curve")
 plot_curve(val_curve, "val_curve")
 plot_curve(test_curve, "test_curve")
-
-
-
-

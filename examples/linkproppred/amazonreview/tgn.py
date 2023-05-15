@@ -30,8 +30,7 @@ from torch_geometric.nn.models.tgn import (
 
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 name = "amazonreview"
@@ -62,8 +61,9 @@ class GraphAttentionEmbedding(torch.nn.Module):
         super().__init__()
         self.time_enc = time_enc
         edge_dim = msg_dim + time_enc.out_channels
-        self.conv = TransformerConv(in_channels, out_channels // 2, heads=2,
-                                    dropout=0.1, edge_dim=edge_dim)
+        self.conv = TransformerConv(
+            in_channels, out_channels // 2, heads=2, dropout=0.1, edge_dim=edge_dim
+        )
 
     def forward(self, x, last_update, edge_index, t, msg):
         rel_t = last_update[edge_index[0]] - t
@@ -106,8 +106,9 @@ gnn = GraphAttentionEmbedding(
 link_pred = LinkPredictor(in_channels=embedding_dim).to(device)
 
 optimizer = torch.optim.Adam(
-    set(memory.parameters()) | set(gnn.parameters())
-    | set(link_pred.parameters()), lr=0.0001)
+    set(memory.parameters()) | set(gnn.parameters()) | set(link_pred.parameters()),
+    lr=0.0001,
+)
 criterion = torch.nn.BCEWithLogitsLoss()
 
 # Helper vector to map global node indices to local ones.
@@ -128,11 +129,15 @@ def train():
         optimizer.zero_grad()
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
-        
 
         # Sample negative destination nodes.
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
+        neg_dst = torch.randint(
+            min_dst_idx,
+            max_dst_idx + 1,
+            (src.size(0),),
+            dtype=torch.long,
+            device=device,
+        )
 
         n_id = torch.cat([src, pos_dst, neg_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
@@ -140,8 +145,13 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
+        z = gnn(
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
@@ -173,24 +183,34 @@ def test(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
-        neg_dst = torch.randint(min_dst_idx, max_dst_idx + 1, (src.size(0), ),
-                                dtype=torch.long, device=device)
+        neg_dst = torch.randint(
+            min_dst_idx,
+            max_dst_idx + 1,
+            (src.size(0),),
+            dtype=torch.long,
+            device=device,
+        )
 
         n_id = torch.cat([src, pos_dst, neg_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
         z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
+        z = gnn(
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
 
         pos_out = link_pred(z[assoc[src]], z[assoc[pos_dst]])
         neg_out = link_pred(z[assoc[src]], z[assoc[neg_dst]])
 
         y_pred = torch.cat([pos_out, neg_out], dim=0).sigmoid().cpu()
         y_true = torch.cat(
-            [torch.ones(pos_out.size(0)),
-             torch.zeros(neg_out.size(0))], dim=0)
+            [torch.ones(pos_out.size(0)), torch.zeros(neg_out.size(0))], dim=0
+        )
 
         aps.append(average_precision_score(y_true, y_pred))
         aucs.append(roc_auc_score(y_true, y_pred))
@@ -204,9 +224,9 @@ def test(loader):
 for epoch in range(1, 51):
     starttime = timeit.default_timer()
     loss = train()
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
+    print(f"Epoch: {epoch:02d}, Loss: {loss:.4f}")
     print("The time difference is :", timeit.default_timer() - starttime)
     val_ap, val_auc = test(val_loader)
     test_ap, test_auc = test(test_loader)
-    print(f'Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}')
-    print(f'Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}')
+    print(f"Val AP: {val_ap:.4f}, Val AUC: {val_auc:.4f}")
+    print(f"Test AP: {test_ap:.4f}, Test AUC: {test_auc:.4f}")
