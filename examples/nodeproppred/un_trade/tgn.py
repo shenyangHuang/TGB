@@ -18,16 +18,16 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed
 from tgb.utils.stats import plot_curve
-import torch.nn.functional as F
 import time
 
-# hyperparameters
+#setting random seed
 seed = 1
 torch.manual_seed(seed)
 set_random_seed(seed)
 
+# hyperparameters
 lr = 0.0001
-epochs = 10  # 50
+epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "un_trade"

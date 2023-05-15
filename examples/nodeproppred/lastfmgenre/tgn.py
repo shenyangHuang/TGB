@@ -13,23 +13,32 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
+from modules.decoder import NodePredictor
+from modules.emb_module import GraphAttentionEmbedding
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from tgb.nodeproppred.evaluate import Evaluator
-import torch.nn.functional as F
+from tgb.utils.utils import set_random_seed
+from tgb.utils.stats import plot_curve
 import time
+
+
+#setting random seed
+seed = 1
+torch.manual_seed(seed)
+set_random_seed(seed)
 
 # hyperparameters
 lr = 0.0001
+epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.manual_seed(12345)
-
 name = "lastfmgenre"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 
+eval_metric = dataset.eval_metric
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
@@ -51,37 +60,6 @@ val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
-
-
-class GraphAttentionEmbedding(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, msg_dim, time_enc):
-        super().__init__()
-        self.time_enc = time_enc
-        edge_dim = msg_dim + time_enc.out_channels
-        self.conv = TransformerConv(
-            in_channels, out_channels // 2, heads=2, dropout=0.1, edge_dim=edge_dim
-        )
-
-    def forward(self, x, last_update, edge_index, t, msg):
-        rel_t = last_update[edge_index[0]] - t
-        rel_t_enc = self.time_enc(rel_t.to(x.dtype))
-        edge_attr = torch.cat([rel_t_enc, msg], dim=-1)
-        return self.conv(x, edge_index, edge_attr)
-
-
-class NodePredictor(torch.nn.Module):
-    def __init__(self, in_dim, out_dim):
-        super().__init__()
-        self.lin_node = Linear(in_dim, in_dim)
-        self.out = Linear(in_dim, out_dim)
-
-    def forward(self, node_embed):
-        h = self.lin_node(node_embed)
-        h = h.relu()
-        h = self.out(h)
-        output = F.log_softmax(h, dim=-1)
-        return output
-
 
 memory_dim = time_dim = embedding_dim = 100
 
@@ -141,9 +119,7 @@ def train():
 
     total_loss = 0
     label_t = dataset.get_label_time()  # check when does the first label start
-    TOP_Ks = [5, 10, 20]
-    total_ncdg = np.zeros(len(TOP_Ks))
-    track_ncdg = []
+    total_score = 0
     num_labels = 0
 
     for batch in tqdm(train_loader):
@@ -208,12 +184,14 @@ def train():
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            for i in range(len(TOP_Ks)):
-                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
-                total_ncdg[i] += ncdg_score * label_ts.shape[0]
-                if TOP_Ks[i] == 10:
-                    track_ncdg.append(ncdg_score)
-
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
+            result_dict = evaluator.eval(input_dict)
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
             loss.backward()
@@ -227,10 +205,7 @@ def train():
     metric_dict = {
         "ce": total_loss / num_labels,
     }
-
-    for i in range(len(TOP_Ks)):
-        k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
 
@@ -242,7 +217,7 @@ def test(loader):
 
     label_t = dataset.get_label_time()  # check when does the first label start
     num_labels = 0
-    total_ndcg = 0
+    total_score = 0
 
     for batch in tqdm(loader):
         batch = batch.to(device)
@@ -302,35 +277,50 @@ def test(loader):
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            input_dict = {"y_true": np_true, "y_pred": np_pred, "eval_metric": ["ndcg"]}
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
             result_dict = evaluator.eval(input_dict)
-            ndcg = result_dict["ndcg"]
-            total_ndcg += ndcg
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-    metric_dict["ndcg"] = total_ndcg / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
-
+train_curve = []
+val_curve = []
+test_curve = []
 for epoch in range(1, 51):
     start_time = time.time()
     train_dict = train()
     print("------------------------------------")
     print(f"training Epoch: {epoch:02d}")
     print(train_dict)
+    train_curve.append(train_dict[eval_metric])
     print("Training takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     val_dict = test(val_loader)
     print(val_dict)
+    val_curve.append(val_dict[eval_metric])
     print("Validation takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     test_dict = test(test_loader)
     print(test_dict)
+    test_curve.append(test_dict[eval_metric])
     print("Test takes--- %s seconds ---" % (time.time() - start_time))
     print("------------------------------------")
     dataset.reset_label_time()
+
+
+# code for plotting
+plot_curve(train_curve, "train_curve")
+plot_curve(val_curve, "val_curve")
+plot_curve(test_curve, "test_curve")

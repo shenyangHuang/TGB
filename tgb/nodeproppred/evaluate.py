@@ -3,6 +3,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import ndcg_score
 import math
 
+from tgb.utils.info import DATA_EVAL_METRIC_DICT
+
 try:
     import torch
 except ImportError:
@@ -19,7 +21,7 @@ class Evaluator(object):
         """
         self.name = name
         self.valid_metric_list = ["mse", "rmse", "ndcg"]
-        if self.name not in ["un_trade"]:
+        if self.name not in DATA_EVAL_METRIC_DICT:
             raise NotImplementedError("Dataset not supported")
 
     def _parse_and_check_input(self, input_dict):

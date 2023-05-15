@@ -4,17 +4,15 @@ simply predict last seen label for the node
 """
 
 import time
-import os.path as osp
-from tqdm import tqdm
-import torch
 import numpy as np
-from sklearn.metrics import ndcg_score
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-
+from tqdm import tqdm
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from modules.heuristics import PersistantForecaster
+from tgb.nodeproppred.evaluate import Evaluator
+
 
 device = "cpu"
 
@@ -25,7 +23,11 @@ dataset = PyGNodePropertyDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
-print("finished setting up dataset")
+
+eval_metric = dataset.eval_metric
+forecaster = PersistantForecaster(num_classes)
+evaluator = Evaluator(name=name)
+
 
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
@@ -40,64 +42,14 @@ val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 
-class PersistantForecaster:
-    def __init__(self, num_class):
-        self.dict = {}
-        self.num_class = num_class
-
-    def update_dict(self, node_id, label):
-        self.dict[node_id] = label
-
-    def query_dict(self, node_id):
-        r"""
-        Parameters:
-            node_id: the node to query
-        Returns:
-            returns the last seen label of the node if it exists, if not return zero vector
-        """
-        if node_id in self.dict:
-            return self.dict[node_id]
-        else:
-            return np.zeros(self.num_class)
-
-
-class MovingAverage:
-    def __init__(self, num_class, window=7):
-        self.dict = {}
-        self.num_class = num_class
-        self.window = window
-
-    def update_dict(self, node_id, label):
-        if node_id in self.dict:
-            total = self.dict[node_id] * (self.window - 1) + label
-            self.dict[node_id] = total / self.window
-        else:
-            self.dict[node_id] = label
-
-    def query_dict(self, node_id):
-        r"""
-        Parameters:
-            node_id: the node to query
-        Returns:
-            returns the last seen label of the node if it exists, if not return zero vector
-        """
-        if node_id in self.dict:
-            return self.dict[node_id]
-        else:
-            return np.zeros(self.num_class)
-
-
-#! adding various simple baselines here
-# forecaster = PersistantForecaster(num_classes)
-forecaster = MovingAverage(num_classes)
-
+"""
+continue debug here
+"""
 
 def test_n_upate(loader):
-    total_ncdg = 0
     label_t = dataset.get_label_time()  # check when does the first label start
-    TOP_Ks = [5, 10, 20]
-    total_ncdg = np.zeros(len(TOP_Ks))
     num_labels = 0
+    total_score = 0
 
     for batch in tqdm(loader):
         batch = batch.to(device)
@@ -129,17 +81,18 @@ def test_n_upate(loader):
             np_pred = np.stack(preds, axis=0)
             np_true = labels
 
-            for i in range(len(TOP_Ks)):
-                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
-                total_ncdg[i] += ncdg_score * label_ts.shape[0]
-
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
+            result_dict = evaluator.eval(input_dict)
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
     metric_dict = {}
-
-    for i in range(len(TOP_Ks)):
-        k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
 

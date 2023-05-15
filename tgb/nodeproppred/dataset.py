@@ -300,12 +300,12 @@ class NodePropertyDataset(object):
             ts: timestamp of the node labels
             source_idx: node ids
             labels: the stacked label vectors
-        """
-        try:
-            ts = self.label_ts[self.label_ts_idx]
-        except:
-            print("node labels need to be reset, please run dataset.reset_label_time()")
+        """        
+        if (self.label_ts_idx >= (self.label_ts.shape[0] -1)):
+            # for query that are after the last batch of labels
             return None
+        else:
+            ts = self.label_ts[self.label_ts_idx]
 
         if cur_t >= ts:
             self.label_ts_idx += 1  # move to the next ts
