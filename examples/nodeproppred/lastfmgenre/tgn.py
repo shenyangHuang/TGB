@@ -14,13 +14,12 @@ from torch_geometric.nn.models.tgn import (
 )
 
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.evaluate import Evaluator
 import torch.nn.functional as F
 import time
 
 #hyperparameters
 lr = 0.0001
-
-
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(12345)
@@ -34,6 +33,8 @@ test_mask = dataset.test_mask
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
+
+evaluator = Evaluator(name=name)
 
 
 train_data = data[train_mask]
@@ -213,12 +214,9 @@ def test(loader):
     gnn.eval()
     node_pred.eval()
 
-    total_ncdg = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    #TOP_K = 10
-    TOP_Ks = [5,10,20]
-    total_ncdg = np.zeros(len(TOP_Ks)) 
     num_labels = 0
+    total_ndcg = 0
 
     for batch in tqdm(loader):
         batch = batch.to(device)
@@ -259,19 +257,16 @@ def test(loader):
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            for i in range(len(TOP_Ks)):
-                ncdg_score = ndcg_score(np_true, np_pred, k=TOP_Ks[i])
-                total_ncdg[i] += ncdg_score * label_ts.shape[0]
-
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['ndcg']}
+            result_dict = evaluator.eval(input_dict) 
+            ndcg = result_dict['ndcg']
+            total_ndcg += ndcg
             num_labels += label_ts.shape[0]
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-
-    for i in range(len(TOP_Ks)):
-        k = TOP_Ks[i]
-        metric_dict["ndcg_" + str(k)] = total_ncdg[i] / num_labels
+    metric_dict["ndcg"] = total_ndcg / num_labels
     return metric_dict
 
 for epoch in range(1, 51):
