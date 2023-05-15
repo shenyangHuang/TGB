@@ -22,7 +22,7 @@ from tgb.utils.stats import plot_curve
 import time
 
 
-#setting random seed
+# setting random seed
 seed = 1
 torch.manual_seed(seed)
 set_random_seed(seed)
@@ -292,6 +292,7 @@ def test(loader):
     metric_dict = {}
     metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
+
 
 train_curve = []
 val_curve = []

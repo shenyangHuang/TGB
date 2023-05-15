@@ -300,8 +300,8 @@ class NodePropertyDataset(object):
             ts: timestamp of the node labels
             source_idx: node ids
             labels: the stacked label vectors
-        """        
-        if (self.label_ts_idx >= (self.label_ts.shape[0] -1)):
+        """
+        if self.label_ts_idx >= (self.label_ts.shape[0] - 1):
             # for query that are after the last batch of labels
             return None
         else:

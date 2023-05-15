@@ -20,7 +20,7 @@ from tgb.utils.utils import set_random_seed
 from tgb.utils.stats import plot_curve
 import time
 
-#setting random seed
+# setting random seed
 seed = 1
 torch.manual_seed(seed)
 set_random_seed(seed)
