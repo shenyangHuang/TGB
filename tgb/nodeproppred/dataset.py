@@ -8,8 +8,8 @@ import zipfile
 import requests
 from clint.textui import progress
 
-from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors, DATA_NUM_CLASSES
-from tgb.utils.utils import save_pkl, load_pkl, find_nearest
+from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, DATA_NUM_CLASSES, DATA_EVAL_METRIC_DICT, BColors 
+from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.pre_process import load_label_dict, load_edgelist_sr, load_edgelist_datetime, load_trade_label_dict, load_edgelist_trade
 
 #! can retire meta_dict as input to the class
@@ -42,6 +42,14 @@ class NodePropertyDataset(object):
         else:
             self.url = None
             print (f"Dataset {self.name} url not found, download not supported yet.")
+        
+        #check if the evaluatioin metric are specified
+        if (self.name in DATA_EVAL_METRIC_DICT):
+            self.metric = DATA_EVAL_METRIC_DICT[self.name]
+        else:
+            self.metric = None
+            print (f"Dataset {self.name} default evaluation metric not found, it is not supported yet.")
+
 
         root = PROJ_DIR + root
 
@@ -293,6 +301,15 @@ class NodePropertyDataset(object):
             num_classes: int, number of classes
         """    
         return self._num_classes
+    
+    @property
+    def eval_metric(self) -> str:
+        """
+        the official evaluation metric for the dataset, loaded from info.py
+        Returns:
+            eval_metric: str, the evaluation metric
+        """
+        return self.metric
     
     #TODO not sure needed, to be removed
     @property

@@ -1,10 +1,10 @@
 '''
 script for generating statistics from the dataset
 '''
-
-
-
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 '''
 #! analyze statistics from the dataset
@@ -74,6 +74,23 @@ def analyze_csv(fname):
     print ("number of nodes with # edges >= 100 is ", num_100)
     print ("number of nodes with # edges >= 1000 is ", num_1000)
     print ("----------------------high level statistics-------------------------")
+
+
+def plot_curve(y: np.ndarray, 
+               outname: str) -> None:
+    """
+    plot the training curve given y
+    Parameters:
+        y: np.ndarray, the training curve
+        outname: str, the output name
+    """
+    plt.plot(y, color="#fc4e2a")
+    plt.savefig(outname + ".pdf")
+    plt.close()
+
+
+
+
 
 
 def main():

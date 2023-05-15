@@ -50,6 +50,14 @@ class PyGNodePropertyDataset(InMemoryDataset):
         """
         return self.__num_classes
     
+    @property
+    def eval_metric(self) -> str:
+        """
+        the official evaluation metric for the dataset, loaded from info.py
+        Returns:
+            eval_metric: str, the evaluation metric
+        """
+        return self.dataset.eval_metric
     
     @property
     def train_mask(self) -> torch.Tensor:

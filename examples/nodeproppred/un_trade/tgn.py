@@ -15,23 +15,27 @@ from torch_geometric.nn.models.tgn import (
 
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from tgb.nodeproppred.evaluate import Evaluator
+from tgb.utils.utils import set_random_seed
+from tgb.utils.stats import plot_curve
 import torch.nn.functional as F
 import time
 
 #hyperparameters
+seed = 1
+torch.manual_seed(seed)
+set_random_seed(seed)
+
 lr = 0.0001
-
-
+epochs = 10 #50
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.manual_seed(12345)
-
 name = "un_trade"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 
+eval_metric = dataset.eval_metric
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
@@ -266,25 +270,39 @@ def test(loader):
     metric_dict['mse'] = total_mse / num_labels
     return metric_dict
 
-for epoch in range(1, 51):
+
+train_curve = []
+val_curve = []
+test_curve = []
+
+for epoch in range(1, epochs + 1):
     start_time = time.time()
     train_dict = train()
     print ("------------------------------------")
     print(f'training Epoch: {epoch:02d}')
     print (train_dict)
+    train_curve.append(train_dict[eval_metric])
     print("Training takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     val_dict = test(val_loader)
     print (val_dict)
+    val_curve.append(val_dict[eval_metric])
     print("Validation takes--- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     test_dict = test(test_loader)
     print (test_dict)
+    test_curve.append(test_dict[eval_metric])
     print("Test takes--- %s seconds ---" % (time.time() - start_time))
     print ("------------------------------------")
     dataset.reset_label_time()
+
+
+#code for plotting
+plot_curve(train_curve, "train_curve")
+plot_curve(val_curve, "val_curve")
+plot_curve(test_curve, "test_curve")
 
 
 
