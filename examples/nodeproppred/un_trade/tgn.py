@@ -2,7 +2,6 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import ndcg_score
 from torch.nn import Linear
 
 from torch_geometric.loader import TemporalDataLoader
@@ -113,7 +112,7 @@ def train():
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
     num_labels = 0
-    total_ndcg = 0
+    total_score = 0
 
     for batch in tqdm(train_loader):
         batch = batch.to(device)
@@ -159,10 +158,10 @@ def train():
             np_true = labels.cpu().detach().numpy()
             
             
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['ndcg']}
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': [eval_metric]}
             result_dict = evaluator.eval(input_dict) 
-            ndcg= result_dict['ndcg']
-            total_ndcg += ndcg
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
             loss.backward()
@@ -176,7 +175,7 @@ def train():
     metric_dict = {
     "ce":total_loss / num_labels,
     }
-    metric_dict['ndcg'] = total_ndcg / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
 
@@ -186,7 +185,7 @@ def test(loader):
     gnn.eval()
     node_pred.eval()
 
-    total_ndcg = 0
+    total_score = 0
     label_t = dataset.get_label_time() #check when does the first label start
     num_labels = 0
 
@@ -229,16 +228,16 @@ def test(loader):
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['ndcg']}
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': [eval_metric]}
             result_dict = evaluator.eval(input_dict) 
-            ndcg= result_dict['ndcg']
-            total_ndcg += ndcg
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-    metric_dict['ndcg'] = total_ndcg / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
 

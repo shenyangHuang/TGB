@@ -3,11 +3,8 @@ script for generating statistics from the dataset
 '''
 import csv
 import numpy as np
-<<<<<<< HEAD
 import matplotlib.pyplot as plt
 
-=======
->>>>>>> de5730992533e76b9ba2f4b9947efde75b5ef395
 
 '''
 #! analyze statistics from the dataset
