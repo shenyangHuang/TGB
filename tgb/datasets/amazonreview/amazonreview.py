@@ -3,8 +3,7 @@ import csv
 import numpy as np
 from tgb.utils.stats import analyze_csv
 
-def collect_csv():
-    dir_name = "software"
+def collect_csv(dir_name = "software"):
     dataset = ds.dataset(dir_name, format="csv")
     df = dataset.to_table().to_pandas()
     df.to_csv(dir_name + ".csv", index=True)
@@ -124,6 +123,12 @@ def reduce_edgelist(fname: str,
     
 
 def main():
+    #collect csv
+    #collect_csv(dir_name = "software")
+    collect_csv(dir_name = "books")
+    #collect_csv(dir_name = "electronics")
+
+
     # #* reorder column
     # fname = "electronics.csv"
     # outname = "amazonreview_edgelist.csv"
