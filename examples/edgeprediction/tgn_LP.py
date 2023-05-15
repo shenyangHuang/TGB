@@ -201,7 +201,6 @@ print("==========================================================")
 evaluator = Evaluator(name=dataset_name)
 
 # negative sampler
-num_neg_e_per_pos = 100
 NEG_SAMPLE_MODE = 'hist_rnd'
 neg_sampler = NegativeEdgeSampler(dataset_name=dataset_name, strategy=NEG_SAMPLE_MODE, device=device)
 
