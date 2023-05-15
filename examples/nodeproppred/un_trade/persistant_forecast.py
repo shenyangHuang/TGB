@@ -8,7 +8,6 @@ import os.path as osp
 from tqdm import tqdm
 import torch
 import numpy as np
-from sklearn.metrics import ndcg_score
 from torch_geometric.loader import TemporalDataLoader
 
 # local imports
@@ -27,6 +26,7 @@ num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
 
+eval_metric = dataset.eval_metric
 forecaster = PersistantForecaster(num_classes)
 evaluator = Evaluator(name=name)
 
@@ -47,7 +47,7 @@ test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 def test_n_upate(loader):
     label_t = dataset.get_label_time()  # check when does the first label start
     num_labels = 0
-    total_ndcg = 0
+    total_score = 0
 
     for batch in loader:
         batch = batch.to(device)
@@ -79,14 +79,18 @@ def test_n_upate(loader):
             np_pred = np.stack(preds, axis=0)
             np_true = labels
 
-            input_dict = {"y_true": np_true, "y_pred": np_pred, "eval_metric": ["ndcg"]}
+            input_dict = {
+                "y_true": np_true,
+                "y_pred": np_pred,
+                "eval_metric": [eval_metric],
+            }
             result_dict = evaluator.eval(input_dict)
-            ndcg = result_dict["ndcg"]
-            total_ndcg += ndcg
+            score = result_dict[eval_metric]
+            total_score += score
             num_labels += label_ts.shape[0]
 
     metric_dict = {}
-    metric_dict["ndcg"] = total_ndcg / num_labels
+    metric_dict[eval_metric] = total_score / num_labels
     return metric_dict
 
 
