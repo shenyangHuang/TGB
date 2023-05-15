@@ -1,10 +1,8 @@
 '''
 script for generating statistics from the dataset
 '''
-
-
-
 import csv
+import numpy as np
 
 '''
 #! analyze statistics from the dataset
@@ -74,6 +72,10 @@ def analyze_csv(fname):
     print ("number of nodes with # edges >= 100 is ", num_100)
     print ("number of nodes with # edges >= 1000 is ", num_1000)
     print ("----------------------high level statistics-------------------------")
+
+
+
+
 
 
 def main():

@@ -71,7 +71,6 @@ def load_edgelist_trade(fname: str,
                 u = row[1]
                 v = row[2]
                 w = float(row[3])
-
                 if (u not in node_ids):
                     node_ids[u] = node_uid
                     node_uid += 1

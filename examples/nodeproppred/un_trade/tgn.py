@@ -13,9 +13,10 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
+from modules.decoder import NodePredictor
+from modules.emb_module import GraphAttentionEmbedding
 from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from tgb.nodeproppred.evaluate import Evaluator
-import torch.nn.functional as F
 import time
 
 #hyperparameters
@@ -53,36 +54,6 @@ val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
-
-
-class GraphAttentionEmbedding(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, msg_dim, time_enc):
-        super().__init__()
-        self.time_enc = time_enc
-        edge_dim = msg_dim + time_enc.out_channels
-        self.conv = TransformerConv(in_channels, out_channels // 2, heads=2,
-                                    dropout=0.1, edge_dim=edge_dim)
-
-    def forward(self, x, last_update, edge_index, t, msg):
-        rel_t = last_update[edge_index[0]] - t
-        rel_t_enc = self.time_enc(rel_t.to(x.dtype))
-        edge_attr = torch.cat([rel_t_enc, msg], dim=-1)
-        return self.conv(x, edge_index, edge_attr)
-
-class NodePredictor(torch.nn.Module):
-    def __init__(self, in_dim, out_dim):
-        super().__init__()
-        self.lin_node = Linear(in_dim, in_dim)
-        self.out = Linear(in_dim, out_dim)
-
-    def forward(self, node_embed):
-        h = self.lin_node(node_embed)
-        h = h.relu()
-        h = self.out(h)
-        output = F.log_softmax(h, dim=-1)
-        return output
-
-
 
 memory_dim = time_dim = embedding_dim = 100
 
@@ -136,13 +107,13 @@ def train():
 
     total_loss = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    total_mse = 0
     num_labels = 0
+    total_ndcg = 0
 
     for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
-        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
+        src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg       
 
         query_t = batch.t[-1]
         #check if this batch moves to the next day
@@ -183,10 +154,10 @@ def train():
             np_true = labels.cpu().detach().numpy()
             
             
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['mse']}
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['ndcg']}
             result_dict = evaluator.eval(input_dict) 
-            mse = result_dict['mse']
-            total_mse += mse
+            ndcg= result_dict['ndcg']
+            total_ndcg += ndcg
             num_labels += label_ts.shape[0]
 
             loss.backward()
@@ -200,7 +171,7 @@ def train():
     metric_dict = {
     "ce":total_loss / num_labels,
     }
-    metric_dict['mse'] = total_mse / num_labels
+    metric_dict['ndcg'] = total_ndcg / num_labels
     return metric_dict
 
 
@@ -210,9 +181,8 @@ def test(loader):
     gnn.eval()
     node_pred.eval()
 
-    total_ncdg = 0
+    total_ndcg = 0
     label_t = dataset.get_label_time() #check when does the first label start
-    total_mse = 0
     num_labels = 0
 
     for batch in tqdm(loader):
@@ -254,17 +224,19 @@ def test(loader):
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
 
-            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['mse']}
+            input_dict = {"y_true": np_true, "y_pred": np_pred, 'eval_metric': ['ndcg']}
             result_dict = evaluator.eval(input_dict) 
-            mse = result_dict['mse']
-            total_mse += mse
+            ndcg= result_dict['ndcg']
+            total_ndcg += ndcg
             num_labels += label_ts.shape[0]
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-    metric_dict['mse'] = total_mse / num_labels
+    metric_dict['ndcg'] = total_ndcg / num_labels
     return metric_dict
+
+
 
 for epoch in range(1, 51):
     start_time = time.time()
