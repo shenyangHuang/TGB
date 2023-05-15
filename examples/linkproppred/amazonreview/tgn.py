@@ -20,7 +20,6 @@ from tqdm import tqdm
 import timeit
 
 
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TGNMemory, TransformerConv
 from torch_geometric.nn.models.tgn import (
@@ -34,14 +33,13 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-#! first need to provide pyg dataset support for lastfm dataset
 
 name = "amazonreview"
 dataset = PyGLinkPropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
-data = dataset.data[0]
+data = dataset.get_TemporalData()
 data = data.to(device)
 
 train_data = data[train_mask]

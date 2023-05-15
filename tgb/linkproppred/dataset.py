@@ -3,13 +3,13 @@ import os
 import os.path as osp
 import numpy as np
 import pandas as pd
-import shutil
 import zipfile
 import requests
 from clint.textui import progress
 
+from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
-from tgb.utils.pre_process import _to_pd_data, reindex, csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc
+from tgb.utils.pre_process import csv_to_pd_data, process_node_feat, csv_to_pd_data_sc, csv_to_pd_data_rc, load_edgelist_wiki
 from tgb.utils.utils import save_pkl, load_pkl
 
 
@@ -72,6 +72,9 @@ class LinkPropPredDataset(object):
 
         if preprocess:
             self.pre_process()
+
+        self.ns_sampler = NegativeEdgeSampler(dataset_name=self.name, 
+                                              strategy='hist_rnd')
 
 
     def download(self):
@@ -150,6 +153,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict['fname'])
             elif (self.name == "amazonreview"):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict['fname'])
+            elif (self.name == "wikipedia"):
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict['fname'])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -165,9 +170,7 @@ class LinkPropPredDataset(object):
     def pre_process(self):
         '''
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
-        generates self.full_data, self.train_data, self.val_data, self.test_data
-        Parameters:
-            feat_dim: dimension for feature vectors, padded to 172 with zeros
+        generates the edge data and different train, val, test splits 
         '''
         #TODO for link prediction, y =1 because these are all true edges, edge feat = weight + edge feat
 
@@ -179,8 +182,7 @@ class LinkPropPredDataset(object):
         edge_idxs = np.array(df['idx'])
         weights = np.array(df['w'])
 
-        #y should be 1 for all pos edges
-        y = np.ones(len(df))
+        edge_label = np.ones(len(df)) #should be 1 for all pos edges
         self._edge_feat = edge_feat + weights.reshape(-1,1)  #reshape weights as feature if available
         self._node_feat = node_feat
 
@@ -192,7 +194,7 @@ class LinkPropPredDataset(object):
             'edge_idxs': edge_idxs,
             'edge_feat': edge_feat,
             'w': weights,
-            'y': y,
+            'edge_label': edge_label,
         }
         self._full_data = full_data
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
@@ -204,8 +206,8 @@ class LinkPropPredDataset(object):
 
     def generate_splits(self,
                         full_data: Dict[str, Any],
-                        val_ratio=0.15, 
-                        test_ratio=0.15,
+                        val_ratio: float = 0.15, 
+                        test_ratio: float = 0.15,
                         ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         r"""Generates train, validation, and test splits from the full dataset
         Args:
@@ -225,8 +227,31 @@ class LinkPropPredDataset(object):
         test_mask = timestamps > test_time
 
         return train_mask, val_mask, test_mask
+    
 
-       
+    @property
+    def negative_sampler(self) -> NegativeEdgeSampler:
+        r"""
+        Returns the negative sampler of the dataset, will load negative samples from disc
+        Returns:
+            negative_sampler: NegativeEdgeSampler
+        """
+        return self.ns_sampler
+    
+    def load_val_ns(self) -> None:
+        r"""
+        load the negative samples for the validation set
+        """
+        self.ns_sampler.load_eval_set(fname = self.root + '/' + self.name + "_val_ns.pkl",
+                      split_mode= 'val')
+
+
+    def load_test_ns(self) -> None:
+        r"""
+        load the negative samples for the test set
+        """
+        self.ns_sampler.load_eval_set(fname = self.root + '/' + self.name + "_test_ns.pkl",
+                      split_mode= 'test')
 
 
     @property
@@ -252,8 +277,8 @@ class LinkPropPredDataset(object):
     @property
     def full_data(self) -> Dict[str, Any]:
         r"""
-        Returns the full data of the dataset as a dictionary with keys:
-            sources, destinations, timestamps, edge_idxs, y (edge weight)
+        the full data of the dataset as a dictionary with keys: 'sources', 'destinations', 'timestamps', 'edge_idxs', 'edge_feat', 'w', 'edge_label',
+        
         Returns:
             full_data: Dict[str, Any]
         """
@@ -263,18 +288,18 @@ class LinkPropPredDataset(object):
     
 
     @property
-    def train_mask(self) -> Dict[str, Any]:
+    def train_mask(self) -> np.ndarray:
         r"""
         Returns the train mask of the dataset 
         Returns:
-            train_mask: Dict[str, Any]
+            train_mask: training masks 
         """
         if (self._train_mask is None):
             raise ValueError("training split hasn't been loaded")
         return self._train_mask
     
     @property
-    def val_mask(self) -> Dict[str, Any]:
+    def val_mask(self) -> np.ndarray:
         r"""
         Returns the validation mask of the dataset 
         Returns:
@@ -282,11 +307,10 @@ class LinkPropPredDataset(object):
         """
         if (self._val_mask is None):
             raise ValueError("validation split hasn't been loaded")
-        
         return self._val_mask
     
     @property
-    def test_mask(self) -> Dict[str, Any]:
+    def test_mask(self) -> np.ndarray:
         r"""
         Returns the test mask of the dataset:
         Returns:
@@ -294,16 +318,13 @@ class LinkPropPredDataset(object):
         """
         if (self._test_mask is None):
             raise ValueError("test split hasn't been loaded")
-        
         return self._test_mask
 
 
 
 
 def main():
-    # name = "opensky"
-    # name = "stablecoin"
-    name = "redditcomments"
+    name = "redditcomments" # name = "opensky"
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
     
     dataset.node_feat
@@ -313,7 +334,7 @@ def main():
     dataset.full_data["sources"]
     dataset.full_data["destinations"]
     dataset.full_data["timestamps"] 
-    dataset.full_data["y"]
+    dataset.full_data["edge_label"]
 
 if __name__ == "__main__":
     main()

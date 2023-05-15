@@ -21,6 +21,7 @@ class BColors:
     UNDERLINE = '\033[4m'
 
 DATA_URL_DICT ={
+    "wikipedia": "https://object-arbutus.cloud.computecanada.ca/tgb/wikipedia.zip",
     "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
     "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
     "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",

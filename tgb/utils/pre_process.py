@@ -8,6 +8,36 @@ import csv
 from datetime import datetime, timedelta
 
 """
+functions for wikipedia dataset
+---------------------------------------
+"""
+def load_edgelist_wiki(fname: str) -> pd.DataFrame:
+    """
+    loading wikipedia dataset into pandas dataframe
+    similar processing to 
+    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/datasets/jodie.html
+
+    Parameters:
+        fname: str, name of the input file
+    Returns:
+        df: a pandas dataframe containing the edgelist data
+    """
+    df = pd.read_csv(fname, skiprows=1, header=None)
+    src = df.iloc[:, 0].values
+    dst = df.iloc[:, 1].values
+    dst += int(src.max()) + 1
+    t = df.iloc[:, 2].values
+    msg = df.iloc[:, 4:].values
+    idx = np.arange(t.shape[0])
+    w = np.ones(t.shape[0])
+
+    return pd.DataFrame({'u': src,
+                        'i': dst,
+                        'ts': t,
+                        'idx': idx,
+                        'w':w}), msg, None
+
+"""
 functions for un_trade dataset
 ---------------------------------------
 """
@@ -69,13 +99,15 @@ def load_edgelist_trade(fname: str,
 
 
 def load_trade_label_dict(fname: str, 
-                    node_ids):
+                    node_ids: dict,) -> dict:
     """
     load node labels into a nested dictionary instead of pandas dataobject
     {ts: {node_id: label_vec}}
     Parameters:
         fname: str, name of the input file
         node_ids: dictionary of user names mapped to integer node ids
+    Returns:
+        node_label_dict: a nested dictionary of node labels
     """
     if not osp.exists(fname):
         raise FileNotFoundError(f"File not found at {fname}")
@@ -130,10 +162,16 @@ functions for subreddits dataset
 ---------------------------------------
 """
 
-def load_edgelist_sr(fname: str, label_size=2221):
+def load_edgelist_sr(fname: str, 
+                     label_size: int = 2221,) -> pd.DataFrame:
     """
     load the edgelist into pandas dataframe 
     also outputs index for the user nodes and genre nodes
+    Parameters:
+        fname: str, name of the input file
+        label_size: int, number of genres
+    Returns:
+        df: a pandas dataframe containing the edgelist data
     """
     feat_size = 2
     num_lines = sum(1 for line in open(fname)) - 1
@@ -250,8 +288,8 @@ def load_labels_sr(fname,
 
 
 def load_label_dict(fname: str, 
-                    node_ids,
-                    rd_dict):
+                    node_ids: dict,
+                    rd_dict: dict) -> dict:
     """
     load node labels into a nested dictionary instead of pandas dataobject
     {ts: {node_id: label_vec}}
@@ -473,7 +511,8 @@ functions for opensky
 -------------------------------------------
 """
 
-def convert_str2int(in_str):
+def convert_str2int(in_str: str,
+                    ) -> np.ndarray:
     """
     convert strings to vectors of integers based on individual character
     each letter is converted as follows, a=10, b=11

@@ -39,7 +39,7 @@ dataset = PyGLinkPropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
-data = dataset.data[0]
+data = dataset.get_TemporalData()
 data = data.to(device)
 
 train_data = data[train_mask]
