@@ -15,7 +15,7 @@ from tgb.nodeproppred.evaluate import Evaluator
 
 
 device = "cpu"
-name = "lastfmgenre"
+name = "subreddits"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()

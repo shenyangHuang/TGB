@@ -295,7 +295,8 @@ def test(loader):
 train_curve = []
 val_curve = []
 test_curve = []
-
+max_val_score = 0  #find the best test score based on validation score
+best_test_idx = 0
 for epoch in range(1, epochs + 1):
     start_time = time.time()
     train_dict = train()
@@ -308,6 +309,10 @@ for epoch in range(1, epochs + 1):
     start_time = time.time()
     val_dict = test(val_loader)
     print(val_dict)
+    if (val_dict[eval_metric] > max_val_score):
+        max_val_score = val_dict[eval_metric]
+        best_test_idx = epoch - 1
+    
     val_curve.append(val_dict[eval_metric])
     print("Validation takes--- %s seconds ---" % (time.time() - start_time))
 
@@ -324,3 +329,10 @@ for epoch in range(1, epochs + 1):
 plot_curve(train_curve, "train_curve")
 plot_curve(val_curve, "val_curve")
 plot_curve(test_curve, "test_curve")
+
+max_test_score = test_curve[best_test_idx]
+print("------------------------------------")
+print("------------------------------------")
+print ("best val score: ", max_val_score)
+print ("best validation epoch   : ", best_test_idx + 1)
+print ("best test score: ", max_test_score)
