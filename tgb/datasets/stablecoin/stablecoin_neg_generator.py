@@ -13,7 +13,7 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 100
+    num_neg_e_per_pos = 20 #100
     neg_sample_strategy = "hist_rnd" #"rnd"
     rnd_seed = 42
 
