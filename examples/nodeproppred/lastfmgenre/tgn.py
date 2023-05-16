@@ -29,7 +29,7 @@ set_random_seed(seed)
 
 # hyperparameters
 lr = 0.0001
-epochs = 50
+epochs = 25 #50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "lastfmgenre"
