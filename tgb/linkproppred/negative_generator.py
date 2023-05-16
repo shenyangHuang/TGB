@@ -130,6 +130,7 @@ class NegativeEdgeGenerator(object):
                 filtered_all_dst = [
                     dst for dst in all_dst if dst not in pos_e_dst_same_src
                 ]
+                #filtered_all_dst = pos_e_dst_same_src
 
                 replace = True if self.num_neg_e > len(filtered_all_dst) else False
                 neg_d_arr = np.random.choice(
@@ -196,6 +197,23 @@ class NegativeEdgeGenerator(object):
                 data.t.cpu().numpy(),
             )
 
+            pos_ts_edge_dict = {} #{ts: {src: [dsts]}}
+            pos_edge_tqdm = tqdm(
+                zip(pos_src, pos_dst, pos_timestamp), total=len(pos_src)
+            )
+            for (
+                pos_s,
+                pos_d,
+                pos_t,
+            ) in pos_edge_tqdm:
+                if (pos_t not in pos_ts_edge_dict):
+                    pos_ts_edge_dict[pos_t] = {pos_s: [pos_d]}
+                else:
+                    if (pos_s not in pos_ts_edge_dict[pos_t]):
+                        pos_ts_edge_dict[pos_t][pos_s] = [pos_d]
+                    else:
+                        pos_ts_edge_dict[pos_t][pos_s].append(pos_d)
+
             # all possible destinations
             all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
 
@@ -218,10 +236,7 @@ class NegativeEdgeGenerator(object):
                 pos_d,
                 pos_t,
             ) in pos_edge_tqdm:
-                t_mask = pos_timestamp == pos_t
-                src_mask = pos_src == pos_s
-                fn_mask = np.logical_and(t_mask, src_mask)
-                pos_e_dst_same_src = pos_dst[fn_mask]
+                pos_e_dst_same_src = np.array(pos_ts_edge_dict[pos_t][pos_s])
 
                 # sample historical edges
                 num_hist_neg_e = 0
@@ -229,9 +244,7 @@ class NegativeEdgeGenerator(object):
                 if pos_s in hist_edge_set_per_node:
                     seen_dst = hist_edge_set_per_node[pos_s]
                     if len(seen_dst) >= 1:
-                        filtered_all_seen_dst = [
-                            dst for dst in seen_dst if dst not in pos_e_dst_same_src
-                        ]
+                        filtered_all_seen_dst = np.setdiff1d(seen_dst, pos_e_dst_same_src)
                         num_hist_neg_e = (
                             max_num_hist_neg_e
                             if max_num_hist_neg_e <= len(filtered_all_seen_dst)
@@ -243,9 +256,8 @@ class NegativeEdgeGenerator(object):
 
                 # sample random edges
                 invalid_dst = np.concatenate((np.array(pos_e_dst_same_src), seen_dst))
-                filtered_all_rnd_dst = [
-                    dst for dst in all_dst if dst not in invalid_dst
-                ]
+
+                filtered_all_rnd_dst = np.setdiff1d(all_dst, invalid_dst)
 
                 num_rnd_neg_e = self.num_neg_e - num_hist_neg_e
                 replace = True if num_rnd_neg_e > len(filtered_all_rnd_dst) else False
