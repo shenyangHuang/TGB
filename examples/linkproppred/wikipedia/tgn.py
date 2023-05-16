@@ -21,15 +21,20 @@ from modules.neighbor_loader import LastNeighborLoader
 from modules.tgn_memory import TGNMemory
 
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
+from tgb.utils.utils import set_random_seed
 
 
 overall_start = time.time()
 
+
+seed = 1
+torch.manual_seed(seed)
+set_random_seed(seed)
+
 LR = 0.0001
 batch_size = 200
 k = 10  # for computing metrics@k
-n_epoch = 1
-rnd_seed = 1234
+n_epoch = 5
 memory_dim = time_dim = embedding_dim = 100
 
 # set the device
@@ -151,8 +156,6 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
     memory.eval()
     gnn.eval()
     link_pred.eval()
-
-    torch.manual_seed(rnd_seed)  # Ensure deterministic sampling across epochs.
 
     hist_at_k_list, mrr_list = [], []
 

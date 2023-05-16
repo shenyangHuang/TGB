@@ -65,12 +65,12 @@ class NegativeEdgeGenerator(object):
         # file name for saving or loading...
         filename = (
             partial_path
-            + "/processed/negative_samples/"
+            + "/"
             + self.dataset_name
             + "_"
-            + self.strategy
-            + "_"
             + split_mode
+            + "_"
+            + "ns"
             + ".pkl"
         )
 
@@ -127,10 +127,7 @@ class NegativeEdgeGenerator(object):
                 src_mask = pos_src == pos_s
                 fn_mask = np.logical_and(t_mask, src_mask)
                 pos_e_dst_same_src = pos_dst[fn_mask]
-                filtered_all_dst = [
-                    dst for dst in all_dst if dst not in pos_e_dst_same_src
-                ]
-                #filtered_all_dst = pos_e_dst_same_src
+                filtered_all_dst = np.setdiff1d(all_dst, pos_e_dst_same_src)
 
                 replace = True if self.num_neg_e > len(filtered_all_dst) else False
                 neg_d_arr = np.random.choice(
@@ -241,6 +238,7 @@ class NegativeEdgeGenerator(object):
                 # sample historical edges
                 num_hist_neg_e = 0
                 neg_hist_dsts = np.array([])
+                seen_dst = []
                 if pos_s in hist_edge_set_per_node:
                     seen_dst = hist_edge_set_per_node[pos_s]
                     if len(seen_dst) >= 1:
@@ -255,8 +253,10 @@ class NegativeEdgeGenerator(object):
                         )
 
                 # sample random edges
-                invalid_dst = np.concatenate((np.array(pos_e_dst_same_src), seen_dst))
-
+                if (len(seen_dst) >= 1):
+                    invalid_dst = np.concatenate((np.array(pos_e_dst_same_src), seen_dst))
+                else:
+                    invalid_dst = np.array(pos_e_dst_same_src)
                 filtered_all_rnd_dst = np.setdiff1d(all_dst, invalid_dst)
 
                 num_rnd_neg_e = self.num_neg_e - num_hist_neg_e
