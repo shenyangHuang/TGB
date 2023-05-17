@@ -8,7 +8,7 @@ import requests
 from clint.textui import progress
 
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
-from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, BColors
+from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, DATA_EVAL_METRIC_DICT, BColors
 from tgb.utils.pre_process import (
     csv_to_pd_data,
     process_node_feat,
@@ -42,6 +42,17 @@ class LinkPropPredDataset(object):
         else:
             self.url = None
             print(f"Dataset {self.name} url not found, download not supported yet.")
+
+        
+        # check if the evaluatioin metric are specified
+        if self.name in DATA_EVAL_METRIC_DICT:
+            self.metric = DATA_EVAL_METRIC_DICT[self.name]
+        else:
+            self.metric = None
+            print(
+                f"Dataset {self.name} default evaluation metric not found, it is not supported yet."
+            )
+
 
         root = PROJ_DIR + root
 
@@ -245,6 +256,15 @@ class LinkPropPredDataset(object):
         test_mask = timestamps > test_time
 
         return train_mask, val_mask, test_mask
+    
+    @property
+    def eval_metric(self) -> str:
+        """
+        the official evaluation metric for the dataset, loaded from info.py
+        Returns:
+            eval_metric: str, the evaluation metric
+        """
+        return self.metric
 
     @property
     def negative_sampler(self) -> NegativeEdgeSampler:

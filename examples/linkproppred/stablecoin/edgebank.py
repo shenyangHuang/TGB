@@ -34,7 +34,7 @@ k_value = 10
 time_window_ratio = 0.5 #0.15
 
 # data loading
-dataset_name = "wikipedia"
+dataset_name = "stablecoin"
 dataset = PyGLinkPropPredDataset(name=dataset_name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask

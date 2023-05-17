@@ -5,6 +5,8 @@ Evaluator Module for Link Prediction Task
 import numpy as np
 from sklearn.metrics import *
 import math
+from tgb.utils.info import DATA_EVAL_METRIC_DICT
+
 
 
 try:
@@ -22,7 +24,7 @@ class Evaluator(object):
             name: name of the dataset
         """
         self.name = name
-        if self.name not in ["wikipedia"]:
+        if self.name not in DATA_EVAL_METRIC_DICT:
             raise NotImplementedError("Dataset not supported")
 
     def eval_rnk_metrics(self, y_pred_pos, y_pred_neg, type_info, k):
