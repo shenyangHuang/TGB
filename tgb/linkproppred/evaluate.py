@@ -30,7 +30,7 @@ class Evaluator(object):
         reference:
             - https://github.com/snap-stanford/ogb/blob/d5c11d91c9e1c22ed090a2e0bbda3fe357de66e7/ogb/linkproppred/evaluate.py#L214
         """
-        if type_info == "torch":
+        if type_info == 'torch':
             # calculate ranks
             y_pred_pos = y_pred_pos.view(-1, 1)
             # optimistic rank: "how many negatives have a larger score than the positive?"
@@ -41,16 +41,22 @@ class Evaluator(object):
             pessimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
             ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
             hitsK_list = (ranking_list <= k).to(torch.float)
-            mrr_list = 1.0 / ranking_list.to(torch.float)
+            mrr_list = 1./ranking_list.to(torch.float)
 
-            return {f"hits@{k}": hitsK_list.mean(), "mrr": mrr_list.mean()}
+            return {
+                    f'hits@{k}': hitsK_list.mean(),
+                    'mrr': mrr_list.mean()
+                    }
 
         else:
             y_pred_pos = y_pred_pos.reshape(-1, 1)
-            optimistic_rank = (y_pred_neg >= y_pred_pos).sum(dim=1)
-            pessimistic_rank = (y_pred_neg > y_pred_pos).sum(dim=1)
+            optimistic_rank = (y_pred_neg >= y_pred_pos).sum()
+            pessimistic_rank = (y_pred_neg > y_pred_pos).sum()
             ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
-            hitsK_list = (ranking_list <= K).astype(np.float32)
-            mrr_list = 1.0 / ranking_list.astype(np.float32)
+            hitsK_list = (ranking_list <= k).astype(np.float32)
+            mrr_list = 1./ranking_list.astype(np.float32)
 
-            return {f"hits@{k}": hitsK_list.mean(), "mrr": mrr_list.mean()}
+            return {
+                    f'hits@{k}': hitsK_list.mean(),
+                    'mrr': mrr_list.mean()
+                    }
