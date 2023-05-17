@@ -12,9 +12,11 @@ def save_pkl(obj, fname):
     with open(fname, 'wb') as handle:
         pickle.dump(obj, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
+		
 def load_pkl(fname):
 	with open(fname, 'rb') as handle:
 		return pickle.load(handle)
+
 
 def set_random_seed(seed):
 	"""
