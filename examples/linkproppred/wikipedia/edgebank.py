@@ -28,7 +28,7 @@ torch.manual_seed(seed)
 set_random_seed(seed)
 
 # set hyperparameters
-memory_mode = 'fixed_time_window' #'unlimited' # `unlimited` or `fixed_time_window`
+memory_mode = 'fixed_time_window' # `unlimited` or `fixed_time_window`
 batch_size = 200
 k_value = 10
 time_window_ratio = 0.5 #0.15
