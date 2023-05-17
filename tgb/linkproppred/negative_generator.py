@@ -5,6 +5,7 @@ Negative samples are generated and saved to files ONLY once;
 """
 
 import torch
+import random
 from torch import Tensor
 import numpy as np
 from torch_geometric.data import TemporalData
@@ -243,6 +244,7 @@ class NegativeEdgeGenerator(object):
                     seen_dst = hist_edge_set_per_node[pos_s]
                     if len(seen_dst) >= 1:
                         filtered_all_seen_dst = np.setdiff1d(seen_dst, pos_e_dst_same_src)
+                        #filtered_all_seen_dst = seen_dst #! no collision check
                         num_hist_neg_e = (
                             max_num_hist_neg_e
                             if max_num_hist_neg_e <= len(filtered_all_seen_dst)
@@ -258,6 +260,7 @@ class NegativeEdgeGenerator(object):
                 else:
                     invalid_dst = np.array(pos_e_dst_same_src)
                 filtered_all_rnd_dst = np.setdiff1d(all_dst, invalid_dst)
+                #filtered_all_rnd_dst = all_dst #! no collision check
 
                 num_rnd_neg_e = self.num_neg_e - num_hist_neg_e
                 replace = True if num_rnd_neg_e > len(filtered_all_rnd_dst) else False
@@ -267,7 +270,6 @@ class NegativeEdgeGenerator(object):
 
                 # concatenate the two sets: historical and random
                 neg_dst_arr = np.concatenate((neg_hist_dsts, neg_rnd_dsts))
-
                 evaluation_set[(pos_s, pos_d, pos_t)] = neg_dst_arr
 
             # save the generated evaluation set to disk
