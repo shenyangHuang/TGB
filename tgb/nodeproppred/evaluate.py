@@ -12,7 +12,7 @@ except ImportError:
 
 
 class Evaluator(object):
-    """Evaluator for Edge Regression Task"""
+    """Evaluator for Node Property Prediction"""
 
     def __init__(self, name: str):
         r"""

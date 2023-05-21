@@ -4,12 +4,20 @@ Reference:
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
+import math
 import time
+
+import os.path as osp
 import numpy as np
+
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
+from torch.nn import Linear
+
+from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-from tqdm import tqdm
+
+from torch_geometric.nn import TransformerConv
 
 # internal imports
 from tgb.linkproppred.evaluate import Evaluator
@@ -21,45 +29,37 @@ from modules.neighbor_loader import LastNeighborLoader
 from modules.tgn_memory import TGNMemory
 
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
-from tgb.utils.utils import set_random_seed
 
 
 overall_start = time.time()
 
-
-seed = 1
-torch.manual_seed(seed)
-set_random_seed(seed)
-
 LR = 0.0001
 batch_size = 200
-k = 10  # for computing metrics@k
-n_epoch = 5
+k_value = 10  # for computing metrics@k
+n_epoch = 2
+rnd_seed = 1234
 memory_dim = time_dim = embedding_dim = 100
+val_ratio = test_ratio = 0.15
 
 # set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # data loading
-name = "wikipedia"
-dataset = PyGLinkPropPredDataset(name=name, root="datasets")
+dataset_name = "wikipedia"
+dataset = PyGLinkPropPredDataset(name=dataset_name, root="datasets")
 data = dataset.get_TemporalData()
-
-# For small datasets, we can put the whole dataset on GPU and thus avoid
-# expensive memory transfer costs for mini-batches:
 data = data.to(device)
-
-# Ensure to only sample actual destination nodes as negatives.
-min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
-
+metric = dataset.eval_metric
 # split the data
 train_data, val_data, test_data = data.train_val_test_split(
-    val_ratio=0.15, test_ratio=0.15
+    val_ratio=val_ratio, test_ratio=test_ratio
 )
-
 train_loader = TemporalDataLoader(train_data, batch_size=batch_size)
 val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
+
+# Ensure to only sample actual destination nodes as negatives.
+min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
 # neighhorhood sampler
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
@@ -101,7 +101,7 @@ def train():
     neighbor_loader.reset_state()  # Start with an empty graph.
 
     total_loss = 0
-    for batch in tqdm(train_loader):
+    for batch in train_loader:
         batch = batch.to(device)
         optimizer.zero_grad()
 
@@ -157,9 +157,11 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
     gnn.eval()
     link_pred.eval()
 
-    hist_at_k_list, mrr_list = [], []
+    torch.manual_seed(rnd_seed)  # Ensure deterministic sampling across epochs.
 
-    for pos_batch in tqdm(loader):
+    mrr_list = []
+
+    for pos_batch in loader:
         pos_src, pos_dst, pos_t, pos_msg = (
             pos_batch.src,
             pos_batch.dst,
@@ -167,7 +169,7 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
             pos_batch.msg,
         )
 
-        neg_batch_list = neg_sampler.query_batch(pos_batch, split_mode=split_mode)
+        neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, split_mode=split_mode)
 
         for idx, neg_batch in enumerate(neg_batch_list):
             src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
@@ -195,27 +197,21 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
 
             y_pred = link_pred(z[assoc[src]], z[assoc[dst]])
 
-            # hist@k & MRR
-            metrics_mrr_rnk = evaluator.eval_rnk_metrics(
-                y_pred_pos=y_pred[0, :]
-                .squeeze(dim=-1)
-                .cpu(),  # first element is a positive edge
-                y_pred_neg=y_pred[1:, :]
-                .squeeze(dim=-1)
-                .cpu(),  # the rests are the negative edges
-                type_info="torch",
-                k=k,
-            )
-            hist_at_k_list.append(metrics_mrr_rnk[f"hits@{k}"])
-            mrr_list.append(metrics_mrr_rnk["mrr"])
+            # compute MRR
+            input_dict = {
+                "y_pred_pos": np.array([y_pred[0, :].squeeze(dim=-1).cpu()]),
+                "y_pred_neg": np.array(y_pred[1:, :].squeeze(dim=-1).cpu()),
+                "eval_metric": [metric],
+            }
+            metrics_mrr_rnk = evaluator.eval(input_dict)
+            mrr_list.append(metrics_mrr_rnk[metric])
 
         # Update memory and neighbor loader with ground-truth state.
         memory.update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
     perf_metrics = {
-        f"hits@{k}": float(torch.tensor(hist_at_k_list).mean()),
-        "mrr": float(torch.tensor(mrr_list).mean()),
+        metric: float(torch.tensor(mrr_list).mean()),
     }
     return perf_metrics
 
@@ -224,10 +220,9 @@ print("==========================================================")
 print("=================*** TGN model: ONE-VS-MANY ***===========")
 print("==========================================================")
 
-evaluator = Evaluator(name=name)
+evaluator = Evaluator(name=dataset_name)
 
 # negative sampler
-num_neg_e_per_pos = 100
 NEG_SAMPLE_MODE = "hist_rnd"
 neg_sampler = dataset.negative_sampler
 

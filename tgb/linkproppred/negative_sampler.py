@@ -60,7 +60,7 @@ class NegativeEdgeSampler(object):
         ], "Invalid split-mode! It should be `val`, `test`!"
         self.eval_set[split_mode] = None
 
-    def query_batch(self, pos_batch, split_mode):
+    def query_batch(self, pos_src, pos_dst, pos_timestamp, split_mode):
         r"""
         For each positive edge in the `pos_batch`, return a list of negative edges
         `split_mode` specifies whether the valiation or test evaluation set should be retrieved.
@@ -73,14 +73,20 @@ class NegativeEdgeSampler(object):
             raise ValueError(
                 f"Evaluation set is None! You should load the {split_mode} evaluation set first!"
             )
+        
+        # check the argument types...
+        if torch is not None and isinstance(pos_src, torch.Tensor):
+            pos_src = pos_src.detach().cpu().numpy()
+        if torch is not None and isinstance(pos_dst, torch.Tensor):
+            pos_dst = pos_dst.detach().cpu().numpy()
+        if torch is not None and isinstance(pos_timestamp, torch.Tensor):
+            pos_timestamp = pos_timestamp.detach().cpu().numpy()
+        
+        if not isinstance(pos_src, np.ndarray) or not isinstance(pos_dst, np.ndarray) or not(pos_timestamp, np.ndarray):
+            raise RuntimeError(
+                "pos_src, pos_dst, and pos_timestamp need to be either numpy ndarray or torch tensor!"
+                )
 
-        # retrieve the negative sample lists for each positive edge in the `pos_batch`
-        # first, get the information from the batch
-        pos_src, pos_dst, pos_timestamp = (
-            pos_batch.src.cpu().numpy(),
-            pos_batch.dst.cpu().numpy(),
-            pos_batch.t.cpu().numpy(),
-        )
         neg_samples = []
         for pos_s, pos_d, pos_t in zip(pos_src, pos_dst, pos_timestamp):
             if (pos_s, pos_d, pos_t) not in self.eval_set[split_mode]:

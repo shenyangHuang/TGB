@@ -60,8 +60,7 @@ edgebank = EdgeBankPredictor(
         hist_dst,
         hist_ts,
         memory_mode=memory_mode,
-        time_window_ratio=time_window_ratio,
-        pos_prob=1.0,)
+        time_window_ratio=time_window_ratio)
 
 
 def test_one_vs_many(loader, neg_sampler, split_mode):
