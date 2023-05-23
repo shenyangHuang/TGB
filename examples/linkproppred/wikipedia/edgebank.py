@@ -28,7 +28,7 @@ torch.manual_seed(seed)
 set_random_seed(seed)
 
 # set hyperparameters
-memory_mode = 'fixed_time_window' #'unlimited' # `unlimited` or `fixed_time_window`
+memory_mode = 'fixed_time_window' # `unlimited` or `fixed_time_window`
 batch_size = 200
 k_value = 10
 time_window_ratio = 0.5 #0.15
@@ -60,8 +60,7 @@ edgebank = EdgeBankPredictor(
         hist_dst,
         hist_ts,
         memory_mode=memory_mode,
-        time_window_ratio=time_window_ratio,
-        pos_prob=1.0,)
+        time_window_ratio=time_window_ratio)
 
 
 def test_one_vs_many(loader, neg_sampler, split_mode):
