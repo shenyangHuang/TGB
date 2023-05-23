@@ -5,7 +5,7 @@ Reference:
     - https://github.com/fpour/DGB/tree/main
 """
 
-import time
+import timeit
 import numpy as np
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
@@ -20,7 +20,7 @@ from tgb.utils.utils import set_random_seed
 
 
 # ==================
-start_overall = time.time()
+start_overall = timeit.default_timer()
 
 # set the random seed for consistency
 seed = 1
@@ -111,9 +111,9 @@ NEG_SAMPLE_MODE = "hist_rnd"
 dataset.load_test_ns()
 
 # testing ...
-start_test = time.time()
+start_test = timeit.default_timer()
 perf_metrics_test = test_one_vs_many(test_loader, neg_sampler, split_mode='test')
-end_test = time.time()
+end_test = timeit.default_timer()
 
 print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY --- NS-Mode: {NEG_SAMPLE_MODE} <<< ")
 for perf_name, perf_value in perf_metrics_test.items():
@@ -121,5 +121,5 @@ for perf_name, perf_value in perf_metrics_test.items():
 print(f"\tTest: Elapsed Time (s): {end_test - start_test: .4f}")
 
 
-print(f'Overall Elapsed Time (s): {time.time() - start_overall: .4f}')
+print(f'Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}')
 print("==============================================================")

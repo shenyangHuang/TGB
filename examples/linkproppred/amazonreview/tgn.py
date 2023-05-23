@@ -1,27 +1,12 @@
-# This code achieves a performance of around 96.60%. However, it is not
-# directly comparable to the results reported by the TGN paper since a
-# slightly different evaluation setup is used here.
-# In particular, predictions in the same batch are made in parallel, i.e.
-# predictions for interactions later in the batch have no access to any
-# information whatsoever about previous interactions in the same batch.
-# On the contrary, when sampling node neighborhoods for interactions later in
-# the batch, the TGN paper code has access to previous interactions in the
-# batch.
-# While both approaches are correct, together with the authors of the paper we
-# decided to present this version here as it is more realsitic and a better
-# test bed for future methods.
-
-import os.path as osp
-
+import timeit
+import argparse
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.nn import Linear
 from tqdm import tqdm
-import timeit
 
 
 from torch_geometric.loader import TemporalDataLoader
-from torch_geometric.nn import TGNMemory, TransformerConv
+from torch_geometric.nn import TGNMemory
 from torch_geometric.nn.models.tgn import (
     IdentityMessage,
     LastAggregator,
@@ -33,7 +18,14 @@ from tgb.utils.utils import set_random_seed
 from modules.decoder import LinkPredictor
 from modules.emb_module import GraphAttentionEmbedding
 
-seed = 1
+parser = argparse.ArgumentParser(description='parsing command line arguments as hyperparameters')
+parser.add_argument('-s', '--seed', type=int, default=1,
+                    help='random seed to use')
+parser.parse_args()
+args = parser.parse_args()
+# setting random seed
+seed = int(args.seed) #1,2,3,4,5
+print ("setting random seed to be", seed)
 torch.manual_seed(seed)
 set_random_seed(seed)
 
