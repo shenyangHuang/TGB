@@ -1,13 +1,11 @@
 from tqdm import tqdm
 import torch
-import time
-import numpy as np
+import timeit
+import argparse
 import matplotlib.pyplot as plt
-from sklearn.metrics import ndcg_score
-from torch.nn import Linear
 
 from torch_geometric.loader import TemporalDataLoader
-from torch_geometric.nn import TGNMemory, TransformerConv
+from torch_geometric.nn import TGNMemory
 from torch_geometric.nn.models.tgn import (
     IdentityMessage,
     LastAggregator,
@@ -21,15 +19,20 @@ from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed
 from tgb.utils.stats import plot_curve
 
-
+parser = argparse.ArgumentParser(description='parsing command line arguments as hyperparameters')
+parser.add_argument('-s', '--seed', type=int, default=1,
+                    help='random seed to use')
+parser.parse_args()
+args = parser.parse_args()
 # setting random seed
-seed = 1
+seed = int(args.seed) #1,2,3,4,5
+print ("setting random seed to be", seed)
 torch.manual_seed(seed)
 set_random_seed(seed)
 
 # hyperparameters
 lr = 0.0001
-epochs = 25 #50
+epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "lastfmgenre"
@@ -300,28 +303,28 @@ test_curve = []
 max_val_score = 0  #find the best test score based on validation score
 best_test_idx = 0
 for epoch in range(1, epochs + 1):
-    start_time = time.time()
+    start_time = timeit.default_timer()
     train_dict = train()
     print("------------------------------------")
     print(f"training Epoch: {epoch:02d}")
     print(train_dict)
     train_curve.append(train_dict[eval_metric])
-    print("Training takes--- %s seconds ---" % (time.time() - start_time))
-
-    start_time = time.time()
+    print("Training takes--- %s seconds ---" % (timeit.default_timer() - start_time))
+    
+    start_time = timeit.default_timer()
     val_dict = test(val_loader)
     print(val_dict)
     val_curve.append(val_dict[eval_metric])
     if (val_dict[eval_metric] > max_val_score):
         max_val_score = val_dict[eval_metric]
         best_test_idx = epoch - 1
-    print("Validation takes--- %s seconds ---" % (time.time() - start_time))
+    print("Validation takes--- %s seconds ---" % (timeit.default_timer() - start_time))
 
-    start_time = time.time()
+    start_time = timeit.default_timer()
     test_dict = test(test_loader)
     print(test_dict)
     test_curve.append(test_dict[eval_metric])
-    print("Test takes--- %s seconds ---" % (time.time() - start_time))
+    print("Test takes--- %s seconds ---" % (timeit.default_timer() - start_time))
     print("------------------------------------")
     dataset.reset_label_time()
 

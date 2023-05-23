@@ -4,10 +4,9 @@ Reference:
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 """
 
-import math
-import time
 
-import os.path as osp
+import timeit
+import argparse
 import numpy as np
 
 import torch
@@ -31,7 +30,18 @@ from modules.tgn_memory import TGNMemory
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
-overall_start = time.time()
+overall_start = timeit.default_timer()
+
+parser = argparse.ArgumentParser(description='parsing command line arguments as hyperparameters')
+parser.add_argument('-s', '--seed', type=int, default=1,
+                    help='random seed to use')
+parser.parse_args()
+args = parser.parse_args()
+# setting random seed
+seed = int(args.seed) #1,2,3,4,5
+print ("setting random seed to be", seed)
+torch.manual_seed(seed)
+set_random_seed(seed)
 
 LR = 0.0001
 batch_size = 200
@@ -231,25 +241,25 @@ neg_sampler = dataset.negative_sampler
 dataset.load_val_ns()
 
 
-start_train_val = time.time()
+start_train_val = timeit.default_timer()
 for epoch in range(1, n_epoch + 1):
     # training
-    start_epoch_train = time.time()
+    start_epoch_train = timeit.default_timer()
     loss = train()
-    end_epoch_train = time.time()
+    end_epoch_train = timeit.default_timer()
     print(
         f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}"
     )
 
     # validation
-    start_val = time.time()
+    start_val = timeit.default_timer()
     perf_metrics_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
-    end_val = time.time()
+    end_val = timeit.default_timer()
     for perf_name, perf_value in perf_metrics_val.items():
         print(f"\tValidation: {perf_name}: {perf_value: .4f}")
     print(f"\tValidation: Elapsed time (s): {end_val - start_val: .4f}")
 
-end_train_val = time.time()
+end_train_val = timeit.default_timer()
 print(f"Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: .4f}")
 
 # ==================================================== Test
@@ -257,9 +267,9 @@ print(f"Train & Validation: Elapsed Time (s): {end_train_val - start_train_val: 
 dataset.load_test_ns()
 
 # testing ...
-start_test = time.time()
+start_test = timeit.default_timer()
 perf_metrics_test = test_one_vs_many(test_loader, neg_sampler, split_mode="test")
-end_test = time.time()
+end_test = timeit.default_timer()
 
 print(
     f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY --- NS-Mode: {NEG_SAMPLE_MODE} <<< "
@@ -269,6 +279,6 @@ for perf_name, perf_value in perf_metrics_test.items():
 print(f"\tTest: Elapsed Time (s): {end_test - start_test: .4f}")
 
 
-overall_end = time.time()
+overall_end = timeit.default_timer()
 print(f"Overall Elapsed Time (s): {overall_end - overall_start: .4f}")
 print("==============================================================")

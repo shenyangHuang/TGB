@@ -3,7 +3,7 @@ implement persistant forecast as baseline for the node prop pred task
 simply predict last seen label for the node
 """
 
-import time
+import timeit
 import numpy as np
 from torch_geometric.loader import TemporalDataLoader
 from tqdm import tqdm
@@ -98,27 +98,27 @@ def test_n_upate(loader):
 train, val and test for one epoch only
 """
 
-start_time = time.time()
+start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)
 print(
     "Persistant forecast on Training takes--- %s seconds ---"
-    % (time.time() - start_time)
+    % (timeit.default_timer() - start_time)
 )
 
-start_time = time.time()
+start_time = timeit.default_timer()
 val_dict = test_n_upate(val_loader)
 print(val_dict)
 print(
     "Persistant forecast on validation takes--- %s seconds ---"
-    % (time.time() - start_time)
+    % (timeit.default_timer() - start_time)
 )
 
 
-start_time = time.time()
+start_time = timeit.default_timer()
 test_dict = test_n_upate(test_loader)
 print(test_dict)
 print(
-    "Persistant forecast on Test takes--- %s seconds ---" % (time.time() - start_time)
+    "Persistant forecast on Test takes--- %s seconds ---" % (timeit.default_timer() - start_time)
 )
 dataset.reset_label_time()
