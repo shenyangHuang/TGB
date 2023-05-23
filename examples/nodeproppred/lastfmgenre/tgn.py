@@ -23,13 +23,13 @@ from tgb.utils.stats import plot_curve
 
 
 # setting random seed
-seed = 3 #1
+seed = 1 #1,2,3,4,5
 torch.manual_seed(seed)
 set_random_seed(seed)
 
 # hyperparameters
 lr = 0.0001
-epochs = 25 #50
+epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "lastfmgenre"
