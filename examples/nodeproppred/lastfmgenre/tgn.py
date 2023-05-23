@@ -23,7 +23,7 @@ import time
 
 
 # setting random seed
-seed = 1
+seed = 3 #1
 torch.manual_seed(seed)
 set_random_seed(seed)
 

@@ -24,7 +24,8 @@ data = dataset.get_TemporalData()
 data = data.to(device)
 
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes)
+window = 3
+forecaster = MovingAverage(num_classes, window=window)
 evaluator = Evaluator(name=name)
 
 
