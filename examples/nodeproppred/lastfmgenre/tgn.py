@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import torch
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import ndcg_score
@@ -19,7 +20,6 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed
 from tgb.utils.stats import plot_curve
-import time
 
 
 # setting random seed
@@ -29,7 +29,7 @@ set_random_seed(seed)
 
 # hyperparameters
 lr = 0.0001
-epochs = 50
+epochs = 25 #50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "lastfmgenre"

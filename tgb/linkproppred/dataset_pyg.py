@@ -43,6 +43,15 @@ class PyGLinkPropPredDataset(Dataset):
         self._ns_sampler = self.dataset.negative_sampler
 
     @property
+    def eval_metric(self) -> str:
+        """
+        the official evaluation metric for the dataset, loaded from info.py
+        Returns:
+            eval_metric: str, the evaluation metric
+        """
+        return self.dataset.eval_metric
+
+    @property
     def negative_sampler(self) -> NegativeEdgeSampler:
         r"""
         Returns the negative sampler of the dataset, will load negative samples from disc

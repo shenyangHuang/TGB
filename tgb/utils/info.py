@@ -25,14 +25,14 @@ class BColors:
 
 DATA_URL_DICT = {
     "wikipedia": "https://object-arbutus.cloud.computecanada.ca/tgb/wikipedia.zip",
-    "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
-    "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
+    "amazonreview": "https://object-arbutus.cloud.computecanada.ca/tgb/amazonreview.zip",
     "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",
-    "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
     "stablecoin": "https://object-arbutus.cloud.computecanada.ca/tgb/stablecoin.zip",
     "redditcomments": "https://object-arbutus.cloud.computecanada.ca/tgb/redditcomments.zip",
+    "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
+    "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
     "subreddits": "https://object-arbutus.cloud.computecanada.ca/tgb/subreddits.zip",
-    "amazonreview": "https://object-arbutus.cloud.computecanada.ca/tgb/amazonreview.zip",
+    "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
 }
 
 
@@ -40,6 +40,11 @@ DATA_EVAL_METRIC_DICT = {
     "un_trade": "ndcg",
     "subreddits": "ndcg",
     "lastfmgenre": "ndcg",
+    "wikipedia": "mrr",
+    "opensky": "mrr",
+    "stablecoin": "mrr",
+    "redditcomments": "mrr",
+    "amazonreview": "mrr",
 }
 
 
