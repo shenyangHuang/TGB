@@ -2,6 +2,7 @@ from tqdm import tqdm
 import torch
 import time
 import numpy as np
+import argparse
 import matplotlib.pyplot as plt
 from sklearn.metrics import ndcg_score
 from torch.nn import Linear
@@ -21,9 +22,14 @@ from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed
 from tgb.utils.stats import plot_curve
 
-
+parser = argparse.ArgumentParser(description='parsing command line arguments as hyperparameters')
+parser.add_argument('-s', '--seed', type=int, default=1,
+                    help='random seed to use')
+parser.parse_args()
+args = parser.parse_args()
 # setting random seed
-seed = 1 #1,2,3,4,5
+seed = int(args.seed) #1,2,3,4,5
+print ("setting random seed to be", seed)
 torch.manual_seed(seed)
 set_random_seed(seed)
 
