@@ -5,6 +5,8 @@ import pickle
 from typing import Any
 import sys
 import argparse
+import json
+import io
 
 
 # import torch
@@ -52,8 +54,8 @@ def get_args():
     parser.add_argument('--emb_dim', type=int, help='Embedding dimension', default=100)
     parser.add_argument('--val_ratio', type=float, help='Validation ratio', default=0.15)
     parser.add_argument('--test_ratio', type=float, help='Test ratio', default=0.15)
-    parser.add_argument('--tolerance', type=float, help='Early stopper tolerance', default=1e-5)
-    parser.add_argument('--patience', type=float, help='Early stopper patience', default=3)
+    parser.add_argument('--tolerance', type=float, help='Early stopper tolerance', default=1e-6)
+    parser.add_argument('--patience', type=float, help='Early stopper patience', default=5)
     parser.add_argument('--num_run', type=int, help='Number of iteration runs', default=1)
 
     try:
@@ -62,3 +64,25 @@ def get_args():
         parser.print_help()
         sys.exit(0)
     return args, sys.argv
+
+
+def save_results(new_results: dict, filename: str):
+    r"""
+    save (new) results into a json file
+    :param: new_results (dictionary): a dictionary of new results to be saved
+    :filename: the name of the file to save the (new) results
+    """
+    if os.path.isfile(filename):
+        # append to the file
+        with open(filename, 'r+') as json_file:
+            file_data = json.load(json_file)
+            # convert file_data to list if not
+            if type(file_data) is dict:
+                file_data = [file_data]
+            file_data.append(new_results)
+            json_file.seek(0)
+            json.dump(file_data, json_file, indent=4)
+    else:
+        # dump the results
+        with open(filename, 'w') as json_file:
+            json.dump(new_results, json_file, indent=4)

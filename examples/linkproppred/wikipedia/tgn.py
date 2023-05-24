@@ -25,7 +25,7 @@ from modules.emb_module import GraphAttentionEmbedding
 from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
-from modules.tgn_memory import TGNMemory
+from modules.memory_module import TGNMemory
 
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
