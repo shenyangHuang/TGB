@@ -151,7 +151,7 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
         model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = float(torch.tensor(perf_list).mean()),
+    perf_metrics = float(torch.tensor(perf_list).mean())
 
     return perf_metrics
 
