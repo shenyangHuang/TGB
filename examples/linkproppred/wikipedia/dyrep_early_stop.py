@@ -201,13 +201,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # data loading
 dataset = PyGLinkPropPredDataset(name=DATA, root="datasets")
+train_mask = dataset.train_mask
+val_mask = dataset.val_mask
+test_mask = dataset.test_mask
 data = dataset.get_TemporalData()
 data = data.to(device)
-metric = dataset.eval_metric
-# split the data
-train_data, val_data, test_data = data.train_val_test_split(
-    val_ratio=VAL_RATIO, test_ratio=TEST_RATIO
-)
+
+train_data = data[train_mask]
+val_data = data[val_mask]
+test_data = data[test_mask]
+
 train_loader = TemporalDataLoader(train_data, batch_size=BATCH_SIZE)
 val_loader = TemporalDataLoader(val_data, batch_size=BATCH_SIZE)
 test_loader = TemporalDataLoader(test_data, batch_size=BATCH_SIZE)
