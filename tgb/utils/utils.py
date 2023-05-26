@@ -52,8 +52,6 @@ def get_args():
     parser.add_argument('--mem_dim', type=int, help='Memory dimension', default=100)
     parser.add_argument('--time_dim', type=int, help='Time dimension', default=100)
     parser.add_argument('--emb_dim', type=int, help='Embedding dimension', default=100)
-    parser.add_argument('--val_ratio', type=float, help='Validation ratio', default=0.15)
-    parser.add_argument('--test_ratio', type=float, help='Test ratio', default=0.15)
     parser.add_argument('--tolerance', type=float, help='Early stopper tolerance', default=1e-6)
     parser.add_argument('--patience', type=float, help='Early stopper patience', default=5)
     parser.add_argument('--num_run', type=int, help='Number of iteration runs', default=1)

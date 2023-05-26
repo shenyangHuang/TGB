@@ -178,11 +178,11 @@ SEED = args.seed
 MEM_DIM = args.mem_dim
 TIME_DIM = args.time_dim
 EMB_DIM = args.emb_dim
-VAL_RATIO = args.val_ratio
-TEST_RATIO = args.test_ratio
 TOLERANCE = args.tolerance
 PATIENCE = args.patience
 NUM_RUNS = args.num_run
+NUM_NEIGHBORS = 10
+
 
 MODEL_NAME = 'TGN'
 # ==========
@@ -197,6 +197,7 @@ val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 data = dataset.get_TemporalData()
 data = data.to(device)
+metric = dataset.eval_metric
 
 train_data = data[train_mask]
 val_data = data[val_mask]
@@ -209,9 +210,8 @@ test_loader = TemporalDataLoader(test_data, batch_size=BATCH_SIZE)
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-
 # neighhorhood sampler
-neighbor_loader = LastNeighborLoader(data.num_nodes, size=10, device=device)
+neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
 memory = TGNMemory(
