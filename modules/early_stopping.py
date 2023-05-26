@@ -50,15 +50,15 @@ class EarlyStopMonitor(object):
         if not self.higher_better:
             curr_metric *= -1
         
-        if self.best_sofar is None:
-            self.best_sofar = curr_metric
-        elif (curr_metric - self.best_sofar) / np.abs(self.best_sofar) > self.tolerance:
+        if (self.best_sofar is None) or ((curr_metric - self.best_sofar) / np.abs(self.best_sofar) > self.tolerance):
+            # first iteration or observing an improvement
             self.best_sofar = curr_metric
             print("INFO: save a checkpoint...")
             self.save_checkpoint(models_dict)
             self.counter = 0
             self.best_epoch = self.epoch_idx
         else:
+            # no improvement observed
             self.counter += 1
         
         self.epoch_idx += 1
