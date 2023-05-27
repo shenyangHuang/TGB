@@ -271,7 +271,7 @@ for run_idx in range(NUM_RUNS):
 
     # define an early stopper
     save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
-    save_model_id = f'{MODEL_NAME}_{DATA}_{run_idx}'
+    save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
     early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
                                     tolerance=TOLERANCE, patience=PATIENCE)
 
