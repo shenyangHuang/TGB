@@ -19,7 +19,7 @@ from tgb.nodeproppred.evaluate import Evaluator
 device = "cpu"
 
 #! first need to provide pyg dataset support for lastfm dataset
-
+window = 7
 name = "un_trade"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
@@ -27,7 +27,7 @@ data = dataset.get_TemporalData()
 data = data.to(device)
 
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes)
+forecaster = MovingAverage(num_classes, window=window)
 evaluator = Evaluator(name=name)
 
 

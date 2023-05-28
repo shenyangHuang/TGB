@@ -12,7 +12,7 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from modules.heuristics import MovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
-
+window = 7
 device = "cpu"
 name = "subreddits"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
@@ -21,7 +21,7 @@ data = dataset.get_TemporalData()
 data = data.to(device)
 
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes)
+forecaster = MovingAverage(num_classes, window=window)
 evaluator = Evaluator(name=name)
 
 
