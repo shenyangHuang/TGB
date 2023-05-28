@@ -18,7 +18,6 @@ import numpy as np
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TransformerConv
 
