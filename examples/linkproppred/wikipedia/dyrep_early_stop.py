@@ -1,24 +1,25 @@
 """
-Dynamic Link Prediction with a TGN model with Early Stopping
-Reference: 
+DyRep
+    This has been implemented with intuitions from the following sources:
+    - https://github.com/twitter-research/tgn
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
-"""
 
+    Spec.:
+        - Memory Updater: RNN
+        - Embedding Module: ID
+        - Message Function: ATTN
+"""
 import math
 import timeit
-
 import os
 import os.path as osp
 from pathlib import Path
 import numpy as np
-
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
-
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-
 from torch_geometric.nn import TransformerConv
 
 # internal imports
@@ -29,9 +30,10 @@ from modules.emb_module import GraphAttentionEmbedding
 from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import TGNMemory
+from modules.memory_module import DyRepMemory
 from modules.early_stopping import  EarlyStopMonitor
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
+
 
 
 # ==========
@@ -68,13 +70,6 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = model['memory'](n_id)
-        z = model['gnn'](
-            z,
-            last_update,
-            edge_index,
-            data.t[e_id].to(device),
-            data.msg[e_id].to(device),
-        )
 
         pos_out = model['link_pred'](z[assoc[src]], z[assoc[pos_dst]])
         neg_out = model['link_pred'](z[assoc[src]], z[assoc[neg_dst]])
@@ -82,8 +77,17 @@ def train():
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(src, pos_dst, t, msg)
+        # update the memory with ground-truth
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(src, pos_dst, t, msg, z, assoc)
+
+        # update neighbor loader
         neighbor_loader.insert(src, pos_dst)
 
         loss.backward()
@@ -131,16 +135,8 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
 
             # Get updated memory of all nodes involved in the computation.
             z, last_update = model['memory'](n_id)
-            z = model['gnn'](
-                z,
-                last_update,
-                edge_index,
-                data.t[e_id].to(device),
-                data.msg[e_id].to(device),
-            )
 
             y_pred = model['link_pred'](z[assoc[src]], z[assoc[dst]])
-
             # compute MRR
             input_dict = {
                 "y_pred_pos": np.array([y_pred[0, :].squeeze(dim=-1).cpu()]),
@@ -148,19 +144,31 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
                 "eval_metric": [metric],
             }
             perf_list.append(evaluator.eval(input_dict)[metric])
+        
+        # update the memory with positive edges
+        n_id = torch.cat([pos_src, pos_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+        z, last_update = model['memory'](n_id)
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg, z, assoc)
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
+        # update the neighbor loader
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = float(torch.tensor(perf_list).mean())
+    perf_metric = float(torch.tensor(perf_list).mean())
 
-    return perf_metrics
+    return perf_metric
 
 # ==========
 # ==========
 # ==========
-
 
 # Start...
 start_overall = timeit.default_timer()
@@ -183,7 +191,9 @@ PATIENCE = args.patience
 NUM_RUNS = args.num_run
 NUM_NEIGHBORS = 10
 
-MODEL_NAME = 'TGN'
+MODEL_NAME = 'DyRep'
+USE_SRC_EMB_IN_MSG = False
+USE_DST_EMB_IN_MSG = True
 # ==========
 
 # set the device
@@ -213,13 +223,16 @@ min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
-memory = TGNMemory(
+memory = DyRepMemory(
     data.num_nodes,
     data.msg.size(-1),
     MEM_DIM,
     TIME_DIM,
     message_module=IdentityMessage(data.msg.size(-1), MEM_DIM, TIME_DIM),
     aggregator_module=LastAggregator(),
+    memory_updater_type='rnn',
+    use_src_emb_in_msg=USE_SRC_EMB_IN_MSG,
+    use_dst_emb_in_msg=USE_DST_EMB_IN_MSG
 ).to(device)
 
 gnn = GraphAttentionEmbedding(
