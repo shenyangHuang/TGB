@@ -151,7 +151,7 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
         model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = float(torch.tensor(perf_list).mean()),
+    perf_metrics = float(torch.tensor(perf_list).mean())
 
     return perf_metrics
 
@@ -275,14 +275,15 @@ for run_idx in range(NUM_RUNS):
         # validation
         start_val = time.time()
         perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
-        print(f"\tValidation {metric}: {perf_metric_val: .4f}")
-        print(f"\tValidation: Elapsed time (s): {time.time() - start_val: .4f}")
+
+        print(f"\tValidation ", metric, " : ", perf_metric_val)
+        print(f"\tValidation: Elapsed time (s): {time.time() - start_val:.4f}")
 
         # check for early stopping
         if early_stopper.step_check(perf_metric_val, model):
             break
 
-    print(f"Train & Validation: Elapsed Time (s): {time.time() - start_train_val: .4f}")
+    print(f"Train & Validation: Elapsed Time (s): {time.time() - start_train_val:.4f}")
 
     # ==================================================== Test
     # first, load the best model
@@ -296,11 +297,11 @@ for run_idx in range(NUM_RUNS):
     perf_metric_test = test_one_vs_many(test_loader, neg_sampler, split_mode="test")
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-    print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-    print(f"\tTest: Elapsed Time (s): {time.time() - start_test: .4f}")
+    print(f"\tTest: {metric}: {perf_metric_test:.4f}")
+    print(f"\tTest: Elapsed Time (s): {time.time() - start_test:.4f}")
 
-    print(f"INFO: >>>>> Run: {run_idx}, elapsed time: {time.time() - start_run: .4f} <<<<<")
+    print(f"INFO: >>>>> Run: {run_idx}, elapsed time: {time.time() - start_run:.4f} <<<<<")
     print('-------------------------------------------------------------------------------')
 
-print(f"Overall Elapsed Time (s): {time.time() - start_overall: .4f}")
+print(f"Overall Elapsed Time (s): {time.time() - start_overall:.4f}")
 print("==============================================================")
