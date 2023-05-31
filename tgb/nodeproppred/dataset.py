@@ -217,6 +217,8 @@ class NodePropertyDataset(object):
             else:
                 save_pkl(node_ids, OUT_NODE_DF)
                 save_pkl(labels_dict, OUT_LABEL_DF)
+            
+            print("file processed and saved")
         return df, node_label_dict
 
     def pre_process(self) -> None:

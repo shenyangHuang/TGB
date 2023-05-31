@@ -112,9 +112,9 @@ val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 
 #data for memory in edgebank
-hist_src = np.concatenate([data['sources'][train_mask], data['sources'][val_mask]])
-hist_dst = np.concatenate([data['destinations'][train_mask], data['destinations'][val_mask]])
-hist_ts = np.concatenate([data['timestamps'][train_mask], data['timestamps'][val_mask]])
+hist_src = np.concatenate([data['sources'][train_mask]])
+hist_dst = np.concatenate([data['destinations'][train_mask]])
+hist_ts = np.concatenate([data['timestamps'][train_mask]])
 
 # Set EdgeBank with memory updater
 edgebank = EdgeBankPredictor(
@@ -138,6 +138,24 @@ if not osp.exists(results_path):
     print('INFO: Create directory {}'.format(results_path))
 Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
+
+
+# ==================================================== Test
+# loading the validation negative samples
+dataset.load_val_ns()
+
+# testing ...
+start_val = timeit.default_timer()
+perf_metric_test = test_one_vs_many(data, val_mask, neg_sampler, split_mode='val')
+end_val = timeit.default_timer()
+
+print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+print(f"\tval: {metric}: {perf_metric_test: .4f}")
+test_time = timeit.default_timer() - start_val
+print(f"\tval: Elapsed Time (s): {test_time: .4f}")
+
+
+
 
 # ==================================================== Test
 # loading the test negative samples

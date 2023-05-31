@@ -165,10 +165,9 @@ def combine_edgelist_edgefeat(edgefname, featfname, outname):
 def main():
     # #! unzip all xz files by $ unxz *.xz
 
-    # #f_dir = "raw/"
-    # f_dir = "raw/raw_2005_2010/" #"raw/raw_2013_2014/"
+    # f_dir = "raw/raw_2008_2010/" #"raw/raw_2005_2010/" #"raw/raw_2013_2014/"
     # fnames = find_filenames(f_dir)
-    # outname = "redditcomments_edgelist_2005_2010.csv" #"redditcomments_edgelist_2013_2014.csv"
+    # outname = "redditcomments_edgelist_2008_2010.csv" #"redditcomments_edgelist_2013_2014.csv"
     # idx = 0
     # for fname in tqdm(fnames):
     #     if (idx == 0):
@@ -178,22 +177,22 @@ def main():
     #     idx += 1
 
     # # #! extract the node attributes
-    # f_dir = "raw/node_2005_2010/"
-    # fnames = find_filenames(f_dir)
-    # outname = "redditcomments_edgefeat_2005_2010.csv"
-    # idx = 0
-    # for fname in tqdm(fnames):
-    #     if (idx == 0):
-    #         read_nodeattr(f_dir+fname, outname, write_header=True)
-    #     else:
-    #         read_nodeattr(f_dir+fname, outname, write_header=False)
-    #     idx += 1
+    f_dir = "raw/node_2008_2010/"#"raw/node_2005_2010/"
+    fnames = find_filenames(f_dir)
+    outname = "redditcomments_edgefeat_2008_2010.csv"
+    idx = 0
+    for fname in tqdm(fnames):
+        if (idx == 0):
+            read_nodeattr(f_dir+fname, outname, write_header=True)
+        else:
+            read_nodeattr(f_dir+fname, outname, write_header=False)
+        idx += 1
 
     #! combine edgelist and edge feat file check if the edge_id matches
-    edgefname = "redditcomments_edgelist_2005_2010.csv"
-    featfname = "redditcomments_edgefeat_2005_2010.csv"
-    outname = "redditcomments_edgelist.csv"
-    combine_edgelist_edgefeat(edgefname, featfname, outname)
+    # edgefname = "redditcomments_edgelist_2005_2010.csv"
+    # featfname = "redditcomments_edgefeat_2005_2010.csv"
+    # outname = "redditcomments_edgelist.csv"
+    # combine_edgelist_edgefeat(edgefname, featfname, outname)
 
     # #! analyze the extracted csv
     # fname = "redditcomments_edgelist_2005_2010.csv"
