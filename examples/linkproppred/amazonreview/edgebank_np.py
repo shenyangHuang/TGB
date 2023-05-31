@@ -182,5 +182,3 @@ save_results({'model': MODEL_NAME,
               }, 
     results_filename)
 
-print(f'Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}')
-print("==============================================================")

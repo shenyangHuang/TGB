@@ -4,6 +4,10 @@ NOTE: This implementation works only based on `numpy`
 
 Reference: 
     - https://github.com/fpour/DGB/tree/main
+
+run with 
+$ python edgebank_np.py --mem_mode fixed_time_window  (for fixed time window)
+$ python edgebank_np.py (for unlimited memory)
 """
 
 import timeit
@@ -178,6 +182,3 @@ save_results({'model': MODEL_NAME,
               'tot_train_val_time': 'NA'
               }, 
     results_filename)
-
-print(f'Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}')
-print("==============================================================")
