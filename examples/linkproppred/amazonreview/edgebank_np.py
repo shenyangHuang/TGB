@@ -138,6 +138,16 @@ if not osp.exists(results_path):
 Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
 
+# ==================================================== validation
+dataset.load_val_ns()
+start_val = timeit.default_timer()
+perf_metric_val = test_one_vs_many(data, val_mask, neg_sampler, split_mode='val')
+print(f"INFO: Val:  ")
+print(f"\tVal: {metric}: {perf_metric_val: .4f}")
+val_time = timeit.default_timer() - start_val
+print(f"\tval: Elapsed Time (s): {val_time: .4f}")
+
+
 # ==================================================== Test
 # loading the test negative samples
 dataset.load_test_ns()

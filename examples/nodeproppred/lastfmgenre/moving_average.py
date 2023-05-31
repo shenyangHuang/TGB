@@ -12,7 +12,7 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
 from modules.heuristics import MovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
-window = 7
+window = 6
 device = "cpu"
 name = "lastfmgenre"
 dataset = PyGNodePropertyDataset(name=name, root="datasets")
