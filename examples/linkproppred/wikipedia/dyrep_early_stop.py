@@ -292,6 +292,7 @@ for run_idx in range(NUM_RUNS):
     # loading the validation negative samples
     dataset.load_val_ns()
 
+    val_perf_list = []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
         # training
@@ -334,7 +335,8 @@ for run_idx in range(NUM_RUNS):
                   'data': DATA,
                   'run': run_idx,
                   'seed': SEED,
-                  metric: perf_metric_test,
+                  f'val {metric}': val_perf_list,
+                  f'test {metric}': perf_metric_test,
                   'test_time': test_time,
                   'tot_train_val_time': train_val_time
                   }, 

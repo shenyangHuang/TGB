@@ -280,6 +280,7 @@ for run_idx in range(NUM_RUNS):
     # loading the validation negative samples
     dataset.load_val_ns()
 
+    val_perf_list = []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
         # training
@@ -294,6 +295,7 @@ for run_idx in range(NUM_RUNS):
         perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
+        val_perf_list.append(perf_metric_test)
 
         # check for early stopping
         if early_stopper.step_check(perf_metric_val, model):
@@ -322,7 +324,8 @@ for run_idx in range(NUM_RUNS):
                   'data': DATA,
                   'run': run_idx,
                   'seed': SEED,
-                  metric: perf_metric_test,
+                  f'val {metric}': val_perf_list,
+                  f'test {metric}': perf_metric_test,
                   'test_time': test_time,
                   'tot_train_val_time': train_val_time
                   }, 
