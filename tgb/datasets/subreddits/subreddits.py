@@ -320,17 +320,18 @@ def main():
 
 
     # #! generate daily node labels
-    outname = 'subreddits_daily_labels.csv'
-    fname = "subreddits_edgelist.csv"
-    generate_daily_node_labels(fname,outname)
+    # outname = 'subreddits_daily_labels.csv'
+    # fname = "subreddits_edgelist.csv"
+    # generate_daily_node_labels(fname,outname)
 
     #! generate aggregate labels, the label for each day is shifted by 1 day as it uses the edges from today
-    fname = "subreddits_edgelist.csv"
-    outname = "subreddits_node_labels.csv"
-    generate_aggregate_labels(fname, outname, days=7)
+    # fname = "subreddits_edgelist.csv"
+    # outname = "subreddits_node_labels.csv"
+    # generate_aggregate_labels(fname, outname, days=7)
 
     #! analyze the extracted csv
     # fname = "subreddits_edgelist_clean_reddit.csv" #"subreddits_edgelist_clean.csv"
+    fname = "subreddits_edgelist.csv"
     analyze_csv(fname)
 
 
