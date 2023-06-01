@@ -129,6 +129,7 @@ def clean_edgelist_reddits(fname, reddit_counts, outname, threshold=50):
     for reddit in reddit_counts:
         if reddit_counts[reddit] >= threshold:
             reddit_dict[reddit] = 1
+    print ("there remains, ", len(reddit_dict), " subreddits")
 
     with open(outname, "w") as outf:
         write = csv.writer(outf)
@@ -287,13 +288,19 @@ def generate_aggregate_labels(fname: str, outname: str, days: int = 7):
 def main():
     # #? see redditcomments.py for the extraction from the raw files
 
-    # #! combine edgelist and edge feat file check if the edge_id matches
-    # edgefname = "redditcomments_edgelist_2005_2010.csv"
-    # featfname = "redditcomments_edgefeat_2005_2010.csv"
+    #! combine edgelist and edge feat file check if the edge_id matches
+    # edgefname = "redditcomments_edgelist_2008_2010.csv"
+    # featfname = "redditcomments_edgefeat_2008_2010.csv"
     # outname = "subreddits_edgelist.csv"
     # combine_edgelist_edgefeat2subreddits(edgefname, featfname, outname)
 
-    # #! frequency count of nodes
+    #! remove all edges missing user
+    # fname = "subreddits_edgelist.csv"
+    # outname = "subreddits_edgelist_filtered.csv"
+    # remove_missing_user(fname,
+    #                     outname)
+
+    #! frequency count of nodes
     # fname = "subreddits_edgelist.csv"
     # outname = "subreddits_edgelist_clean.csv"
     # subreddit_count, node_count = filter_subreddits(fname)
@@ -301,23 +308,21 @@ def main():
     # clean_edgelist(fname, node_count, outname, threshold=threshold)
     # print ("finish cleaning")
 
-    # #! frequency count of reddits
+    #! frequency count of reddits
     # fname = "subreddits_edgelist_clean.csv"
     # outname = "subreddits_edgelist_clean_reddit.csv"
     # subreddit_count, node_count = filter_subreddits(fname)
-    # clean_edgelist_reddits(fname, subreddit_count, outname, threshold=50)
+    # threshold = 100
+    # clean_edgelist_reddits(fname, subreddit_count, outname, threshold=threshold)
 
-    # # remove all edges missing user
-    # fname = "subreddits_edgelist.csv"
-    # outname = "subreddits_edgelist_filtered.csv"
-    # remove_missing_user(fname,
-    #                     outname)
-    # analyze_csv(outname)
+
+    #analyze_csv(outname)
+
 
     # #! generate daily node labels
-    # outname = 'subreddits_daily_labels.csv'
-    # fname = "subreddits_edgelist.csv"
-    # generate_daily_node_labels(fname,outname)
+    outname = 'subreddits_daily_labels.csv'
+    fname = "subreddits_edgelist.csv"
+    generate_daily_node_labels(fname,outname)
 
     #! generate aggregate labels, the label for each day is shifted by 1 day as it uses the edges from today
     fname = "subreddits_edgelist.csv"
@@ -326,7 +331,7 @@ def main():
 
     #! analyze the extracted csv
     # fname = "subreddits_edgelist_clean_reddit.csv" #"subreddits_edgelist_clean.csv"
-    # analyze_csv(fname)
+    analyze_csv(fname)
 
 
 if __name__ == "__main__":

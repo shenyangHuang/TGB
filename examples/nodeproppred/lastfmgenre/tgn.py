@@ -329,10 +329,10 @@ for epoch in range(1, epochs + 1):
     dataset.reset_label_time()
 
 
-# code for plotting
-plot_curve(train_curve, "train_curve")
-plot_curve(val_curve, "val_curve")
-plot_curve(test_curve, "test_curve")
+# # code for plotting
+# plot_curve(train_curve, "train_curve")
+# plot_curve(val_curve, "val_curve")
+# plot_curve(test_curve, "test_curve")
 
 max_test_score = test_curve[best_test_idx]
 print("------------------------------------")

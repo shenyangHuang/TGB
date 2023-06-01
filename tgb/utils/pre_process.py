@@ -55,7 +55,7 @@ def load_edgelist_trade(fname: str, label_size=255):
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
-    print("numpy allocated")
+    #print("numpy allocated")
     node_ids = {}  # dictionary for node ids
     node_uid = 0
 
@@ -180,7 +180,7 @@ def load_edgelist_sr(
     """
     feat_size = 2
     num_lines = sum(1 for line in open(fname)) - 1
-    print("number of lines counted", num_lines)
+    #print("number of lines counted", num_lines)
     print("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
@@ -376,7 +376,7 @@ def csv_to_pd_data_rc(
     """
     feat_size = 2  # 1 for subreddit, 1 for num words
     num_lines = sum(1 for line in open(fname)) - 1
-    print("number of lines counted", num_lines)
+    #print("number of lines counted", num_lines)
     print("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
@@ -800,7 +800,7 @@ def load_edgelist_datetime(fname, label_size=514):
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
-    print("numpy allocated")
+    #print("numpy allocated")
     node_ids = {}  # dictionary for node ids
     label_ids = {}  # dictionary for label ids
     node_uid = label_size  # node ids start after the genre nodes
