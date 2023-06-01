@@ -65,7 +65,6 @@ def test_n_upate(loader):
             labels = labels.numpy()
             label_t = dataset.get_label_time()
 
-
             preds = []
 
             for i in range(0, label_srcs.shape[0]):
