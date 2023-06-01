@@ -115,16 +115,13 @@ def load_trade_label_dict(
         raise FileNotFoundError(f"File not found at {fname}")
 
     label_size = len(node_ids)
-    label_vec = np.zeros(label_size)
-    ts_prev = 0
-    prev_user = 0
+    #label_vec = np.zeros(label_size)
 
     node_label_dict = {}  # {ts: {node_id: label_vec}}
 
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        # ['ts', 'src', 'subreddit', 'num_words', 'score']
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
@@ -133,28 +130,14 @@ def load_trade_label_dict(
                 u = node_ids[row[1]]
                 v = node_ids[row[2]]
                 weight = float(row[3])
-                if idx == 1:
-                    ts_prev = ts
-                    prev_user = u
-                # the next day
-                if ts != ts_prev:
-                    if ts_prev not in node_label_dict:
-                        node_label_dict[ts_prev] = {prev_user: label_vec}
-                    else:
-                        node_label_dict[ts_prev][prev_user] = label_vec
-                    label_vec = np.zeros(label_size)
-                    prev_user = u
-                    ts_prev = ts
-                else:
-                    label_vec[v] = weight
 
-                if u != prev_user:
-                    if ts_prev not in node_label_dict:
-                        node_label_dict[ts_prev] = {prev_user: label_vec}
-                    else:
-                        node_label_dict[ts_prev][prev_user] = label_vec
-                    label_vec = np.zeros(label_size)
-                    prev_user = u
+                if (ts not in node_label_dict):
+                    node_label_dict[ts] = {u:np.zeros(label_size)}
+
+                if (u not in node_label_dict[ts]):
+                    node_label_dict[ts][u] = np.zeros(label_size)
+
+                node_label_dict[ts][u][v] = weight
                 idx += 1
         return node_label_dict
 
@@ -314,46 +297,27 @@ def load_label_dict(fname: str, node_ids: dict, rd_dict: dict) -> dict:
 
     # day, user_idx, label_vec
     label_size = len(rd_dict)
-    label_vec = np.zeros(label_size)
-    ts_prev = 0
-    prev_user = 0
-
     node_label_dict = {}  # {ts: {node_id: label_vec}}
 
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        # ['ts', 'src', 'subreddit', 'num_words', 'score']
+        # ['ts', 'src', 'dst', 'w']
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
             else:
-                user_id = node_ids[row[1]]
+                u = node_ids[row[1]]
                 ts = int(row[0])
-                sr_id = int(rd_dict[row[2]])
+                v = int(rd_dict[row[2]])
                 weight = float(row[3])
-                if idx == 1:
-                    ts_prev = ts
-                    prev_user = user_id
-                # the next day
-                if ts != ts_prev:
-                    if ts_prev not in node_label_dict:
-                        node_label_dict[ts_prev] = {prev_user: label_vec}
-                    else:
-                        node_label_dict[ts_prev][prev_user] = label_vec
-                    label_vec = np.zeros(label_size)
-                    prev_user = user_id
-                    ts_prev = ts
-                else:
-                    label_vec[sr_id] = weight
+                if (ts not in node_label_dict):
+                    node_label_dict[ts] = {u:np.zeros(label_size)}
 
-                if user_id != prev_user:
-                    if ts_prev not in node_label_dict:
-                        node_label_dict[ts_prev] = {prev_user: label_vec}
-                    else:
-                        node_label_dict[ts_prev][prev_user] = label_vec
-                    label_vec = np.zeros(label_size)
-                    prev_user = user_id
+                if (u not in node_label_dict[ts]):
+                    node_label_dict[ts][u] = np.zeros(label_size)
+
+                node_label_dict[ts][u][v] = weight
                 idx += 1
         return node_label_dict
 

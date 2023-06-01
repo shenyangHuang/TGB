@@ -29,6 +29,8 @@ def count_unique_countries(fname):
     print("there are {} unique countries".format(len(node_dict)))
 
 
+
+#! incorrect, do not use
 def normalize_edgelist(fname: str, outname: str):
     """
     need to track id for nodes
@@ -46,7 +48,6 @@ def normalize_edgelist(fname: str, outname: str):
         with open(fname, "r") as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             line_count = 0
-            # ts, src, subreddit, num_words, score
             for row in csv_reader:
                 if line_count == 0:
                     line_count += 1
@@ -95,7 +96,7 @@ def generate_aggregate_labels(fname: str, outname: str):
     aggregate the node label for next year
     """
 
-    ts_init = 0
+    ts_init = 1986
 
     # ts, src, subreddit, num_words, score
     with open(outname, "w") as outf:
@@ -115,11 +116,44 @@ def generate_aggregate_labels(fname: str, outname: str):
                     u = row[1]
                     v = row[2]
                     w = float(row[3])
-                    if line_count == 1:
-                        ts_init = ts
-                    if ts != ts_init:
+                    if (ts > ts_init):
                         write.writerow([ts, u, v, w])
                     line_count += 1
+
+
+def check_sum_to_one(fname: str):
+    """
+    just to check if weights sum to 1 in a year
+    """
+    u_dict = {}
+    ts_prev = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        line_count = 0
+        # ts, src, subreddit, num_words, score
+        for row in csv_reader:
+            if line_count == 0:
+                line_count += 1
+            else:
+                ts = int(row[0])
+                if (line_count == 1):
+                    ts_prev = ts
+                if (ts != ts_prev):
+                    ts_prev = ts
+                    for u in u_dict:
+                        print (u_dict[u])
+                    u_dict = {}
+                u = row[1]
+                v = row[2]
+                w = float(row[3])
+                if (u not in u_dict):
+                    u_dict[u] = w
+                else:
+                    u_dict[u] += w
+                line_count += 1
+
+
 
 
 def main():
@@ -136,9 +170,15 @@ def main():
 
     #! find the node label for next year
     # * the node labels are simply the edgelist in this case
-    fname = "un_trade_edgelist.csv"
-    outname = "un_trade_node_labels.csv"
-    generate_aggregate_labels(fname, outname)
+    # fname = "un_trade_edgelist.csv"
+    # outname = "un_trade_node_labels.csv"
+    # generate_aggregate_labels(fname, outname)
+
+
+    # #! check if all sums are correct
+    # fname = "un_trade_node_labels.csv"
+    # check_sum_to_one(fname)
+
 
 
 if __name__ == "__main__":
