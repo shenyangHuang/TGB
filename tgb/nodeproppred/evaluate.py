@@ -88,7 +88,8 @@ class Evaluator(object):
                     "rmse": math.sqrt(mean_squared_error(y_true, y_pred)),
                 }
             elif eval_metric == "ndcg":
-                perf_dict = {"ndcg": ndcg_score(y_true, y_pred, k=10)}
+                k = 10
+                perf_dict = {"ndcg": ndcg_score(y_true, y_pred, k=k)}
         return perf_dict
 
     def eval(self, input_dict, verbose=False):

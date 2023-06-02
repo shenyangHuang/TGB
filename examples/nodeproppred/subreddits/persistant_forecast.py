@@ -63,7 +63,6 @@ def test_n_upate(loader):
                 label_tuple[1],
                 label_tuple[2],
             )
-
             label_ts = label_ts.numpy()
             label_srcs = label_srcs.numpy()
             labels = labels.numpy()
