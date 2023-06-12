@@ -1,9 +1,11 @@
 name: mkdocs
 on:
   push:
-    branches:
-      - master 
-      - main
+    # branches:
+    #   - master 
+    #   - main
+    tags:
+      - "v*.*.*"
 permissions:
   contents: write
 jobs:
