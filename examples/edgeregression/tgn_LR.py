@@ -23,14 +23,14 @@ import time
 import numpy as np
 
 
-
 class GraphAttentionEmbedding(torch.nn.Module):
     def __init__(self, in_channels, out_channels, msg_dim, time_enc):
         super().__init__()
         self.time_enc = time_enc
         edge_dim = msg_dim + time_enc.out_channels
-        self.conv = TransformerConv(in_channels, out_channels // 2, heads=2,
-                                    dropout=0.1, edge_dim=edge_dim)
+        self.conv = TransformerConv(
+            in_channels, out_channels // 2, heads=2, dropout=0.1, edge_dim=edge_dim
+        )
 
     def forward(self, x, last_update, edge_index, t, msg):
         rel_t = last_update[edge_index[0]] - t
@@ -62,7 +62,7 @@ LEARNING_RATE = 0.0001
 n_epochs = 50
 
 # set the device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # data loading
 name = "un_trade"
@@ -79,7 +79,6 @@ data = data.to(device)
 train_data = data[train_mask]
 val_data = data[val_mask]
 test_data = data[test_mask]
-
 
 
 # Ensure to only sample actual destination nodes as negatives.
@@ -112,8 +111,9 @@ gnn = GraphAttentionEmbedding(
 link_regress = LinkRegressor(in_channels=embedding_dim).to(device)
 
 optimizer = torch.optim.Adam(
-    set(memory.parameters()) | set(gnn.parameters())
-    | set(link_regress.parameters()), lr=LEARNING_RATE)
+    set(memory.parameters()) | set(gnn.parameters()) | set(link_regress.parameters()),
+    lr=LEARNING_RATE,
+)
 criterion = torch.nn.MSELoss()
 
 # Helper vector to map global node indices to local ones.
@@ -141,8 +141,13 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
+        z = gnn(
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
 
         pos_out = link_regress(z[assoc[src]], z[assoc[pos_dst]])
         loss = criterion(pos_out.squeeze(), y)
@@ -177,8 +182,13 @@ def test(loader):
         assoc[n_id] = torch.arange(n_id.size(0), device=device)
 
         z, last_update = memory(n_id)
-        z = gnn(z, last_update, edge_index, data.t[e_id].to(device),
-                data.msg[e_id].to(device))
+        z = gnn(
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
 
         pos_out = link_regress(z[assoc[src]], z[assoc[pos_dst]])
 
@@ -198,10 +208,12 @@ for epoch in range(n_epochs):
     epoch_start_time = time.time()
     loss = train()
     epoch_elapsed_time = time.time() - epoch_start_time
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Elapsed Time (sec.): {epoch_elapsed_time: .4f}')
+    print(
+        f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Elapsed Time (sec.): {epoch_elapsed_time: .4f}"
+    )
     val_mse, val_rmse = test(val_loader)
     test_mse, test_rmse = test(test_loader)
-    print(f'\tVal MSE: {val_mse:.4f}, Val RMSE: {val_rmse:.4f}')
-    print(f'\tTest MSE: {test_mse:.4f}, Test RMSE: {test_rmse:.4f}')
+    print(f"\tVal MSE: {val_mse:.4f}, Val RMSE: {val_rmse:.4f}")
+    print(f"\tTest MSE: {test_mse:.4f}, Test RMSE: {test_rmse:.4f}")
 
-print(f'End to end elapsed time (sec.): {time.time() - end_to_end_start: .4f}')
+print(f"End to end elapsed time (sec.): {time.time() - end_to_end_start: .4f}")

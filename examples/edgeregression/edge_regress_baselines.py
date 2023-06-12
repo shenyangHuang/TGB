@@ -4,8 +4,8 @@ EdgeRegress: A simple baseline for the dynamic edge regression task
 Date:
     - March 08, 2023
 """
-import numpy as np 
-import pandas as pd 
+import numpy as np
+import pandas as pd
 import time
 import math
 from sklearn.metrics import *
@@ -13,7 +13,7 @@ from sklearn.metrics import *
 
 class PersistentForcaster:
     def __init__(self, train_data, val_data, memory_update_enable=False):
-        self.model_name = 'PersistentForcaster'
+        self.model_name = "PersistentForcaster"
         self.memory = {}
         self.unseen_edge_weight = 0
         self.memory_update_enable = memory_update_enable
@@ -22,7 +22,6 @@ class PersistentForcaster:
         # update the memory with the validation edges
         self.update_memory_by_edges(val_data.src, val_data.dst, val_data.dst)
 
-    
     def update_memory_by_edges(self, sources, destinations, edge_weights):
         """
         Update the memory with the given edges
@@ -31,7 +30,9 @@ class PersistentForcaster:
         for src, dst, weight in zip(sources, destinations, edge_weights):
             self.memory[(src, dst)] = weight
 
-    def compute_edge_weights(self, sources, destinations, pos_e=False, pos_edge_weights=None):
+    def compute_edge_weights(
+        self, sources, destinations, pos_e=False, pos_edge_weights=None
+    ):
         """
         predict the edge weights based on the information stored in the memory
         """
@@ -47,11 +48,11 @@ class PersistentForcaster:
                 self.memory[(src, dst)] = pos_edge_weights[idx]
 
         return np.array(pred_value)
-    
+
 
 class HistoricalMeanTeller:
     def __init__(self, train_data, val_data, memory_update_enable=False):
-        self.model_name = 'HistoricalMeanTeller'
+        self.model_name = "HistoricalMeanTeller"
         self.memory = {}
         self.unseen_edge_weight = 0
         self.memory_update_enable = memory_update_enable
@@ -60,7 +61,6 @@ class HistoricalMeanTeller:
         # update the memory with the validation edges
         self.update_memory_by_edges(val_data.src, val_data.dst, val_data.y)
 
-    
     def update_memory_by_edges(self, sources, destinations, edge_weights):
         """
         Update the memory with the given edges
@@ -71,7 +71,9 @@ class HistoricalMeanTeller:
             else:
                 self.memory[(src, dst)] = [weight]
 
-    def compute_edge_weights(self, sources, destinations, pos_e=False, pos_edge_weights=None):
+    def compute_edge_weights(
+        self, sources, destinations, pos_e=False, pos_edge_weights=None
+    ):
         """
         predict the edge weights based on the information stored in the memory
         """
@@ -94,7 +96,7 @@ class HistoricalMeanTeller:
 
 class AbsoluteMeanTeller:
     def __init__(self, train_data, val_data, memory_update_enable=False):
-        self.model_name = 'AbsoluteMeanTeller'
+        self.model_name = "AbsoluteMeanTeller"
         self.memory = []
         self.unseen_edge_weight = 0
         self.memory_update_enable = memory_update_enable
@@ -103,16 +105,16 @@ class AbsoluteMeanTeller:
         # update the memory with the validation edges
         self.update_memory_by_edges(val_data.src, val_data.dst, val_data.y)
 
-    
     def update_memory_by_edges(self, sources, destinations, edge_weights):
         """
         Update the memory with the given edges
         """
         for src, dst, weight in zip(sources, destinations, edge_weights):
             self.memory.append(weight)
-            
 
-    def compute_edge_weights(self, sources, destinations, pos_e=False, pos_edge_weights=None):
+    def compute_edge_weights(
+        self, sources, destinations, pos_e=False, pos_edge_weights=None
+    ):
         """
         predict the edge weights based on the information stored in the memory
         """
@@ -130,13 +132,12 @@ class AbsoluteMeanTeller:
 
 class SnapshotMeanTeller:
     def __init__(self, data):
-        self.model_name = 'SnapshotMeanTeller'
+        self.model_name = "SnapshotMeanTeller"
         self.memory = {}
         self.unseen_edge_weight = 0
         # generate the memory content with the full data
         self.generate_memory(data)
 
-    
     def generate_memory(self, data):
         """
         Update the memory with the given edges
@@ -144,9 +145,8 @@ class SnapshotMeanTeller:
         unique_timestamps = np.unique(data.t)
         data.y = np.array(data.y.float())
         for ts in unique_timestamps:
-            ts_idx = [int(idx) for idx, t in enumerate(data.t) if  t == ts]
+            ts_idx = [int(idx) for idx, t in enumerate(data.t) if t == ts]
             self.memory[ts] = np.mean(data.y[ts_idx])
-            
 
     def compute_edge_weights(self, e_timestamps):
         """
@@ -166,11 +166,12 @@ def compute_perf_metrics(y_true, y_pred_score):
     """
     compute extra performance measures
     """
-    perf_dict = {'MSE': mean_squared_error(y_true, y_pred_score), # Lower is better
-                 'RMSE': math.sqrt(mean_squared_error(y_true, y_pred_score)),  # Lower is better
-                #  'KL_div': sum(kl_div(y_true, y_pred_score)),  # Lower is better
-                #  'PCC': stats.pearsonr(y_true, y_pred_score).statistic,  # Higher is better
-                 }
+    perf_dict = {
+        "MSE": mean_squared_error(y_true, y_pred_score),  # Lower is better
+        "RMSE": math.sqrt(mean_squared_error(y_true, y_pred_score)),  # Lower is better
+        #  'KL_div': sum(kl_div(y_true, y_pred_score)),  # Lower is better
+        #  'PCC': stats.pearsonr(y_true, y_pred_score).statistic,  # Higher is better
+    }
 
     return perf_dict
 
@@ -181,17 +182,18 @@ def eval_link_reg_only_pos_e_baseline(model, data):
     """
     total_start_time = time.time()
 
-    if model.model_name == 'SnapshotMeanTeller':
+    if model.model_name == "SnapshotMeanTeller":
         pos_prob = model.compute_edge_weights(data.ts)
     else:
         # memoy is ONLY updated if model.memory_update_enable = True
-        pos_prob = model.compute_edge_weights(data.src, data.dst, pos_e=True, pos_edge_weights=data.y)
+        pos_prob = model.compute_edge_weights(
+            data.src, data.dst, pos_e=True, pos_edge_weights=data.y
+        )
 
     perf_dict = compute_perf_metrics(data.y, pos_prob)
 
-    print(f"INFO: Total one snapshot evaluation elapsed time (in seconds): {time.time() - total_start_time}")
+    print(
+        f"INFO: Total one snapshot evaluation elapsed time (in seconds): {time.time() - total_start_time}"
+    )
 
     return perf_dict
-
-
-

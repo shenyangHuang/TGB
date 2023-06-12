@@ -1,3 +1,5 @@
+!requirements*.txt
+
 #dataset
 *.xz
 *.parquet
@@ -12,10 +14,10 @@
 *.out
 *.pkl
 *.txt
-!requirements*.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 raw/
+books/
 electronics/
 software/
 *.py[cod]

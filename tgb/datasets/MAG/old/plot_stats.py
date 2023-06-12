@@ -13,7 +13,7 @@ def load_csv(fname: str):
     years = []
     cites = []
     for i in range(len(lines)):
-        if (i == 0):
+        if i == 0:
             continue
         line = lines[i]
         line = line.split(",")
@@ -25,19 +25,12 @@ def load_csv(fname: str):
         years.append(year)
         cites.append(num_citations)
 
-    
     plt.plot(years, cites, color="#e34a33")
     plt.xlabel("Year")
     plt.ylabel("Paper Count")
     plt.savefig("paper_count.pdf")
     plt.close()
 
-    
 
-
-
-
-
-           
 if __name__ == "__main__":
     load_csv("paper_year.txt")

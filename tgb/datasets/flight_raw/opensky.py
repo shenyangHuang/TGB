@@ -6,42 +6,49 @@ from tqdm import tqdm
 from os import listdir
 
 
-def find_csv_filenames(path_to_dir, 
-                       suffix=".csv" ):
+def find_csv_filenames(path_to_dir, suffix=".csv"):
     r"""
     find all csv files in a directory
     Parameters:
-    	path_to_dir (str): path to the directory
-		suffix (str): suffix of the file
+        path_to_dir (str): path to the directory
+                suffix (str): suffix of the file
     """
     filenames = listdir(path_to_dir)
-    return [ filename for filename in filenames if filename.endswith( suffix ) ]
-	
+    return [filename for filename in filenames if filename.endswith(suffix)]
 
 
-
-
-def flight2edgelist(fname, 
-                outname,
-                node_dict = None,):
-    '''
-    process all rows into 
+def flight2edgelist(
+    fname,
+    outname,
+    node_dict=None,
+):
+    """
+    process all rows into
     Day, src, dst, callsign, number, icao24, registration, typecode
     and save it as an edgelist file
-    '''
+    """
     miss_node_lines = 0
 
     skip_lines = 0
-    print ("processing ", outname)
-    with open(outname, 'w') as outf:
+    print("processing ", outname)
+    with open(outname, "w") as outf:
         write = csv.writer(outf)
-        fields = ['day','src','dst','callsign','number','icao24','registration','typecode']
+        fields = [
+            "day",
+            "src",
+            "dst",
+            "callsign",
+            "number",
+            "icao24",
+            "registration",
+            "typecode",
+        ]
         write.writerow(fields)
 
         with open(fname, "r") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
+            csv_reader = csv.reader(csv_file, delimiter=",")
             line_count = 0
-            #callsign,number,icao24,registration,typecode,origin,destination,firstseen,lastseen,day,latitude_1,longitude_1,altitude_1,latitude_2,longitude_2,altitude_2
+            # callsign,number,icao24,registration,typecode,origin,destination,firstseen,lastseen,day,latitude_1,longitude_1,altitude_1,latitude_2,longitude_2,altitude_2
             for row in csv_reader:
                 if line_count == 0:
                     line_count += 1
@@ -53,19 +60,19 @@ def flight2edgelist(fname,
                     registration = row[3]
                     typecode = row[4]
                     src = row[5]
-                    if (src == ''):
+                    if src == "":
                         skip_lines += 1
                         continue
                     dst = row[6]
-                    if (dst == ''):
-                        skip_lines += 1 
+                    if dst == "":
+                        skip_lines += 1
                         continue
 
-                    if (node_dict is not None):
-                        if (src not in node_dict):
+                    if node_dict is not None:
+                        if src not in node_dict:
                             miss_node_lines += 1
                             continue
-                        if (dst not in node_dict):
+                        if dst not in node_dict:
                             miss_node_lines += 1
                             continue
                     day = row[9]
@@ -81,9 +88,9 @@ def flight2edgelist(fname,
                     out.append(typecode)
                     write.writerow(out)
                     line_count += 1
-        print(f'Processed {line_count} lines.')
-        print(f'Skipped {skip_lines} lines.')
-        print(f'missing node {miss_node_lines} lines.')
+        print(f"Processed {line_count} lines.")
+        print(f"Skipped {skip_lines} lines.")
+        print(f"missing node {miss_node_lines} lines.")
     return line_count, skip_lines, miss_node_lines
 
 
@@ -94,12 +101,12 @@ def load_icao_airports(fname="airport_codes.csv"):
     edgelist = open(fname, "r")
     lines = list(edgelist.readlines())
     edgelist.close()
-    #date u  v  w
-    #find how many timestamps there are
-    
+    # date u  v  w
+    # find how many timestamps there are
+
     for i in range(0, len(lines)):
         line = lines[i]
-        values = line.split(',')
+        values = line.split(",")
         icao = values[0]
         continent = values[4]
         country = values[5]
@@ -108,28 +115,26 @@ def load_icao_airports(fname="airport_codes.csv"):
     return airports_continent, airports_country
 
 
-def merge_edgelist(input_names: str, 
-                   in_dir: str, 
-                   outname: str):
+def merge_edgelist(input_names: str, in_dir: str, outname: str):
     """
-    merge a list of edgefiles into one file 
+    merge a list of edgefiles into one file
     """
     line_count = 0
     total = 0
-    with open(outname, 'w') as outf:
+    with open(outname, "w") as outf:
         write = csv.writer(outf)
-        fields = ['day','src','dst','callsign','typecode']
+        fields = ["day", "src", "dst", "callsign", "typecode"]
         write.writerow(fields)
         for csv_name in tqdm(input_names):
             in_name = in_dir + csv_name
             line_count = 0
             with open(in_name, "r") as csv_file:
-                csv_reader = csv.reader(csv_file, delimiter=',')
+                csv_reader = csv.reader(csv_file, delimiter=",")
                 for row in csv_reader:
-                    if line_count == 0:  #header
+                    if line_count == 0:  # header
                         line_count += 1
                     else:
-                        #Day, src, dst, callsign, number, icao24, registration, typecode
+                        # Day, src, dst, callsign, number, icao24, registration, typecode
                         day = row[0]
                         src = row[1]
                         dst = row[2]
@@ -138,51 +143,58 @@ def merge_edgelist(input_names: str,
                         out = [day, src, dst, callsign, typecode]
                         write.writerow(out)
                         total += 1
-                
+
 
 def clean_node_feat(in_file, outname):
-    with open(outname, 'w') as outf:
+    with open(outname, "w") as outf:
         write = csv.writer(outf)
-        fields = ['airport_code','type','continent','iso_region','longitude','latitude']
+        fields = [
+            "airport_code",
+            "type",
+            "continent",
+            "iso_region",
+            "longitude",
+            "latitude",
+        ]
         write.writerow(fields)
         idx = 0
         with open(in_file, "r") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
+            csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
-                if (idx == 0):
+                if idx == 0:
                     idx += 1
                     continue
                 else:
-                    #ident,type,name,elevation_ft,continent,iso_country,iso_region,municipality,gps_code,iata_code,local_code,coordinates
+                    # ident,type,name,elevation_ft,continent,iso_country,iso_region,municipality,gps_code,iata_code,local_code,coordinates
                     airport_code = row[0]
                     type = row[1]
                     continent = row[4]
                     iso_region = row[6]
-                    longitude = float(row[-1].split(',')[0])
-                    latitude = float(row[-1].split(',')[1])
-                    out = [airport_code, type, continent, iso_region, longitude, latitude]
+                    longitude = float(row[-1].split(",")[0])
+                    latitude = float(row[-1].split(",")[1])
+                    out = [
+                        airport_code,
+                        type,
+                        continent,
+                        iso_region,
+                        longitude,
+                        latitude,
+                    ]
                     idx += 1
                     write.writerow(out)
 
 
-
-
-
-
-
-
 def main():
-
     """
-    instructions for recompiling the dataset from 
+    instructions for recompiling the dataset from
     https://zenodo.org/record/7323875#.ZD1-43ZKguX
 
     1. download all datasets into a folder specified by in_dir (such as full_dataset)
-    2. run the following code to extract the needed information 
+    2. run the following code to extract the needed information
     """
-    
+
     # _, airports_country = load_icao_airports(fname="airport_codes.csv")
-    
+
     # in_dir = "full_dataset/"
     # out_dir = "edgelists/"
 
@@ -204,8 +216,6 @@ def main():
     # print(f'Skipped {skipped_lines} lines.')
     # print(f'missing node {miss_node_lines} lines.')
 
-
-
     """
     merge all edgelists into one file
     """
@@ -214,21 +224,12 @@ def main():
     csv_names = find_csv_filenames(in_dir)
     merge_edgelist(csv_names, in_dir, outname)
 
-
     """
     clean the node features
     """
     # in_file = "edgelists/airport_codes.csv"
     # outname = "airport_node_feat.csv"
     # clean_node_feat(in_file, outname)
-
-
-
-
-
-
-
-    
 
 
 if __name__ == "__main__":

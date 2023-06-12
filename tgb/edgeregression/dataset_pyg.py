@@ -8,7 +8,6 @@ from tgb.edgeregression.dataset import EdgeRegressionDataset
 import warnings
 
 
-
 class PyGEdgeRegressDataset(InMemoryDataset):
     r"""
     PyG wrapper for the EdgeRegressionDataset
@@ -18,6 +17,7 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         transform (callable, optional): A function/transform that takes in an
         pre_transform (callable, optional): A function/transform that takes in
     """
+
     def __init__(
         self,
         name: str,
@@ -39,26 +39,26 @@ class PyGEdgeRegressDataset(InMemoryDataset):
     @property
     def train_mask(self) -> Dict[str, Any]:
         r"""
-        Returns the train mask of the dataset 
+        Returns the train mask of the dataset
         Returns:
             train_mask: Dict[str, Any]
         """
-        if (self._train_mask is None):
+        if self._train_mask is None:
             raise ValueError("training split hasn't been loaded")
         return self._train_mask
-    
+
     @property
     def val_mask(self) -> Dict[str, Any]:
         r"""
-        Returns the validation mask of the dataset 
+        Returns the validation mask of the dataset
         Returns:
             val_mask: Dict[str, Any]
         """
-        if (self._val_mask is None):
+        if self._val_mask is None:
             raise ValueError("validation split hasn't been loaded")
-        
+
         return self._val_mask
-    
+
     @property
     def test_mask(self) -> Dict[str, Any]:
         r"""
@@ -66,12 +66,10 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         Returns:
             test_mask: Dict[str, Any]
         """
-        if (self._test_mask is None):
+        if self._test_mask is None:
             raise ValueError("test split hasn't been loaded")
-        
-        return self._test_mask
-    
 
+        return self._test_mask
 
     def process_data(self):
         """
@@ -83,23 +81,32 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
         y = torch.from_numpy(self.dataset.full_data["y"])
-        msg = torch.from_numpy(self.dataset.full_data['edge_idxs']).reshape([-1,1])  #use edge features here if available
+        msg = torch.from_numpy(self.dataset.full_data["edge_idxs"]).reshape(
+            [-1, 1]
+        )  # use edge features here if available
 
-        
-        if (src.dtype != torch.int64 and src.dtype != torch.int32):
-            warnings.warn("sources tensor is not of type int64 or int32, forcing conversion")
+        if src.dtype != torch.int64 and src.dtype != torch.int32:
+            warnings.warn(
+                "sources tensor is not of type int64 or int32, forcing conversion"
+            )
             src = src.long()
-        
-        if (dst.dtype != torch.int64 and dst.dtype != torch.int32):
-            warnings.warn("destinations tensor is not of type int64 or int32, forcing conversion")
+
+        if dst.dtype != torch.int64 and dst.dtype != torch.int32:
+            warnings.warn(
+                "destinations tensor is not of type int64 or int32, forcing conversion"
+            )
             dst = dst.long()
-        
-        if (t.dtype != torch.int64 and t.dtype != torch.int32):
-            warnings.warn("time tensor is not of type int64 or int32, forcing conversion")
+
+        if t.dtype != torch.int64 and t.dtype != torch.int32:
+            warnings.warn(
+                "time tensor is not of type int64 or int32, forcing conversion"
+            )
             t = t.long()
 
-        if (msg.dtype != torch.float32 and msg.dtype != torch.float64):
-            warnings.warn("msg tensor is not of type float64 or float32, forcing conversion")
+        if msg.dtype != torch.float32 and msg.dtype != torch.float64:
+            warnings.warn(
+                "msg tensor is not of type float64 or float32, forcing conversion"
+            )
             msg = msg.float()
 
         data = TemporalData(src=src, dst=dst, t=t, msg=msg, y=y)
@@ -108,4 +115,4 @@ class PyGEdgeRegressDataset(InMemoryDataset):
         self._data = self.collate([data])
 
     def __repr__(self) -> str:
-        return f'{self.name.capitalize()}()'
+        return f"{self.name.capitalize()}()"
