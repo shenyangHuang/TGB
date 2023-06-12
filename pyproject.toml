@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "py-tgb"
+version = "0.1.2"
+description = "Temporal Graph Benchmark project repo"
+authors = ["shenyang Huang <shenyang.huang@mail.mcgill.ca>", "Farimah Poursafaei", "Emanuele Rossi <emanuele.rossi1909@gmail.com>", "Jacob Danovitch <jacob.danovitch@mila.quebec>"]
+readme = "README.md"
+packages = [{include = "tgb"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch-geometric = "^2.3.0"
+tqdm = "^4.65.0"
+clint = "^0.5.1"
+requests = "^2.28.2"
+scikit-learn = "^1.2.2"
+
+[tool.poetry.group.dev.dependencies]
+mkdocs = "^1.4.3"
+mkdocs-material = "^9.1.15"
+mkdocstrings-python = "^1.1.2"
+poetry = "^1.5.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
