@@ -1,0 +1,17 @@
+# https://github.com/JRubics/poetry-publish
+
+name: Publish to PyPI
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  publish:
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - name: Build and publish to pypi
+        uses: JRubics/poetry-publish@v1.17
+        with:
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
