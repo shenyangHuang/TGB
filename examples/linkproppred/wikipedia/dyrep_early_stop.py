@@ -284,7 +284,7 @@ for run_idx in range(NUM_RUNS):
 
     # define an early stopper
     save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
-    save_model_id = f'{MODEL_NAME}_{DATA}_{run_idx}'
+    save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
     early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
                                     tolerance=TOLERANCE, patience=PATIENCE)
 
@@ -292,6 +292,7 @@ for run_idx in range(NUM_RUNS):
     # loading the validation negative samples
     dataset.load_val_ns()
 
+    val_perf_list = []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
         # training
@@ -334,7 +335,8 @@ for run_idx in range(NUM_RUNS):
                   'data': DATA,
                   'run': run_idx,
                   'seed': SEED,
-                  metric: perf_metric_test,
+                  f'val {metric}': val_perf_list,
+                  f'test {metric}': perf_metric_test,
                   'test_time': test_time,
                   'tot_train_val_time': train_val_time
                   }, 

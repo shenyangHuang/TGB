@@ -3,7 +3,7 @@ script for generating statistics from the dataset
 """
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 """
@@ -92,7 +92,8 @@ def plot_curve(y: np.ndarray, outname: str) -> None:
 def main():
     # fname = "../datasets/flight_raw/opensky/opensky_edgelist.csv"
     # fname = "../datasets/lastfmgenre/lastfmgenre_raw/lastfmgenre_edgelist.csv"
-    fname = "../datasets/redditcomments/redditcomments_edgelist.csv"
+    # fname = "../datasets/redditcomments/redditcomments_edgelist.csv"
+    fname = "tgb/datasets/wikipedia/wikipedia_edgelist.csv"
     analyze_csv(fname)
 
 

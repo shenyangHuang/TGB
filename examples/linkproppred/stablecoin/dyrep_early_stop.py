@@ -18,7 +18,6 @@ import numpy as np
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.nn import Linear
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TransformerConv
 
@@ -284,7 +283,7 @@ for run_idx in range(NUM_RUNS):
 
     # define an early stopper
     save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
-    save_model_id = f'{MODEL_NAME}_{DATA}_{run_idx}'
+    save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
     early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
                                     tolerance=TOLERANCE, patience=PATIENCE)
 
@@ -292,6 +291,7 @@ for run_idx in range(NUM_RUNS):
     # loading the validation negative samples
     dataset.load_val_ns()
 
+    val_perf_list = []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
         # training
@@ -306,6 +306,7 @@ for run_idx in range(NUM_RUNS):
         perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
+        val_perf_list.append(perf_metric_val)
 
         # check for early stopping
         if early_stopper.step_check(perf_metric_val, model):
@@ -334,7 +335,8 @@ for run_idx in range(NUM_RUNS):
                   'data': DATA,
                   'run': run_idx,
                   'seed': SEED,
-                  metric: perf_metric_test,
+                  f'val {metric}': val_perf_list,
+                  f'test {metric}': perf_metric_test,
                   'test_time': test_time,
                   'tot_train_val_time': train_val_time
                   }, 
