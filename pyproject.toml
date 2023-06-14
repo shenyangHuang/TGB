@@ -19,6 +19,7 @@ scikit-learn = "^1.2.2"
 mkdocs = "^1.4.3"
 mkdocs-material = "^9.1.15"
 mkdocstrings-python = "^1.1.2"
+mkdocs-jupyter = "^0.24.1"
 poetry = "^1.5.1"
 
 [build-system]
