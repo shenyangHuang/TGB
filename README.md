@@ -1,6 +1,19 @@
 # TGB
 Temporal Graph Benchmark project repo 
 
+### Pypi Install
+
+You can install TGB via [pip](https://pypi.org/project/py-tgb/)
+```
+pip install py-tgb
+```
+
+### Dataset Download
+
+all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
+
+TGB dataloader will also automatically download the dataset
+
 ### Install dependency
 Our implementation works with python >= 3.9 and can be installed as follows
 
