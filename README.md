@@ -1,5 +1,5 @@
 # TGB
-Temporal Graph Benchmark project repo 
+Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
 
 ### Pypi Install
 
@@ -8,7 +8,9 @@ You can install TGB via [pip](https://pypi.org/project/py-tgb/)
 pip install py-tgb
 ```
 
-### Dataset Download
+### Links and Datasets
+
+The project website can be found [here](https://tgb-website.pages.dev/).
 
 all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
 

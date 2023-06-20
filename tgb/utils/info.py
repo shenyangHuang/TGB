@@ -22,34 +22,31 @@ class BColors:
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
 
-
 DATA_URL_DICT = {
-    "wikipedia": "https://object-arbutus.cloud.computecanada.ca/tgb/wikipedia.zip",
-    "amazonreview": "https://object-arbutus.cloud.computecanada.ca/tgb/amazonreview.zip",
-    "opensky": "https://object-arbutus.cloud.computecanada.ca/tgb/opensky.zip",
-    "stablecoin": "https://object-arbutus.cloud.computecanada.ca/tgb/stablecoin.zip",
-    "redditcomments": "https://object-arbutus.cloud.computecanada.ca/tgb/redditcomments.zip",
-    "un_trade": "https://object-arbutus.cloud.computecanada.ca/tgb/un_trade.zip",
-    "lastfmgenre": "https://object-arbutus.cloud.computecanada.ca/tgb/lastfmgenre.zip",
-    "subreddits": "https://object-arbutus.cloud.computecanada.ca/tgb/subreddits.zip",
-    "MAG": "https://object-arbutus.cloud.computecanada.ca/tgb/mag_cs.zip",
+    "tgbl-wiki": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki.zip",
+    "tgbl-review": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review.zip",
+    "tgbl-coin": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-coin.zip",
+    "tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight.zip",
+    "tgbl-comment": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-comment.zip",
+    "tgbn-trade": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-trade.zip",
+    "tgbn-genre": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-genre.zip",
+    "tgbn-reddit": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-reddit.zip",
 }
 
-
 DATA_EVAL_METRIC_DICT = {
-    "un_trade": "ndcg",
-    "subreddits": "ndcg",
-    "lastfmgenre": "ndcg",
-    "wikipedia": "mrr",
-    "opensky": "mrr",
-    "stablecoin": "mrr",
-    "redditcomments": "mrr",
-    "amazonreview": "mrr",
+    "tgbl-wiki": "mrr",
+    "tgbl-review": "mrr",
+    "tgbl-coin": "mrr",
+    "tgbl-comment": "mrr",
+    "tgbl-flight": "mrr",
+    "tgbn-trade": "ndcg",
+    "tgbn-genre": "ndcg",
+    "tgbn-reddit": "ndcg",
 }
 
 
 DATA_NUM_CLASSES = {
-    "lastfmgenre": 513,
-    "subreddits": 698,
-    "un_trade": 255,
+    "tgbn-trade": 255,
+    "tgbn-genre": 513,
+    "tgbn-reddit": 698,
 }
