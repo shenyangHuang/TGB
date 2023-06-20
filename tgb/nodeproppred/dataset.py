@@ -168,8 +168,8 @@ class NodePropertyDataset(object):
         OUT_NODE_DF = self.root + "/" + "ml_{}_node.pkl".format(self.name)
         OUT_LABEL_DF = self.root + "/" + "ml_{}_label.pkl".format(self.name)
 
-        # * logic for subreddits, as node label file is too big to store on disc
-        if self.name == "subreddits":
+        # * logic for tgbl-reddit, as node label file is too big to store on disc
+        if self.name == "tgbn-reddit":
             if osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF):
                 df = pd.read_pickle(OUT_DF)
                 node_ids = load_pkl(OUT_NODE_DF)
@@ -186,22 +186,22 @@ class NodePropertyDataset(object):
             node_label_dict = load_pkl(OUT_NODE_DF)
         else:  # * process the file
             print("file not processed, generating processed file")
-            if self.name == "subreddits":
+            if self.name == "tgbn-reddit":
                 df, edge_feat, node_ids, labels_dict = load_edgelist_sr(
                     self.meta_dict["fname"], label_size=self._num_classes
                 )
-            elif self.name == "lastfmgenre":
+            elif self.name == "tgbn-genre":
                 df, edge_feat, node_ids, labels_dict = load_edgelist_datetime(
                     self.meta_dict["fname"], label_size=self._num_classes
                 )
-            elif self.name == "un_trade":
+            elif self.name == "tgbn-trade":
                 df, edge_feat, node_ids = load_edgelist_trade(
                     self.meta_dict["fname"], label_size=self._num_classes
                 )
 
             df.to_pickle(OUT_DF)
 
-            if self.name == "un_trade":
+            if self.name == "tgbn-trade":
                 node_label_dict = load_trade_label_dict(
                     self.meta_dict["nodefile"], node_ids
                 )
@@ -211,7 +211,7 @@ class NodePropertyDataset(object):
                 )
 
             if (
-                self.name != "subreddits"
+                self.name != "tgbn-reddit"
             ):  # don't save subreddits on disc, the node label file is too big
                 save_pkl(node_label_dict, OUT_NODE_DF)
             else:
@@ -429,7 +429,7 @@ class NodePropertyDataset(object):
 
 def main():
     # download files
-    name = "un_trade"  # "subreddits" #"lastfmgenre"
+    name = "tgbn-trade" 
     dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
 
     dataset.node_feat

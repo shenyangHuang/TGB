@@ -68,7 +68,7 @@ class LinkPropPredDataset(object):
             self.meta_dict["nodefile"] = None
 
         # TODO update the logic here to load the filenames from info.py
-        if name == "opensky":
+        if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
 
         # initialize
@@ -172,15 +172,15 @@ class LinkPropPredDataset(object):
 
         else:
             print("file not processed, generating processed file")
-            if self.name == "opensky":
+            if self.name == "tgbl-flight":
                 df, edge_feat, node_ids = csv_to_pd_data(self.meta_dict["fname"])
-            elif self.name == "stablecoin":
+            elif self.name == "tgbl-coin":
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict["fname"])
-            elif self.name == "redditcomments":
+            elif self.name == "tgbl-comment":
                 df, edge_feat, node_ids = csv_to_pd_data_rc(self.meta_dict["fname"])
-            elif self.name == "amazonreview":
+            elif self.name == "tgbl-review":
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict["fname"])
-            elif self.name == "wikipedia":
+            elif self.name == "tgbl-wiki":
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
@@ -358,7 +358,7 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    name = "redditcomments"  # name = "opensky"
+    name = "tgbl-comment" 
     dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
     dataset.node_feat

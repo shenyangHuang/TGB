@@ -90,10 +90,7 @@ def plot_curve(y: np.ndarray, outname: str) -> None:
 
 
 def main():
-    # fname = "../datasets/flight_raw/opensky/opensky_edgelist.csv"
-    # fname = "../datasets/lastfmgenre/lastfmgenre_raw/lastfmgenre_edgelist.csv"
-    # fname = "../datasets/redditcomments/redditcomments_edgelist.csv"
-    fname = "tgb/datasets/wikipedia/wikipedia_edgelist.csv"
+    fname = "tgb/datasets/tgbl-wiki/tgbl-wiki_edgelist.csv"
     analyze_csv(fname)
 
 
