@@ -1,25 +1,25 @@
 """
-Dynamic Link Prediction with a TGN model with Early Stopping
-Reference: 
+DyRep
+    This has been implemented with intuitions from the following sources:
+    - https://github.com/twitter-research/tgn
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
-"""
 
+    Spec.:
+        - Memory Updater: RNN
+        - Embedding Module: ID
+        - Message Function: ATTN
+
+command for an example run:
+    python examples/linkproppred/tgbl-coin/dyrep.py --data "tgbl-coin" --num_run 1 --seed 1
+"""
 import math
 import timeit
-
 import os
 import os.path as osp
 from pathlib import Path
 import numpy as np
-
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.nn import Linear
-
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-
-from torch_geometric.nn import TransformerConv
 
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
@@ -29,9 +29,10 @@ from modules.emb_module import GraphAttentionEmbedding
 from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import TGNMemory
+from modules.memory_module import DyRepMemory
 from modules.early_stopping import  EarlyStopMonitor
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
+
 
 
 # ==========
@@ -39,6 +40,16 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 # ==========
 
 def train():
+    r"""
+    Training procedure for DyRep model
+    This function uses some objects that are globally defined in the current scrips 
+
+    Parameters:
+        None
+    Returns:
+        None
+            
+    """
     model['memory'].train()
     model['gnn'].train()
     model['link_pred'].train()
@@ -68,13 +79,6 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = model['memory'](n_id)
-        z = model['gnn'](
-            z,
-            last_update,
-            edge_index,
-            data.t[e_id].to(device),
-            data.msg[e_id].to(device),
-        )
 
         pos_out = model['link_pred'](z[assoc[src]], z[assoc[pos_dst]])
         neg_out = model['link_pred'](z[assoc[src]], z[assoc[neg_dst]])
@@ -82,8 +86,17 @@ def train():
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(src, pos_dst, t, msg)
+        # update the memory with ground-truth
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(src, pos_dst, t, msg, z, assoc)
+
+        # update neighbor loader
         neighbor_loader.insert(src, pos_dst)
 
         loss.backward()
@@ -95,9 +108,17 @@ def train():
 
 
 @torch.no_grad()
-def test_one_vs_many(loader, neg_sampler, split_mode):
-    """
+def test(loader, neg_sampler, split_mode):
+    r"""
     Evaluated the dynamic link prediction
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+
+    Parameters:
+        loader: an object containing positive attributes of the positive edges of the evaluation set
+        neg_sampler: an object that gives the negative edges corresponding to each positive edge
+        split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
+    Returns:
+        perf_metric: the result of the performance evaluaiton
     """
     model['memory'].eval()
     model['gnn'].eval()
@@ -131,16 +152,8 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
 
             # Get updated memory of all nodes involved in the computation.
             z, last_update = model['memory'](n_id)
-            z = model['gnn'](
-                z,
-                last_update,
-                edge_index,
-                data.t[e_id].to(device),
-                data.msg[e_id].to(device),
-            )
 
             y_pred = model['link_pred'](z[assoc[src]], z[assoc[dst]])
-
             # compute MRR
             input_dict = {
                 "y_pred_pos": np.array([y_pred[0, :].squeeze(dim=-1).cpu()]),
@@ -148,19 +161,31 @@ def test_one_vs_many(loader, neg_sampler, split_mode):
                 "eval_metric": [metric],
             }
             perf_list.append(evaluator.eval(input_dict)[metric])
+        
+        # update the memory with positive edges
+        n_id = torch.cat([pos_src, pos_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+        z, last_update = model['memory'](n_id)
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg, z, assoc)
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
+        # update the neighbor loader
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = float(torch.tensor(perf_list).mean())
+    perf_metric = float(torch.tensor(perf_list).mean())
 
-    return perf_metrics
+    return perf_metric
 
 # ==========
 # ==========
 # ==========
-
 
 # Start...
 start_overall = timeit.default_timer()
@@ -169,7 +194,7 @@ start_overall = timeit.default_timer()
 args, _ = get_args()
 print("INFO: Arguments:", args)
 
-DATA = "tgbl-review"
+DATA = "tgbl-coin"
 LR = args.lr
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value  
@@ -183,8 +208,9 @@ PATIENCE = args.patience
 NUM_RUNS = args.num_run
 NUM_NEIGHBORS = 10
 
-
-MODEL_NAME = 'TGN'
+MODEL_NAME = 'DyRep'
+USE_SRC_EMB_IN_MSG = False
+USE_DST_EMB_IN_MSG = True
 # ==========
 
 # set the device
@@ -214,15 +240,20 @@ min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
-memory = TGNMemory(
+# 1) memory
+memory = DyRepMemory(
     data.num_nodes,
     data.msg.size(-1),
     MEM_DIM,
     TIME_DIM,
     message_module=IdentityMessage(data.msg.size(-1), MEM_DIM, TIME_DIM),
     aggregator_module=LastAggregator(),
+    memory_updater_type='rnn',
+    use_src_emb_in_msg=USE_SRC_EMB_IN_MSG,
+    use_dst_emb_in_msg=USE_DST_EMB_IN_MSG
 ).to(device)
 
+# 2) GNN
 gnn = GraphAttentionEmbedding(
     in_channels=MEM_DIM,
     out_channels=EMB_DIM,
@@ -230,12 +261,14 @@ gnn = GraphAttentionEmbedding(
     time_enc=memory.time_enc,
 ).to(device)
 
+# 3) link predictor
 link_pred = LinkPredictor(in_channels=EMB_DIM).to(device)
 
 model = {'memory': memory,
          'gnn': gnn,
          'link_pred': link_pred}
 
+# define an optimizer
 optimizer = torch.optim.Adam(
     set(model['memory'].parameters()) | set(model['gnn'].parameters()) | set(model['link_pred'].parameters()),
     lr=LR,
@@ -279,7 +312,7 @@ for run_idx in range(NUM_RUNS):
     # ==================================================== Train & Validation
     # loading the validation negative samples
     dataset.load_val_ns()
-    
+
     val_perf_list = []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
@@ -292,7 +325,7 @@ for run_idx in range(NUM_RUNS):
 
         # validation
         start_val = timeit.default_timer()
-        perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
+        perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
         val_perf_list.append(perf_metric_val)
@@ -302,7 +335,7 @@ for run_idx in range(NUM_RUNS):
             break
 
     train_val_time = timeit.default_timer() - start_train_val
-    print(f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
+    print(f"Train & Validation Total Elapsed Time (s): {train_val_time: .4f}")
 
     # ==================================================== Test
     # first, load the best model
@@ -313,7 +346,7 @@ for run_idx in range(NUM_RUNS):
 
     # final testing
     start_test = timeit.default_timer()
-    perf_metric_test = test_one_vs_many(test_loader, neg_sampler, split_mode="test")
+    perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
     print(f"\tTest: {metric}: {perf_metric_test: .4f}")

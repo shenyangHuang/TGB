@@ -4,6 +4,8 @@ NOTE: This implementation works only based on `numpy`
 
 Reference: 
     - https://github.com/fpour/DGB/tree/main
+
+
 """
 
 import timeit
@@ -29,9 +31,18 @@ from tgb.utils.utils import save_results
 # ==================
 # ==================
 
-def test_one_vs_many(data, test_mask, neg_sampler, split_mode):
+def test(data, test_mask, neg_sampler, split_mode):
     r"""
-    evaluate the dynamic link prediction 
+    Evaluated the dynamic link prediction
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+
+    Parameters:
+        data: a dataset object
+        test_mask: required masks to load the test set edges
+        neg_sampler: an object that gives the negative edges corresponding to each positive edge
+        split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
+    Returns:
+        perf_metric: the result of the performance evaluaiton
     """
     num_batches = math.ceil(len(data['sources'][test_mask]) / BATCH_SIZE)
     perf_list = []
@@ -67,7 +78,7 @@ def test_one_vs_many(data, test_mask, neg_sampler, split_mode):
 
 def get_args():
     parser = argparse.ArgumentParser('*** TGB: EdgeBank ***')
-    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tgbl-coin')
+    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tgbl-review')
     parser.add_argument('--bs', type=int, help='Batch size', default=200)
     parser.add_argument('--k_value', type=int, help='k_value for computing ranking metrics', default=10)
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
@@ -96,7 +107,7 @@ MEMORY_MODE = args.mem_mode # `unlimited` or `fixed_time_window`
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value
 TIME_WINDOW_RATIO = args.time_window_ratio
-DATA = "tgbl-coin"
+DATA = "tgbl-review"
 
 MODEL_NAME = 'EdgeBank'
 
@@ -144,7 +155,7 @@ dataset.load_val_ns()
 
 # testing ...
 start_val = timeit.default_timer()
-perf_metric_test = test_one_vs_many(data, val_mask, neg_sampler, split_mode='val')
+perf_metric_test = test(data, val_mask, neg_sampler, split_mode='val')
 end_val = timeit.default_timer()
 
 print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
@@ -161,7 +172,7 @@ dataset.load_test_ns()
 
 # testing ...
 start_test = timeit.default_timer()
-perf_metric_test = test_one_vs_many(data, test_mask, neg_sampler, split_mode='test')
+perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
 end_test = timeit.default_timer()
 
 print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")

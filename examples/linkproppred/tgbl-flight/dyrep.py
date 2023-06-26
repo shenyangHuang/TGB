@@ -8,6 +8,9 @@ DyRep
         - Memory Updater: RNN
         - Embedding Module: ID
         - Message Function: ATTN
+
+command for an example run:
+    python examples/linkproppred/tgbl-flight/dyrep.py --data "tgbl-flight" --num_run 1 --seed 1
 """
 import math
 import timeit
@@ -16,11 +19,7 @@ import os.path as osp
 from pathlib import Path
 import numpy as np
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.nn import Linear
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-from torch_geometric.nn import TransformerConv
 
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
@@ -41,6 +40,16 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 # ==========
 
 def train():
+    r"""
+    Training procedure for DyRep model
+    This function uses some objects that are globally defined in the current scrips 
+
+    Parameters:
+        None
+    Returns:
+        None
+            
+    """
     model['memory'].train()
     model['gnn'].train()
     model['link_pred'].train()
@@ -99,9 +108,17 @@ def train():
 
 
 @torch.no_grad()
-def test_one_vs_many(loader, neg_sampler, split_mode):
-    """
+def test(loader, neg_sampler, split_mode):
+    r"""
     Evaluated the dynamic link prediction
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+
+    Parameters:
+        loader: an object containing positive attributes of the positive edges of the evaluation set
+        neg_sampler: an object that gives the negative edges corresponding to each positive edge
+        split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
+    Returns:
+        perf_metric: the result of the performance evaluaiton
     """
     model['memory'].eval()
     model['gnn'].eval()
@@ -223,6 +240,7 @@ min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
+# 1) memory
 memory = DyRepMemory(
     data.num_nodes,
     data.msg.size(-1),
@@ -235,6 +253,7 @@ memory = DyRepMemory(
     use_dst_emb_in_msg=USE_DST_EMB_IN_MSG
 ).to(device)
 
+# 2) GNN
 gnn = GraphAttentionEmbedding(
     in_channels=MEM_DIM,
     out_channels=EMB_DIM,
@@ -242,12 +261,14 @@ gnn = GraphAttentionEmbedding(
     time_enc=memory.time_enc,
 ).to(device)
 
+# 3) link predictor
 link_pred = LinkPredictor(in_channels=EMB_DIM).to(device)
 
 model = {'memory': memory,
          'gnn': gnn,
          'link_pred': link_pred}
 
+# define an optimizer
 optimizer = torch.optim.Adam(
     set(model['memory'].parameters()) | set(model['gnn'].parameters()) | set(model['link_pred'].parameters()),
     lr=LR,
@@ -304,7 +325,7 @@ for run_idx in range(NUM_RUNS):
 
         # validation
         start_val = timeit.default_timer()
-        perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
+        perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
         val_perf_list.append(perf_metric_val)
@@ -314,7 +335,7 @@ for run_idx in range(NUM_RUNS):
             break
 
     train_val_time = timeit.default_timer() - start_train_val
-    print(f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
+    print(f"Train & Validation Total Elapsed Time (s): {train_val_time: .4f}")
 
     # ==================================================== Test
     # first, load the best model
@@ -325,7 +346,7 @@ for run_idx in range(NUM_RUNS):
 
     # final testing
     start_test = timeit.default_timer()
-    perf_metric_test = test_one_vs_many(test_loader, neg_sampler, split_mode="test")
+    perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
     print(f"\tTest: {metric}: {perf_metric_test: .4f}")

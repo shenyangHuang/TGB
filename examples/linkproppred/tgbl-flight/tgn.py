@@ -2,6 +2,9 @@
 Dynamic Link Prediction with a TGN model with Early Stopping
 Reference: 
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+
+command for an example run:
+    python examples/linkproppred/tgbl-flight/tgn.py --data "tgbl-flight" --num_run 1 --seed 1
 """
 
 import math
@@ -39,6 +42,17 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 # ==========
 
 def train():
+    r"""
+    Training procedure for TGN model
+    This function uses some objects that are globally defined in the current scrips 
+
+    Parameters:
+        None
+    Returns:
+        None
+            
+    """
+
     model['memory'].train()
     model['gnn'].train()
     model['link_pred'].train()
@@ -95,9 +109,17 @@ def train():
 
 
 @torch.no_grad()
-def test_one_vs_many(loader, neg_sampler, split_mode):
-    """
+def test(loader, neg_sampler, split_mode):
+    r"""
     Evaluated the dynamic link prediction
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+
+    Parameters:
+        loader: an object containing positive attributes of the positive edges of the evaluation set
+        neg_sampler: an object that gives the negative edges corresponding to each positive edge
+        split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
+    Returns:
+        perf_metric: the result of the performance evaluaiton
     """
     model['memory'].eval()
     model['gnn'].eval()
@@ -292,7 +314,7 @@ for run_idx in range(NUM_RUNS):
 
         # validation
         start_val = timeit.default_timer()
-        perf_metric_val = test_one_vs_many(val_loader, neg_sampler, split_mode="val")
+        perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
         val_perf_list.append(perf_metric_val)
@@ -313,7 +335,7 @@ for run_idx in range(NUM_RUNS):
 
     # final testing
     start_test = timeit.default_timer()
-    perf_metric_test = test_one_vs_many(test_loader, neg_sampler, split_mode="test")
+    perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
     print(f"\tTest: {metric}: {perf_metric_test: .4f}")

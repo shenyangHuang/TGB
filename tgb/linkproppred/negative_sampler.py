@@ -14,15 +14,26 @@ import time
 
 
 class NegativeEdgeSampler(object):
+    r"""
+        Negative Edge Sampler
+            Loads and query the negative batches based on the positive batches provided.
+    """
     def __init__(
         self,
         dataset_name: str,
         strategy: str = "hist_rnd",
     ):
-        r"""
-        Negative Edge Sampler
-            Loads and query the negative batches based on the positive batches provided.
-        """
+    r"""
+    constructor for the negative edge sampler class
+
+    Parameters:
+        dataset_name: name of the dataset
+        strategy: specifies which set of negatives should be loaded;
+                  can be 'rnd' or 'hist_rnd'
+    
+    Returns:
+        None
+    """
         self.dataset_name = dataset_name
         assert strategy in [
             "rnd",
@@ -41,6 +52,9 @@ class NegativeEdgeSampler(object):
         Parameters:
             fname: the file name of the evaluation ns on disk
             split_mode: the split mode of the evaluation set, can be either `val` or `test`
+        
+        Returns:
+            None
         """
         assert split_mode in [
             "val",
@@ -53,6 +67,12 @@ class NegativeEdgeSampler(object):
     def reset_eval_set(self, split_mode):
         r"""
         Reset evaluation set
+
+        Parameters:
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+
+        Returns:
+            None
         """
         assert split_mode in [
             "val",
@@ -64,6 +84,16 @@ class NegativeEdgeSampler(object):
         r"""
         For each positive edge in the `pos_batch`, return a list of negative edges
         `split_mode` specifies whether the valiation or test evaluation set should be retrieved.
+
+        Parameters:
+            pos_src: list of positive source nodes
+            pos_dst: list of positive destination nodes
+            pos_timestamp: list of timestamps of the positive edges
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+
+        Returns:
+            neg_samples: a list of list; each internal list contains the set of negative edges that
+                        should be evaluated against each positive edge.
         """
         assert split_mode in [
             "val",

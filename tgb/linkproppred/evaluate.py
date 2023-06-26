@@ -16,12 +16,13 @@ except ImportError:
 
 
 class Evaluator(object):
-    """Evaluator for Link Property Prediction """
+    r"""Evaluator for Link Property Prediction """
 
     def __init__(self, name: str, k_value: int = 10):
         r"""
         Parameters:
             name: name of the dataset
+            k_value: the desired 'k' value for calculating metric@k
         """
         self.name = name
         self.k_value = k_value  # for computing `hits@k`
@@ -30,11 +31,14 @@ class Evaluator(object):
             raise NotImplementedError("Dataset not supported")
     
     def _parse_and_check_input(self, input_dict):
-        """
-        check whether the input has the appropriate format
+        r"""
+        Check whether the input has the appropriate format
         Parametrers:
-            - input_dict: a dictionary containing "y_pred_pos", "y_pred_neg", and "eval_metric"
+            input_dict: a dictionary containing "y_pred_pos", "y_pred_neg", and "eval_metric"
             note: "eval_metric" should be a list including one or more of the followin metrics: ["hits@", "mrr"]
+        Returns:
+            y_pred_pos: positive predicted scores
+            y_pred_neg: negative predicted scores
         """
 
         if "eval_metric" not in input_dict:
@@ -74,6 +78,15 @@ class Evaluator(object):
         compute hist@k and mrr
         reference:
             - https://github.com/snap-stanford/ogb/blob/d5c11d91c9e1c22ed090a2e0bbda3fe357de66e7/ogb/linkproppred/evaluate.py#L214
+        
+        Parameters:
+            y_pred_pos: positive predicted scores
+            y_pred_neg: negative predicted scores
+            type_info: type of the predicted scores; could be 'torch' or 'numpy'
+            k_value: the desired 'k' value for calculating metric@k
+        
+        Returns:
+            a dictionary containing the computed performance metrics
         """
         if type_info == 'torch':
             # calculate ranks
@@ -109,6 +122,15 @@ class Evaluator(object):
     def eval(self, input_dict, verbose=False):
         r"""
         evaluate the link prediction task
+        this method is callable through an instance of this object to compute the metric
+
+        Parameters:
+            input_dict: a dictionary containing "y_pred_pos", "y_pred_neg", and "eval_metric"
+                        the performance metric is calculated for the provided scores
+            verbose: whether to print out the computed metric
+        
+        Returns:
+            perf_dict: a dictionary containing the computed performance metric
         """
         y_pred_pos, y_pred_neg = self._parse_and_check_input(input_dict)  # convert the predictions to numpy
         perf_dict = self._eval_hits_and_mrr(y_pred_pos, y_pred_neg, type_info='numpy', k_value=self.k_value)

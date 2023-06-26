@@ -5,9 +5,7 @@ NOTE: This implementation works only based on `numpy`
 Reference: 
     - https://github.com/fpour/DGB/tree/main
 
-run with 
-$ python edgebank_np.py --mem_mode fixed_time_window  (for fixed time window)
-$ python edgebank_np.py (for unlimited memory)
+
 """
 
 import timeit
@@ -33,9 +31,18 @@ from tgb.utils.utils import save_results
 # ==================
 # ==================
 
-def test_one_vs_many(data, test_mask, neg_sampler, split_mode):
+def test(data, test_mask, neg_sampler, split_mode):
     r"""
-    evaluate the dynamic link prediction 
+    Evaluated the dynamic link prediction
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+
+    Parameters:
+        data: a dataset object
+        test_mask: required masks to load the test set edges
+        neg_sampler: an object that gives the negative edges corresponding to each positive edge
+        split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
+    Returns:
+        perf_metric: the result of the performance evaluaiton
     """
     num_batches = math.ceil(len(data['sources'][test_mask]) / BATCH_SIZE)
     perf_list = []
@@ -148,7 +155,7 @@ dataset.load_val_ns()
 
 # testing ...
 start_val = timeit.default_timer()
-perf_metric_test = test_one_vs_many(data, val_mask, neg_sampler, split_mode='val')
+perf_metric_test = test(data, val_mask, neg_sampler, split_mode='val')
 end_val = timeit.default_timer()
 
 print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
@@ -157,13 +164,15 @@ test_time = timeit.default_timer() - start_val
 print(f"\tval: Elapsed Time (s): {test_time: .4f}")
 
 
+
+
 # ==================================================== Test
 # loading the test negative samples
 dataset.load_test_ns()
 
 # testing ...
 start_test = timeit.default_timer()
-perf_metric_test = test_one_vs_many(data, test_mask, neg_sampler, split_mode='test')
+perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
 end_test = timeit.default_timer()
 
 print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
