@@ -25,8 +25,7 @@ from tgb.utils.pre_process import (
 )
 
 
-#! can retire meta_dict as input to the class
-class NodePropertyDataset(object):
+class NodePropPredDataset(object):
     def __init__(
         self,
         name: str,
@@ -430,7 +429,7 @@ class NodePropertyDataset(object):
 def main():
     # download files
     name = "tgbn-trade" 
-    dataset = NodePropertyDataset(name=name, root="datasets", preprocess=True)
+    dataset = NodePropPredDataset(name=name, root="datasets", preprocess=True)
 
     dataset.node_feat
     dataset.edge_feat  # not the edge weights

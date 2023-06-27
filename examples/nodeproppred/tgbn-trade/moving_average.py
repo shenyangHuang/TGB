@@ -8,7 +8,7 @@ import numpy as np
 from torch_geometric.loader import TemporalDataLoader
 
 # local imports
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 from modules.heuristics import MovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
@@ -17,7 +17,7 @@ device = "cpu"
 
 window = 7
 name = "tgbn-trade"
-dataset = PyGNodePropertyDataset(name=name, root="datasets")
+dataset = PyGNodePropPredDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)

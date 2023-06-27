@@ -14,26 +14,24 @@ import time
 
 
 class NegativeEdgeSampler(object):
-    r"""
-        Negative Edge Sampler
-            Loads and query the negative batches based on the positive batches provided.
-    """
     def __init__(
         self,
         dataset_name: str,
         strategy: str = "hist_rnd",
     ):
-    r"""
-    constructor for the negative edge sampler class
+        r"""
+        Negative Edge Sampler
+            Loads and query the negative batches based on the positive batches provided.
+        constructor for the negative edge sampler class
 
-    Parameters:
-        dataset_name: name of the dataset
-        strategy: specifies which set of negatives should be loaded;
-                  can be 'rnd' or 'hist_rnd'
-    
-    Returns:
-        None
-    """
+        Parameters:
+            dataset_name: name of the dataset
+            strategy: specifies which set of negatives should be loaded;
+                    can be 'rnd' or 'hist_rnd'
+        
+        Returns:
+            None
+        """
         self.dataset_name = dataset_name
         assert strategy in [
             "rnd",

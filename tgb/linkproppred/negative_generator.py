@@ -23,13 +23,6 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
 class NegativeEdgeGenerator(object):
-    r"""
-    Negative Edge Sampler class
-    this is a class for generating negative samples for a specific datasets
-    the set of the positive samples are provided, the negative samples are generated with specific strategies 
-    and are saved for consistent evaluation across different methods
-    negative edges are sampled with 'oen_vs_many' strategy.
-    """
     def __init__(
         self,
         dataset_name: str,
@@ -42,7 +35,11 @@ class NegativeEdgeGenerator(object):
         historical_data=None,
     ):
         r"""
-        constructor for a new instance of the class
+        Negative Edge Sampler class
+        this is a class for generating negative samples for a specific datasets
+        the set of the positive samples are provided, the negative samples are generated with specific strategies 
+        and are saved for consistent evaluation across different methods
+        negative edges are sampled with 'oen_vs_many' strategy.
         it is assumed that the destination nodes are indexed sequentially with 'first_dst_id' 
         and 'last_dst_id' being the first and last index, respectively.
 

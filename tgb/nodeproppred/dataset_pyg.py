@@ -5,20 +5,20 @@ from typing import Optional, Dict, Any, Optional, Callable
 import torch
 
 from torch_geometric.data import InMemoryDataset, TemporalData, download_url
-from tgb.nodeproppred.dataset import NodePropertyDataset
+from tgb.nodeproppred.dataset import NodePropPredDataset
 import warnings
 
 
 # TODO check https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/data/in_memory_dataset.html
 # avoid any overlapping properties
-class PyGNodePropertyDataset(InMemoryDataset):
+class PyGNodePropPredDataset(InMemoryDataset):
     r"""
-    PyG wrapper for the NodePropertyDataset
+    PyG wrapper for the NodePropPredDataset
     can return pytorch tensors for src,dst,t,msg,label
     can return Temporal Data object
     also query the node labels corresponding to a timestamp from edge batch
     Parameters:
-        name: name of the dataset, passed to `NodePropertyDataset`
+        name: name of the dataset, passed to `NodePropPredDataset`
         root (string): Root directory where the dataset should be saved.
         transform (callable, optional): A function/transform that takes in an
         pre_transform (callable, optional): A function/transform that takes in
@@ -33,7 +33,7 @@ class PyGNodePropertyDataset(InMemoryDataset):
     ):
         self.name = name
         self.root = root
-        self.dataset = NodePropertyDataset(name=name, root=root)
+        self.dataset = NodePropPredDataset(name=name, root=root)
         self._train_mask = torch.from_numpy(self.dataset.train_mask)
         self._val_mask = torch.from_numpy(self.dataset.val_mask)
         self._test_mask = torch.from_numpy(self.dataset.test_mask)

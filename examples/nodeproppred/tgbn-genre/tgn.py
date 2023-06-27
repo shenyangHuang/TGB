@@ -14,7 +14,7 @@ from torch_geometric.nn.models.tgn import (
 
 from modules.decoder import NodePredictor
 from modules.emb_module import GraphAttentionEmbedding
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed
 
@@ -35,7 +35,7 @@ epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "tgbn-genre"
-dataset = PyGNodePropertyDataset(name=name, root="datasets")
+dataset = PyGNodePropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask

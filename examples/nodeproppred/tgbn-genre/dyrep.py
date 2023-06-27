@@ -23,7 +23,7 @@ from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
 from modules.memory_module import DyRepMemory
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 
 
 def process_edges(src, dst, t, msg):
@@ -259,7 +259,7 @@ evaluator = Evaluator(name=DATA)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # data loading
-dataset = PyGNodePropertyDataset(name=DATA, root="datasets")
+dataset = PyGNodePropPredDataset(name=DATA, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask

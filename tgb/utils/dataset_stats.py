@@ -8,7 +8,7 @@ import networkx as nx
 import argparse
 
 from torch_geometric.loader import TemporalDataLoader
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 # from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 from tgb.linkproppred.dataset import LinkPropPredDataset
 
@@ -191,7 +191,7 @@ def main():
 
     elif DATA in ['tgbn-trade', 'tgbn-genre', 'tgbn-reddit']:
         # load data: node prop. pred.
-        dataset = PyGNodePropertyDataset(name=DATA, root="datasets")
+        dataset = PyGNodePropPredDataset(name=DATA, root="datasets")
         data = dataset.get_TemporalData()
         
         # split data
