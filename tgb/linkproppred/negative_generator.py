@@ -32,8 +32,8 @@ class NegativeEdgeGenerator(object):
         strategy: str = "rnd",
         rnd_seed: int = 123,
         hist_ratio: float = 0.5,
-        historical_data=None,
-    ):
+        historical_data: TemporalData = None,
+    ) -> None:
         r"""
         Negative Edge Sampler class
         this is a class for generating negative samples for a specific datasets
@@ -75,7 +75,11 @@ class NegativeEdgeGenerator(object):
             self.hist_ratio = hist_ratio
             self.historical_data = historical_data
 
-    def generate_negative_samples(self, data, split_mode, partial_path):
+    def generate_negative_samples(self, 
+                                  data: TemporalData, 
+                                  split_mode: str, 
+                                  partial_path: str,
+                                  ) -> None:
         r"""
         Generate negative samples
 
@@ -83,9 +87,6 @@ class NegativeEdgeGenerator(object):
             data: an object containing positive edges information
             split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
             partial_path: in which directory save the generated negatives
-        
-        Return:
-            None
         """
         # file name for saving or loading...
         filename = (
@@ -108,7 +109,11 @@ class NegativeEdgeGenerator(object):
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
 
-    def generate_negative_samples_rnd(self, data, split_mode, filename):
+    def generate_negative_samples_rnd(self, 
+                                      data: TemporalData, 
+                                      split_mode: str, 
+                                      filename: str,
+                                      ) -> None:
         r"""
         Generate negative samples based on the `HIST-RND` strategy:
             - for each positive edge, sample a batch of negative edges from all possible edges with the same source node
@@ -118,9 +123,6 @@ class NegativeEdgeGenerator(object):
             data: an object containing positive edges information
             split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
             filename: name of the file containing the generated negative edges
-        
-        Return:
-            None
         """
         print(
             f"INFO: Negative Sampling Strategy: {self.strategy}, Data Split: {split_mode}"
@@ -172,11 +174,13 @@ class NegativeEdgeGenerator(object):
             # save the generated evaluation set to disk
             save_pkl(evaluation_set, filename)
 
-    def generate_historical_edge_set(self, historical_data):
+    def generate_historical_edge_set(self, 
+                                     historical_data: TemporalData,
+                                     ) -> tuple:
         r"""
         Generate the set of edges seen durign training or validation
-        NOTE: ONLY `train_data` should be passed as historical data; i.e., 
-            the HISTORICAL negative edges should be selected from training data only.
+
+        ONLY `train_data` should be passed as historical data; i.e., the HISTORICAL negative edges should be selected from training data only.
         
         Parameters:
             historical_data: contains the positive edges observed previously
@@ -207,8 +211,12 @@ class NegativeEdgeGenerator(object):
         return historical_edges, hist_edge_set_per_node
 
     def generate_negative_samples_hist_rnd(
-        self, historical_data, data, split_mode, filename
-    ):
+        self, 
+        historical_data : TemporalData, 
+        data: TemporalData, 
+        split_mode: str, 
+        filename: str,
+    ) -> None:
         r"""
         Generate negative samples based on the `HIST-RND` strategy:
             - up to 50% of the negative samples are selected from the set of edges seen during the training with the same source node.

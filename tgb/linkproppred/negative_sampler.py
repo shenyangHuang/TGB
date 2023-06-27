@@ -18,7 +18,7 @@ class NegativeEdgeSampler(object):
         self,
         dataset_name: str,
         strategy: str = "hist_rnd",
-    ):
+    ) -> None:
         r"""
         Negative Edge Sampler
             Loads and query the negative batches based on the positive batches provided.
@@ -62,7 +62,9 @@ class NegativeEdgeSampler(object):
             raise FileNotFoundError(f"File not found at {fname}")
         self.eval_set[split_mode] = load_pkl(fname)
 
-    def reset_eval_set(self, split_mode):
+    def reset_eval_set(self, 
+                       split_mode: str = "test",
+                       ) -> None:
         r"""
         Reset evaluation set
 
@@ -78,7 +80,11 @@ class NegativeEdgeSampler(object):
         ], "Invalid split-mode! It should be `val`, `test`!"
         self.eval_set[split_mode] = None
 
-    def query_batch(self, pos_src, pos_dst, pos_timestamp, split_mode):
+    def query_batch(self, 
+                    pos_src: Tensor, 
+                    pos_dst: Tensor, 
+                    pos_timestamp: Tensor, 
+                    split_mode: str = "test") -> list:
         r"""
         For each positive edge in the `pos_batch`, return a list of negative edges
         `split_mode` specifies whether the valiation or test evaluation set should be retrieved.

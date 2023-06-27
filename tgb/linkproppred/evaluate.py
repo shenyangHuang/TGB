@@ -119,7 +119,9 @@ class Evaluator(object):
                     'mrr': mrr_list.mean()
                     }
 
-    def eval(self, input_dict, verbose=False):
+    def eval(self, 
+             input_dict: dict, 
+             verbose: bool = False) -> dict:
         r"""
         evaluate the link prediction task
         this method is callable through an instance of this object to compute the metric
