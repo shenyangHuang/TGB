@@ -12,6 +12,8 @@ pip install py-tgb
 
 The project website can be found [here](https://tgb-website.pages.dev/).
 
+The API documentations can be found [here](https://shenyanghuang.github.io/TGB/).
+
 all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
 
 TGB dataloader will also automatically download the dataset
