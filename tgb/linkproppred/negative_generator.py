@@ -164,10 +164,14 @@ class NegativeEdgeGenerator(object):
                 pos_e_dst_same_src = pos_dst[fn_mask]
                 filtered_all_dst = np.setdiff1d(all_dst, pos_e_dst_same_src)
 
-                replace = True if self.num_neg_e > len(filtered_all_dst) else False
-                neg_d_arr = np.random.choice(
-                    filtered_all_dst, self.num_neg_e, replace=replace
-                )
+                '''
+                when num_neg_e is larger than all possible destinations simple return all possible destinations
+                '''
+                if (self.num_neg_e > len(filtered_all_dst)):
+                    neg_d_arr = filtered_all_dst
+                else:
+                    neg_d_arr = np.random.choice(
+                    filtered_all_dst, self.num_neg_e, replace=False) #never replace negatives
 
                 evaluation_set[(pos_s, pos_d, pos_t)] = neg_d_arr
 
@@ -318,14 +322,17 @@ class NegativeEdgeGenerator(object):
                 else:
                     invalid_dst = np.array(pos_e_dst_same_src)
                 filtered_all_rnd_dst = np.setdiff1d(all_dst, invalid_dst)
-                #filtered_all_rnd_dst = all_dst #! no collision check
 
                 num_rnd_neg_e = self.num_neg_e - num_hist_neg_e
-                replace = True if num_rnd_neg_e > len(filtered_all_rnd_dst) else False
-                neg_rnd_dsts = np.random.choice(
-                    filtered_all_rnd_dst, num_rnd_neg_e, replace=replace
+                '''
+                when num_neg_e is larger than all possible destinations simple return all possible destinations
+                '''
+                if (num_rnd_neg_e > len(filtered_all_rnd_dst)):
+                    neg_rnd_dsts = filtered_all_rnd_dst
+                else:
+                    neg_rnd_dsts = np.random.choice(
+                    filtered_all_rnd_dst, num_rnd_neg_e, replace=False
                 )
-
                 # concatenate the two sets: historical and random
                 neg_dst_arr = np.concatenate((neg_hist_dsts, neg_rnd_dsts))
                 evaluation_set[(pos_s, pos_d, pos_t)] = neg_dst_arr

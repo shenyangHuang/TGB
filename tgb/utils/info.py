@@ -33,6 +33,8 @@ DATA_URL_DICT = {
     "tgbn-reddit": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-reddit.zip",
 }
 
+#"https://object-arbutus.cloud.computecanada.ca/tgb/wiki_neg.zip" for all negative samples of the wiki dataset
+
 DATA_EVAL_METRIC_DICT = {
     "tgbl-wiki": "mrr",
     "tgbl-review": "mrr",
