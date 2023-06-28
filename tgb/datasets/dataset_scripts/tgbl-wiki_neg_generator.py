@@ -74,7 +74,8 @@ def main():
         data=data_splits[split_mode], split_mode=split_mode, partial_path=partial_path
     )
     print(
-        f"INFO: End of negative samples generation. Elapsed Time (s): {time.time() - start_time: .4f}"
+        f"INFO: End of negative samples generation. Elapsed Time (s): {timeit.default_timer()- start_time: .4f}"
+
     )
 
 
