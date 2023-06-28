@@ -131,7 +131,7 @@ def main():
     """
     simple test for evaluator
     """
-    name = "un_trade"
+    name = "tgbn-trade"
     evaluator = Evaluator(name=name)
     print(evaluator.expected_input_format)
     print(evaluator.expected_output_format)

@@ -32,13 +32,29 @@ class NegativeEdgeGenerator(object):
         strategy: str = "rnd",
         rnd_seed: int = 123,
         hist_ratio: float = 0.5,
-        historical_data=None,
-    ):
+        historical_data: TemporalData = None,
+    ) -> None:
         r"""
         Negative Edge Sampler class
-        it is used for sampling negative edges for the task of link prediction.
+        this is a class for generating negative samples for a specific datasets
+        the set of the positive samples are provided, the negative samples are generated with specific strategies 
+        and are saved for consistent evaluation across different methods
         negative edges are sampled with 'oen_vs_many' strategy.
-        it is assumed that the destination nodes are indexed sequentially with 'first_dst_id' and 'last_dst_id' being the first and last index, respectively.
+        it is assumed that the destination nodes are indexed sequentially with 'first_dst_id' 
+        and 'last_dst_id' being the first and last index, respectively.
+
+        Parameters:
+            dataset_name: name of the dataset
+            first_dst_id: identity of the first destination node
+            last_dst_id: indentity of the last destination node
+            num_neg_e: number of negative edges being generated per each positive edge
+            strategy: how to generate negative edges; can be 'rnd' or 'hist_rnd'
+            rnd_seed: random seed for consistency
+            hist_ratio: if the startegy is 'hist_rnd', how much of the negatives are historical
+            historical_data: previous records of the positive edges
+        
+        Returns:
+            None
         """
         self.rnd_seed = rnd_seed
         np.random.seed(self.rnd_seed)
@@ -59,9 +75,18 @@ class NegativeEdgeGenerator(object):
             self.hist_ratio = hist_ratio
             self.historical_data = historical_data
 
-    def generate_negative_samples(self, data, split_mode, partial_path):
+    def generate_negative_samples(self, 
+                                  data: TemporalData, 
+                                  split_mode: str, 
+                                  partial_path: str,
+                                  ) -> None:
         r"""
         Generate negative samples
+
+        Parameters:
+            data: an object containing positive edges information
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+            partial_path: in which directory save the generated negatives
         """
         # file name for saving or loading...
         filename = (
@@ -84,11 +109,20 @@ class NegativeEdgeGenerator(object):
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
 
-    def generate_negative_samples_rnd(self, data, split_mode, filename):
+    def generate_negative_samples_rnd(self, 
+                                      data: TemporalData, 
+                                      split_mode: str, 
+                                      filename: str,
+                                      ) -> None:
         r"""
         Generate negative samples based on the `HIST-RND` strategy:
             - for each positive edge, sample a batch of negative edges from all possible edges with the same source node
             - filter actual positive edges
+        
+        Parameters:
+            data: an object containing positive edges information
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+            filename: name of the file containing the generated negative edges
         """
         print(
             f"INFO: Negative Sampling Strategy: {self.strategy}, Data Split: {split_mode}"
@@ -130,20 +164,34 @@ class NegativeEdgeGenerator(object):
                 pos_e_dst_same_src = pos_dst[fn_mask]
                 filtered_all_dst = np.setdiff1d(all_dst, pos_e_dst_same_src)
 
-                replace = True if self.num_neg_e > len(filtered_all_dst) else False
-                neg_d_arr = np.random.choice(
-                    filtered_all_dst, self.num_neg_e, replace=replace
-                )
+                '''
+                when num_neg_e is larger than all possible destinations simple return all possible destinations
+                '''
+                if (self.num_neg_e > len(filtered_all_dst)):
+                    neg_d_arr = filtered_all_dst
+                else:
+                    neg_d_arr = np.random.choice(
+                    filtered_all_dst, self.num_neg_e, replace=False) #never replace negatives
 
                 evaluation_set[(pos_s, pos_d, pos_t)] = neg_d_arr
 
             # save the generated evaluation set to disk
             save_pkl(evaluation_set, filename)
 
-    def generate_historical_edge_set(self, historical_data):
+    def generate_historical_edge_set(self, 
+                                     historical_data: TemporalData,
+                                     ) -> tuple:
         r"""
         Generate the set of edges seen durign training or validation
-        NOTE: ONLY `train_data` should be passed as historical data; i.e., the HISTORICAL negative edges should be selected from training data only.
+
+        ONLY `train_data` should be passed as historical data; i.e., the HISTORICAL negative edges should be selected from training data only.
+        
+        Parameters:
+            historical_data: contains the positive edges observed previously
+        
+        Returns:
+            historical_edges: distict historical positive edges
+            hist_edge_set_per_node: historical edges observed for each node
         """
         sources = historical_data.src.cpu().numpy()
         destinations = historical_data.dst.cpu().numpy()
@@ -167,12 +215,26 @@ class NegativeEdgeGenerator(object):
         return historical_edges, hist_edge_set_per_node
 
     def generate_negative_samples_hist_rnd(
-        self, historical_data, data, split_mode, filename
-    ):
+        self, 
+        historical_data : TemporalData, 
+        data: TemporalData, 
+        split_mode: str, 
+        filename: str,
+    ) -> None:
         r"""
         Generate negative samples based on the `HIST-RND` strategy:
             - up to 50% of the negative samples are selected from the set of edges seen during the training with the same source node.
             - the rest of the negative edges are randomly sampled with the fixed source node.
+
+        Parameters:
+            historical_data: contains the history of the observed positive edges including 
+                            distinct positive edges and edges observed for each positive node
+            data: an object containing positive edges information
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+            filename: name of the file to save generated negative edges
+        
+        Returns:
+            None
         """
         print(
             f"INFO: Negative Sampling Strategy: {self.strategy}, Data Split: {split_mode}"
@@ -260,14 +322,17 @@ class NegativeEdgeGenerator(object):
                 else:
                     invalid_dst = np.array(pos_e_dst_same_src)
                 filtered_all_rnd_dst = np.setdiff1d(all_dst, invalid_dst)
-                #filtered_all_rnd_dst = all_dst #! no collision check
 
                 num_rnd_neg_e = self.num_neg_e - num_hist_neg_e
-                replace = True if num_rnd_neg_e > len(filtered_all_rnd_dst) else False
-                neg_rnd_dsts = np.random.choice(
-                    filtered_all_rnd_dst, num_rnd_neg_e, replace=replace
+                '''
+                when num_neg_e is larger than all possible destinations simple return all possible destinations
+                '''
+                if (num_rnd_neg_e > len(filtered_all_rnd_dst)):
+                    neg_rnd_dsts = filtered_all_rnd_dst
+                else:
+                    neg_rnd_dsts = np.random.choice(
+                    filtered_all_rnd_dst, num_rnd_neg_e, replace=False
                 )
-
                 # concatenate the two sets: historical and random
                 neg_dst_arr = np.concatenate((neg_hist_dsts, neg_rnd_dsts))
                 evaluation_set[(pos_s, pos_d, pos_t)] = neg_dst_arr

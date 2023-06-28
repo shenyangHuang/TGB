@@ -8,7 +8,7 @@ import networkx as nx
 import argparse
 
 from torch_geometric.loader import TemporalDataLoader
-from tgb.nodeproppred.dataset_pyg import PyGNodePropertyDataset
+from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 # from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 from tgb.linkproppred.dataset import LinkPropPredDataset
 
@@ -154,7 +154,7 @@ def main():
     Generate dateset statistics
     """
     parser = argparse.ArgumentParser(description='Dataset statistics')
-    parser.add_argument('-d', '--data', type=str, default='wikipedia', help='random seed to use')
+    parser.add_argument('-d', '--data', type=str, default='tgbl-wiki', help='random seed to use')
     parser.add_argument('--tempstats', action='store_true', default=False, help='whether compute temporal statistics')
     parser.parse_args()
     args = parser.parse_args()
@@ -163,7 +163,7 @@ def main():
     temporal_stats = args.tempstats
 
     # data loading ...
-    if DATA in ['wikipedia', 'amazonreview', 'opensky', 'redditcomments', 'stablecoin']:
+    if DATA in ['tgbl-wiki', 'tgbl-review', 'tgbl-flight', 'tgbl-comment', 'tgbl-coin']:
         # load data: link prop. pred. with `numpy`
         dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
         data = dataset.full_data  
@@ -189,9 +189,9 @@ def main():
                      'timestamps': data['timestamps'],
                      }
 
-    elif DATA in ['un_trade', 'lastfmgenre', 'subreddits']:
+    elif DATA in ['tgbn-trade', 'tgbn-genre', 'tgbn-reddit']:
         # load data: node prop. pred.
-        dataset = PyGNodePropertyDataset(name=DATA, root="datasets")
+        dataset = PyGNodePropPredDataset(name=DATA, root="datasets")
         data = dataset.get_TemporalData()
         
         # split data

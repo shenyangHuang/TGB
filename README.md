@@ -1,5 +1,5 @@
 # TGB
-Temporal Graph Benchmark project repo 
+Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
 
 ### Pypi Install
 
