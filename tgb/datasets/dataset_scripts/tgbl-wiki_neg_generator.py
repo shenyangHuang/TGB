@@ -1,4 +1,4 @@
-import time
+import timeit
 
 
 from tgb.linkproppred.negative_generator import NegativeEdgeGenerator
