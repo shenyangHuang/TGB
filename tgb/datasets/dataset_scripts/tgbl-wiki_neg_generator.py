@@ -65,7 +65,7 @@ def main():
     )
 
     # generate test negative edge set
-    start_time = time.time()
+    start_time = timeit.default_timer()
     split_mode = "test"
     print(
         f"INFO: Start generating negative samples: {split_mode} --- {neg_sample_strategy}"
