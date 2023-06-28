@@ -10,7 +10,7 @@ pip install py-tgb
 
 ### Links and Datasets
 
-The project website can be found [here](https://tgb-website.pages.dev/).
+The project website can be found [here](https://tgb.complexdatalab.com/).
 
 The API documentations can be found [here](https://shenyanghuang.github.io/TGB/).
 
