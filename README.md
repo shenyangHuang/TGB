@@ -1,12 +1,11 @@
 # TGB
-Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
-
-<p>
+<h4>
 	<a href="https://arxiv.org/abs/2307.01026"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
 	<a href="https://pypi.org/project/py-tgb/"><img src="https://img.shields.io/pypi/v/py-tgb.svg?color=brightgreen"></a>
 	<a href="https://tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/website-blue"></a>
 	<a href="https://docs.tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/docs-orange"></a>
-</p>
+</h4>
+Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
 
 ### Pypi Install
 
