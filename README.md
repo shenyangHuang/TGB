@@ -7,6 +7,15 @@
 </h4>
 Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
 
+![TGB dataloading and evaluation pipeline](imgs/pipeline.png)
+
+Overview of the Temporal Graph Benchmark (TGB) pipeline:
+- TGB includes large-scale and realistic datasets from five different domains with both dynamic link prediction and node property prediction tasks
+- TGB automatically downloads datasets and processes them into `numpy`, `PyTorch` and `PyG compatible TemporalData` formats. 
+- Novel TG models can be easily evaluated on TGB datasets via reproducible and realistic evaluation protocols. 
+- TGB provides public and online leaderboards to track recent developments in temporal graph learning domain
+
+
 ### Pypi Install
 
 You can install TGB via [pip](https://pypi.org/project/py-tgb/)
@@ -23,6 +32,7 @@ The API documentations can be found [here](https://shenyanghuang.github.io/TGB/)
 all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
 
 TGB dataloader will also automatically download the dataset
+
 
 ### Install dependency
 Our implementation works with python >= 3.9 and can be installed as follows

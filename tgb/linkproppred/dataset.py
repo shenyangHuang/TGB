@@ -207,9 +207,10 @@ class LinkPropPredDataset(object):
         weights = np.array(df["w"])
 
         edge_label = np.ones(len(df))  # should be 1 for all pos edges
-        self._edge_feat = edge_feat + weights.reshape(
-            -1, 1
-        )  # reshape weights as feature if available
+        # self._edge_feat = edge_feat + weights.reshape(
+        #     -1, 1
+        # )  # reshape weights as feature if available #! to remove
+        self._edge_feat = edge_feat
         self._node_feat = node_feat
 
         full_data = {
