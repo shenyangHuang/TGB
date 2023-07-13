@@ -123,3 +123,7 @@ torch-spline-conv==1.2.2
 pandas==1.5.3
 clint==0.5.1
 ```
+
+
+### Acknowledgments
+We thank the [OGB](https://ogb.stanford.edu/) team for their support throughout this project and sharing their website code for the construction of [TGB website](https://tgb.complexdatalab.com/).
