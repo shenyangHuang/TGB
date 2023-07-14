@@ -35,8 +35,8 @@ TGB dataloader will also automatically download the dataset as well as the negat
 
 ### Running Example Methods
 
-- For the dynamic link property prediction task, see the `examples/linkproppred` folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
-- For the dynamic node property prediction task, see the `examples/nodeproppred` folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
+- For the dynamic link property prediction task, see the [`examples/linkproppred`](https://github.com/shenyangHuang/TGB/tree/main/examples/linkproppred) folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
+- For the dynamic node property prediction task, see the [`examples/nodeproppred`](https://github.com/shenyangHuang/TGB/tree/main/examples/nodeproppred) folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
 - For all other baselines, please see the [TGB_Baselines](https://github.com/fpour/TGB_Baselines) repo.
 
 
