@@ -16,7 +16,7 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 - TGB provides public and online leaderboards to track recent developments in temporal graph learning domain
 
 
-### Pypi Install
+### Pip Install
 
 You can install TGB via [pip](https://pypi.org/project/py-tgb/)
 ```
@@ -31,7 +31,13 @@ The API documentations can be found [here](https://shenyanghuang.github.io/TGB/)
 
 all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
 
-TGB dataloader will also automatically download the dataset
+TGB dataloader will also automatically download the dataset as well as the negative samples for the link property prediction datasets.
+
+### Running Example Methods
+
+- For the dynamic link property prediction task, see the `examples/linkproppred` folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
+- For the dynamic node property prediction task, see the `examples/nodeproppred` folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
+- For all other baselines, please see the [TGB_Baselines](https://github.com/fpour/TGB_Baselines) repo.
 
 
 ### Install dependency
