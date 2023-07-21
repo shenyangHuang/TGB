@@ -302,7 +302,7 @@ class NodePropPredDataset(object):
             source_idx: node ids
             labels: the stacked label vectors
         """
-        if self.label_ts_idx >= (self.label_ts.shape[0] - 1):
+        if self.label_ts_idx >= (self.label_ts.shape[0]):
             # for query that are after the last batch of labels
             return None
         else:
@@ -336,7 +336,10 @@ class NodePropPredDataset(object):
         Returns:
             ts: int, the timestamp of the node labels
         """
-        return self.label_ts[self.label_ts_idx]
+        if (self.label_ts_idx >= self.label_ts.shape[0]):
+            return self.label_ts[-1]
+        else:
+            return self.label_ts[self.label_ts_idx]
 
     @property
     def num_classes(self) -> int:
