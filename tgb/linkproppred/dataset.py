@@ -106,7 +106,11 @@ class LinkPropPredDataset(object):
             dataset_name=self.name, strategy="hist_rnd"
         )
 
-    def _version_check(self):
+    def _version_check(self) -> None:
+        r"""Implement Version checks for dataset files
+        updates the file names based on the current version number
+        prompt the user to download the new version via self.version_passed variable
+        """
         if (self.name in DATA_VERSION_DICT):
             version = DATA_VERSION_DICT[self.name]
         else:
