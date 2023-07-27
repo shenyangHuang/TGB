@@ -1,4 +1,5 @@
 # Temporal Graph Benchmark (TGB)
+![TGB logo](assets/logo.png)
 
 ## Overview
 
