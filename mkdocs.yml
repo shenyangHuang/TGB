@@ -1,4 +1,4 @@
-site_name: TGB
+site_name: Temporal Graph Benchmark
 
 nav:
   - Overview: index.md
@@ -12,6 +12,7 @@ nav:
     - Access Edge Data in Numpy: tutorials/Edge_data_numpy.ipynb
 
 theme:
+  logo: assets/logo.png
   name: material
   features:
     - navigation.tabs
@@ -29,8 +30,8 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline 
         name: Switch to dark mode
-      primary: orange
-      accent: purple 
+      primary: purple 
+      accent: orange
     - scheme: slate 
       toggle:
         icon: material/toggle-switch
