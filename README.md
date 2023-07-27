@@ -18,6 +18,12 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ![TGB dataloading and evaluation pipeline](imgs/pipeline.png)
 
+### Annoucements
+
+**Please update to version `0.7.5`**
+
+the negative samples for the `tgbl-wiki` and `tgbl-review` dataset has been updated and redownload of the dataset would be needed (will be prompted automatically in this version when you use the dataloader)
+
 
 ### Pip Install
 
