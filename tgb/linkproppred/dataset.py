@@ -8,7 +8,13 @@ import requests
 from clint.textui import progress
 
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
-from tgb.utils.info import PROJ_DIR, DATA_URL_DICT, DATA_EVAL_METRIC_DICT, BColors
+from tgb.utils.info import (
+    PROJ_DIR, 
+    DATA_URL_DICT, 
+    DATA_VERSION_DICT, 
+    DATA_EVAL_METRIC_DICT, 
+    BColors
+)
 from tgb.utils.pre_process import (
     csv_to_pd_data,
     process_node_feat,
@@ -67,9 +73,15 @@ class LinkPropPredDataset(object):
             self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist.csv"
             self.meta_dict["nodefile"] = None
 
-        # TODO update the logic here to load the filenames from info.py
         if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
+        
+        self.meta_dict["val_ns"] = self.root + "/" + self.name + "_val_ns.pkl"
+        self.meta_dict["test_ns"] = self.root + "/" + self.name + "_test_ns.pkl"
+
+        #! version check
+        self.version_passed = True
+        self._version_check()
 
         # initialize
         self._node_feat = None
@@ -93,6 +105,30 @@ class LinkPropPredDataset(object):
         self.ns_sampler = NegativeEdgeSampler(
             dataset_name=self.name, strategy="hist_rnd"
         )
+
+    def _version_check(self):
+        if (self.name in DATA_VERSION_DICT):
+            version = DATA_VERSION_DICT[self.name]
+        else:
+            print(f"Dataset {self.name} version number not found.")
+            self.version_passed = False
+            return None
+        
+        if (version > 1):
+            #* check if current version is outdated
+            self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist_v" + str(int(version)) + ".csv"
+            self.meta_dict["nodefile"] = None
+            if self.name == "tgbl-flight":
+                self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat_v" + str(int(version)) + ".csv"
+            self.meta_dict["val_ns"] = self.root + "/" + self.name + "_val_ns_v" + str(int(version)) + ".pkl"
+            self.meta_dict["test_ns"] = self.root + "/" + self.name + "_test_ns_v" + str(int(version)) + ".pkl"
+            
+            if (not osp.exists(self.meta_dict["fname"])):
+                print(f"Dataset {self.name} version {int(version)} not found.")
+                print(f"Please download the latest version of the dataset.")
+                self.version_passed = False
+                return None
+        
 
     def download(self):
         """
@@ -138,6 +174,7 @@ class LinkPropPredDataset(object):
                 with zipfile.ZipFile(path_download, "r") as zip_ref:
                     zip_ref.extractall(self.root)
                 print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
+                self.version_passed = True
         else:
             raise Exception(
                 BColors.FAIL + "Data not found error, download " + self.name + " failed"
@@ -163,7 +200,7 @@ class LinkPropPredDataset(object):
         if self.meta_dict["nodefile"] is not None:
             OUT_NODE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_node")
 
-        if osp.exists(OUT_DF):
+        if (osp.exists(OUT_DF)) and (self.version_passed is True):
             print("loading processed file")
             df = pd.read_pickle(OUT_DF)
             edge_feat = load_pkl(OUT_EDGE_FEAT)
@@ -281,7 +318,7 @@ class LinkPropPredDataset(object):
         load the negative samples for the validation set
         """
         self.ns_sampler.load_eval_set(
-            fname=self.root + "/" + self.name + "_val_ns.pkl", split_mode="val"
+            fname=self.meta_dict["val_ns"], split_mode="val"
         )
 
     def load_test_ns(self) -> None:
@@ -289,7 +326,7 @@ class LinkPropPredDataset(object):
         load the negative samples for the test set
         """
         self.ns_sampler.load_eval_set(
-            fname=self.root + "/" + self.name + "_test_ns.pkl", split_mode="test"
+            fname=self.meta_dict["test_ns"], split_mode="test"
         )
 
     @property

@@ -23,14 +23,25 @@ class BColors:
     UNDERLINE = "\033[4m"
 
 DATA_URL_DICT = {
-    "tgbl-wiki": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki.zip",
-    "tgbl-review": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review.zip",
+    "tgbl-wiki":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki.zip", #v1
+    "tgbl-review": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review.zip", #v1
     "tgbl-coin": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-coin.zip",
     "tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight.zip",
     "tgbl-comment": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-comment.zip",
     "tgbn-trade": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-trade.zip",
     "tgbn-genre": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-genre.zip",
     "tgbn-reddit": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-reddit.zip",
+}
+
+DATA_VERSION_DICT = {
+    "tgbl-wiki": 2,
+    "tgbl-review": 2,
+    "tgbl-coin": 1,
+    "tgbl-comment": 1,
+    "tgbl-flight": 1,
+    "tgbn-trade": 1,
+    "tgbn-genre": 1,
+    "tgbn-reddit": 1,
 }
 
 #"https://object-arbutus.cloud.computecanada.ca/tgb/wiki_neg.zip" #for all negative samples of the wiki dataset

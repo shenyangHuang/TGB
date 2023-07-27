@@ -12,6 +12,7 @@ from tgb.utils.info import (
     PROJ_DIR,
     DATA_URL_DICT,
     DATA_NUM_CLASSES,
+    DATA_VERSION_DICT,
     DATA_EVAL_METRIC_DICT,
     BColors,
 )
@@ -75,9 +76,11 @@ class NodePropPredDataset(object):
         self.meta_dict = meta_dict
         if "fname" not in self.meta_dict:
             self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist.csv"
-            self.meta_dict["nodefile"] = (
-                self.root + "/" + self.name + "_node_labels.csv"
-            )
+            self.meta_dict["nodefile"] = self.root + "/" + self.name + "_node_labels.csv"
+
+         #! version check
+        self.version_passed = True
+        self._version_check()
 
         self._num_classes = DATA_NUM_CLASSES[self.name]
 
@@ -96,6 +99,25 @@ class NodePropPredDataset(object):
             self.pre_process()
 
         self.label_ts_idx = 0  # index for which node lables to return now
+
+    def _version_check(self):
+        if (self.name in DATA_VERSION_DICT):
+            version = DATA_VERSION_DICT[self.name]
+        else:
+            print(f"Dataset {self.name} version number not found.")
+            self.version_passed = False
+            return None
+        
+        if (version > 1):
+            #* check if current version is outdated
+            self.meta_dict["fname"] = self.root + "/" + self.name + "_edgelist_v" + str(int(version)) + ".csv"
+            self.meta_dict["nodefile"] = self.root + "/" + self.name + "_node_labels_v" + str(int(version)) + ".csv"
+            
+            if (not osp.exists(self.meta_dict["fname"])):
+                print(f"Dataset {self.name} version {int(version)} not found.")
+                print(f"Please download the latest version of the dataset.")
+                self.version_passed = False
+                return None
 
     def download(self) -> None:
         r"""
