@@ -187,17 +187,6 @@ def train():
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
-
-            if (np.isnan(np.sum(np_pred))):
-                print (np_pred)
-                print (src)
-                print (dst)
-                print (t)
-                print (msg)
-            
-            if (np.isnan(np.sum(np_true))):
-                print (np_true)
-
             input_dict = {
                 "y_true": np_true,
                 "y_pred": np_pred,
