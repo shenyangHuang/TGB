@@ -1,4 +1,5 @@
 import csv
+import datetime
 
 def count_node_freq(fname, filter_size=100):
 
@@ -322,6 +323,37 @@ def analyze_csv(fname):
 
 
 
+def convert_2_sec(fname, outname):
+    """
+    convert datetime object format = "%Y-%m-%d %H:%M:%S" to seconds
+    #2017-07-24 17:48:15+00:00
+    """
+    format = "%Y-%m-%d %H:%M:%S"
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        with open(outname, "w") as out_file:
+            csv_writer = csv.writer(out_file, delimiter=",")
+            csv_writer.writerow(["timestamp", "user_address", "token_address", "value", "IsSender"])
+            ctr = 0
+            for row in csv_reader:
+                if ctr == 0:
+                    ctr += 1
+                    continue
+                else:
+                    timestamp = row[0][:19]
+                    date_object = datetime.datetime.strptime(timestamp, format)
+                    timestamp_sec = int(date_object.timestamp())
+                    src = row[1]
+                    dst = row[2]
+                    w = float(row[3])
+                    IsSender = int(row[4])
+                    if (w != 0):
+                        csv_writer.writerow([timestamp_sec, src, dst, w, IsSender])
+
+    
+
+
+
 def print_csv(fname):
     # ['token_address', 'from_address', 'to_address', 'value', 'block_timestamp']
     with open(fname, "r") as csv_file:
@@ -330,6 +362,33 @@ def print_csv(fname):
         for row in csv_reader:
             ctr += 1
     print ("there are ", ctr, " rows in the csv file")
+
+
+
+def sort_edgelist_by_time(fname, outname):
+    row_dict = {}
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        with open(outname, "w") as out_file:
+            csv_writer = csv.writer(out_file, delimiter=",")
+            csv_writer.writerow(["timestamp", "user_address", "token_address", "value", "IsSender"])
+            ctr = 0
+            for row in csv_reader:
+                if ctr == 0:
+                    ctr += 1
+                    continue
+                else:
+                    timestamp =int(row[0])
+                    if (timestamp not in row_dict):
+                        row_dict[timestamp] = [row]
+                    else:
+                        row_dict[timestamp].append(row)
+            for i in sorted(row_dict.keys()):
+                rows = row_dict[i]
+                for row in rows:
+                    csv_writer.writerow(row)
+
+
 
 
 
@@ -351,7 +410,7 @@ def generate_aggregate_labels(fname: str, outname: str, days: int = 7):
     # ts, src, subreddit, num_words, score
     with open(outname, "w") as outf:
         write = csv.writer(outf)
-        fields = ["ts", "user", "subreddit", "weight"]
+        fields = ["ts", "user_address", "token_address", "weight"] #["ts", "user", "subreddit", "weight"]
         write.writerow(fields)
 
         with open(fname, "r") as csv_file:
@@ -362,34 +421,38 @@ def generate_aggregate_labels(fname: str, outname: str, days: int = 7):
                 if line_count == 0:
                     line_count += 1
                 else:
-                    ts = int(row[0])
+                    ts = float(row[0])
+                    ts = int(ts)
                     user = row[1]
-                    subreddit = row[2]
-                    w = int(row[3])
+                    item = row[2]
+                    w = float(row[3])
+                    if (w == 0):
+                        print (row)
+
                     if line_count == 1:
                         ts_prev = ts
 
                     if (ts - ts_prev) > timespan:
                         for user in user_dict:
                             total = sum(user_dict[user].values())
-                            subreddit_dict = {
+                            item_dict = {
                                 k: v / total for k, v in user_dict[user].items()
                             }
-                            for subreddit, w in subreddit_dict.items():
+                            for item, w in item_dict.items():
                                 write.writerow(
-                                    [ts_prev + DAY_IN_SEC, user, subreddit, w]
+                                    [ts_prev + DAY_IN_SEC, user, item, w]
                                 )
                         user_dict = {}
                         ts_prev = ts_prev + DAY_IN_SEC  #! move label to the next day
                     else:
                         if user in user_dict:
-                            if subreddit in user_dict[user]:
-                                user_dict[user][subreddit] += w
+                            if item in user_dict[user]:
+                                user_dict[user][item] += w
                             else:
-                                user_dict[user][subreddit] = w
+                                user_dict[user][item] = w
                         else:
                             user_dict[user] = {}
-                            user_dict[user][subreddit] = w
+                            user_dict[user][item] = w
                     line_count += 1
 
 
@@ -426,11 +489,32 @@ def main():
 
 
     #! converting user-user graph to user-token bipartite graph
-    out_name = "tgbl-token_edgelist.csv"
-    node_dict = load_node_dict("node_list.csv")
-    to_bipartite('tgbl-token-edgelist_100.csv', out_name, node_dict)
+    # out_name = "tgbl-token_edgelist.csv"
+    # node_dict = load_node_dict("node_list.csv")
+    # to_bipartite('tgbl-token-edgelist_100.csv', out_name, node_dict)
+    # analyze_csv(out_name)
 
-    analyze_csv(out_name)
+
+    #! convert datetime to seconds
+    #convert_2_sec("tgbl-token_edgelist_old.csv", "tgbn-token_edgelist.csv")
+
+
+    #! sort the timestamps in the edgelist
+    # fname = "tgbn-token_edgelist.csv"
+    # outname = "tgbn-token_edgelist_sorted.csv"
+    # sort_edgelist_by_time(fname, outname)
+
+
+
+    #! generate node labels
+    edgefile = "tgbn-token_edgelist.csv"
+    outfile = "tgbn-token_node_labels.csv"
+    days = 7
+    generate_aggregate_labels(edgefile, outfile, days=days)
+
+
+
+
 
     
 

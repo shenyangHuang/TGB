@@ -80,13 +80,12 @@ def load_edgelist_trade(fname: str, label_size=255):
 
                 u = node_ids[u]
                 i = node_ids[v]
-                feat = np.array([w])
                 u_list[idx - 1] = u
                 i_list[idx - 1] = i
                 ts_list[idx - 1] = ts
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = w
-                feat_l[idx - 1] = feat
+                feat_l[idx - 1] = np.array([w])
                 idx += 1
 
     return (
@@ -143,14 +142,13 @@ def load_trade_label_dict(
 
 
 """
-functions for subreddits dataset
+functions for tgbn-token
 ---------------------------------------
 """
 
-
-def load_edgelist_sr(
+def load_edgelist_token(
     fname: str,
-    label_size: int = 2221,
+    label_size: int = 1001,
 ) -> pd.DataFrame:
     """
     load the edgelist into pandas dataframe
@@ -181,6 +179,106 @@ def load_edgelist_sr(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
+        # [timestamp,user_address,token_address,value,IsSender]
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+            else:
+                ts = row[0]
+                src = row[1]
+                token = row[2]
+                w = float(row[3])
+                attr = float(row[4])
+                if src not in node_ids:
+                    node_ids[src] = node_uid
+                    node_uid += 1
+                if token not in rd_dict:
+                    rd_dict[token] = sr_uid
+                    sr_uid += 1
+                u = node_ids[src]
+                i = rd_dict[token]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = w
+                feat_l[idx - 1] = np.array([w,attr])
+                idx += 1
+
+        return (
+            pd.DataFrame(
+                {
+                    "u": u_list,
+                    "i": i_list,
+                    "ts": ts_list,
+                    "label": label_list,
+                    "idx": idx_list,
+                    "w": w_list,
+                }
+            ),
+            feat_l,
+            node_ids,
+            rd_dict,
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+functions for subreddits dataset
+---------------------------------------
+"""
+
+
+def load_edgelist_sr(
+    fname: str,
+    label_size: int = 2221,
+) -> pd.DataFrame:
+    """
+    load the edgelist into pandas dataframe
+    also outputs index for the user nodes and genre nodes
+    Parameters:
+        fname: str, name of the input file
+        label_size: int, number of genres
+    Returns:
+        df: a pandas dataframe containing the edgelist data
+    """
+    feat_size = 1 #2
+    num_lines = sum(1 for line in open(fname)) - 1
+    #print("number of lines counted", num_lines)
+    print("there are ", num_lines, " lines in the raw data")
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+
+    node_ids = {}
+    rd_dict = {}
+    node_uid = label_size  # node ids start after all the genres
+    sr_uid = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
         # ['ts', 'src', 'subreddit', 'num_words', 'score']
         for row in tqdm(csv_reader):
             if idx == 0:
@@ -189,7 +287,7 @@ def load_edgelist_sr(
                 ts = row[0]
                 src = row[1]
                 subreddit = row[2]
-                num_words = int(row[3])
+                #num_words = int(row[3])
                 score = int(row[4])
                 if src not in node_ids:
                     node_ids[src] = node_uid
@@ -205,7 +303,7 @@ def load_edgelist_sr(
                 ts_list[idx - 1] = ts
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = w
-                feat_l[idx - 1] = np.array([num_words, score])
+                feat_l[idx - 1] = np.array([w])
                 idx += 1
 
         return (
@@ -232,7 +330,6 @@ def load_labels_sr(
 ):
     """
     load the node labels for subreddit dataset
-    #TODO can be further optimized when using numpy and not appending
     """
     if not osp.exists(fname):
         raise FileNotFoundError(f"File not found at {fname}")
@@ -794,13 +891,12 @@ def load_edgelist_datetime(fname, label_size=514):
 
                 u = node_ids[user_id]
                 i = label_ids[genre]
-                feat = np.zeros((1))
                 u_list[idx - 1] = u
                 i_list[idx - 1] = i
                 ts_list[idx - 1] = ts
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = w
-                feat_l[idx - 1] = feat
+                feat_l[idx - 1] = np.asarray([w])
                 idx += 1
 
     return (
@@ -841,66 +937,6 @@ def load_genre_list(fname):
 functions for wikipedia and un_trade
 -------------------------------------------
 """
-
-
-def _to_pd_data(
-    fname: str,
-):
-    r"""
-    convert the raw .csv data to pandas dataframe and numpy array
-    input .csv file format should be: timestamp, node u, node v, weight w,
-    Args:
-        fname: the path to the raw data
-    """
-    u_list, i_list, ts_list, label_list = [], [], [], []
-    feat_l = []
-    idx_list = []
-    w_list = []
-
-    with open(fname) as f:
-        s = next(f)
-        node_ids = {}
-        unique_id = 0
-        for idx, line in enumerate(f):
-            e = line.strip().split(",")
-            if len(e) > 4:
-                print(e)
-            # convert to integer node id
-            ts = float(e[0])
-
-            if e[1] not in node_ids:
-                node_ids[e[1]] = unique_id
-                unique_id += 1
-            if e[2] not in node_ids:
-                node_ids[e[2]] = unique_id
-                unique_id += 1
-
-            u = node_ids[e[1]]
-            i = node_ids[e[2]]
-            w = float(e[3])
-
-            label = 0
-            feat = np.zeros((1))
-
-            u_list.append(u)
-            i_list.append(i)
-            ts_list.append(ts)
-            label_list.append(label)
-            idx_list.append(idx)
-            feat_l.append(feat)
-            w_list.append(w)
-
-    return pd.DataFrame(
-        {
-            "u": u_list,
-            "i": i_list,
-            "ts": ts_list,
-            "label": label_list,
-            "idx": idx_list,
-            "w": w_list,
-        }
-    ), np.array(feat_l)
-
 
 def reindex(
     df: pd.DataFrame,
