@@ -145,10 +145,10 @@ class PyGNodePropPredDataset(InMemoryDataset):
         dst = torch.from_numpy(self.dataset.full_data["destinations"])
         t = torch.from_numpy(self.dataset.full_data["timestamps"])
         edge_label = torch.from_numpy(self.dataset.full_data["edge_label"])
-        msg = torch.from_numpy(self.dataset.full_data["edge_feat"]).reshape(
-            [-1, 1]
-        )  # use edge features here if available
-
+        msg = torch.from_numpy(self.dataset.full_data["edge_feat"])
+        # msg = torch.from_numpy(self.dataset.full_data["edge_feat"]).reshape(
+        #     [-1, 1]
+        # ) 
         # * check typing
         if src.dtype != torch.int64:
             src = src.long()

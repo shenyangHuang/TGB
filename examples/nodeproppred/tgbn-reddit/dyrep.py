@@ -48,7 +48,7 @@ def train():
 
     total_loss = 0
     label_t = dataset.get_label_time()  # check when does the first label start
-    num_labels = 0
+    num_label_ts = 0
     total_score = 0
     for batch in train_loader:
         batch = batch.to(device)
@@ -120,7 +120,7 @@ def train():
             result_dict = evaluator.eval(input_dict)
             score = result_dict[metric]
             total_score += score
-            num_labels += label_ts.shape[0]
+            num_label_ts += 1
 
             loss.backward()
             optimizer.step()
@@ -131,9 +131,9 @@ def train():
         model['memory'].detach()
 
     metric_dict = {
-        "ce": total_loss / num_labels,
+        "ce": total_loss / num_label_ts,
     }
-    metric_dict[metric] = total_score / num_labels
+    metric_dict[metric] = total_score / num_label_ts
     return metric_dict
 
 
@@ -145,7 +145,7 @@ def test(loader):
 
     total_score = 0
     label_t = dataset.get_label_time()  # check when does the first label start
-    num_labels = 0
+    num_label_ts = 0
 
     for batch in tqdm(loader):
         batch = batch.to(device)
@@ -213,12 +213,12 @@ def test(loader):
             result_dict = evaluator.eval(input_dict)
             score = result_dict[metric]
             total_score += score
-            num_labels += label_ts.shape[0]
+            num_label_ts += 1
 
         process_edges(src, dst, t, msg)
 
     metric_dict = {}
-    metric_dict[metric] = total_score / num_labels
+    metric_dict[metric] = total_score / num_label_ts
     return metric_dict
 
 # ==========

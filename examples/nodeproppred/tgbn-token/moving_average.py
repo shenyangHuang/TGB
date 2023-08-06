@@ -12,11 +12,9 @@ from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 from modules.heuristics import MovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
-
-device = "cpu"
-
 window = 7
-name = "tgbn-trade"
+device = "cpu"
+name = "tgbn-token"
 dataset = PyGNodePropPredDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
@@ -94,6 +92,7 @@ def test_n_upate(loader):
 """
 train, val and test for one epoch only
 """
+
 start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)

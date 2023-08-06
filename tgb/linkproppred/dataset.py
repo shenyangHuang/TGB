@@ -141,7 +141,7 @@ class LinkPropPredDataset(object):
         """
         # check if the file already exists
         if osp.exists(self.meta_dict["fname"]):
-            print("file found, skipping download")
+            print("raw file found, skipping download")
             return
 
         inp = input(
@@ -248,9 +248,6 @@ class LinkPropPredDataset(object):
         weights = np.array(df["w"])
 
         edge_label = np.ones(len(df))  # should be 1 for all pos edges
-        # self._edge_feat = edge_feat + weights.reshape(
-        #     -1, 1
-        # )  # reshape weights as feature if available #! to remove
         self._edge_feat = edge_feat
         self._node_feat = node_feat
 

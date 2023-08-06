@@ -6,24 +6,28 @@ simply predict last seen label for the node
 import timeit
 import numpy as np
 from torch_geometric.loader import TemporalDataLoader
+from tqdm import tqdm
+import torch
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
-from modules.heuristics import MovingAverage
+from modules.heuristics import PersistantForecaster
 from tgb.nodeproppred.evaluate import Evaluator
 
 
 device = "cpu"
-
-window = 7
-name = "tgbn-trade"
+name = "tgbn-token"
 dataset = PyGNodePropPredDataset(name=name, root="datasets")
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
 
+all_nodes = torch.cat((data.src, data.dst), 0)
+all_nodes = all_nodes.unique()
+print (all_nodes.shape[0])
+
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes, window=window)
+forecaster = PersistantForecaster(num_classes)
 evaluator = Evaluator(name=name)
 
 
@@ -40,12 +44,17 @@ val_loader = TemporalDataLoader(val_data, batch_size=batch_size)
 test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 
+"""
+continue debug here
+"""
+
+
 def test_n_upate(loader):
     label_t = dataset.get_label_time()  # check when does the first label start
     num_label_ts = 0
     total_score = 0
 
-    for batch in loader:
+    for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 
@@ -82,7 +91,6 @@ def test_n_upate(loader):
             }
             result_dict = evaluator.eval(input_dict)
             score = result_dict[eval_metric]
-
             total_score += score
             num_label_ts += 1
 
@@ -94,6 +102,7 @@ def test_n_upate(loader):
 """
 train, val and test for one epoch only
 """
+
 start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)

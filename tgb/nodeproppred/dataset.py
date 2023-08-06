@@ -20,6 +20,7 @@ from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.pre_process import (
     load_label_dict,
     load_edgelist_sr,
+    load_edgelist_token,
     load_edgelist_datetime,
     load_trade_label_dict,
     load_edgelist_trade,
@@ -134,7 +135,7 @@ class NodePropPredDataset(object):
         if osp.exists(self.meta_dict["fname"]) and osp.exists(
             self.meta_dict["nodefile"]
         ):
-            print("file found, skipping download")
+            print("raw file found, skipping download")
             return
 
         else:
@@ -192,27 +193,38 @@ class NodePropPredDataset(object):
         OUT_DF = self.root + "/" + "ml_{}.pkl".format(self.name)
         OUT_NODE_DF = self.root + "/" + "ml_{}_node.pkl".format(self.name)
         OUT_LABEL_DF = self.root + "/" + "ml_{}_label.pkl".format(self.name)
+        OUT_EDGE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_edge")
 
-        # * logic for tgbl-reddit, as node label file is too big to store on disc
-        if self.name == "tgbn-reddit":
-            if osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF):
+        # * logic for large datasets, as node label file is too big to store on disc
+        if self.name == "tgbn-reddit" or self.name == "tgbn-token":
+            if osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF) and osp.exists(OUT_EDGE_FEAT):
                 df = pd.read_pickle(OUT_DF)
+                edge_feat = load_pkl(OUT_EDGE_FEAT)
+                if (self.name == "tgbn-token"):
+                    #! taking log normalization for numerical stability
+                    print ("applying log normalization for weights in tgbn-token")
+                    edge_feat[:,0] = np.log(edge_feat[:,0])
                 node_ids = load_pkl(OUT_NODE_DF)
                 labels_dict = load_pkl(OUT_LABEL_DF)
                 node_label_dict = load_label_dict(
                     self.meta_dict["nodefile"], node_ids, labels_dict
                 )
-                return df, node_label_dict
+                return df, node_label_dict, edge_feat
 
         # * load the preprocessed file if possible
-        if osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF):
+        if osp.exists(OUT_DF) and osp.exists(OUT_NODE_DF) and osp.exists(OUT_EDGE_FEAT):
             print("loading processed file")
             df = pd.read_pickle(OUT_DF)
             node_label_dict = load_pkl(OUT_NODE_DF)
+            edge_feat = load_pkl(OUT_EDGE_FEAT)
         else:  # * process the file
             print("file not processed, generating processed file")
             if self.name == "tgbn-reddit":
                 df, edge_feat, node_ids, labels_dict = load_edgelist_sr(
+                    self.meta_dict["fname"], label_size=self._num_classes
+                )
+            elif self.name == "tgbn-token":
+                df, edge_feat, node_ids, labels_dict = load_edgelist_token(
                     self.meta_dict["fname"], label_size=self._num_classes
                 )
             elif self.name == "tgbn-genre":
@@ -225,6 +237,7 @@ class NodePropPredDataset(object):
                 )
 
             df.to_pickle(OUT_DF)
+            save_pkl(edge_feat, OUT_EDGE_FEAT)
 
             if self.name == "tgbn-trade":
                 node_label_dict = load_trade_label_dict(
@@ -236,7 +249,7 @@ class NodePropPredDataset(object):
                 )
 
             if (
-                self.name != "tgbn-reddit"
+                self.name != "tgbn-reddit" and self.name != "tgbn-token"
             ):  # don't save subreddits on disc, the node label file is too big
                 save_pkl(node_label_dict, OUT_NODE_DF)
             else:
@@ -244,7 +257,7 @@ class NodePropPredDataset(object):
                 save_pkl(labels_dict, OUT_LABEL_DF)
             
             print("file processed and saved")
-        return df, node_label_dict
+        return df, node_label_dict, edge_feat
 
     def pre_process(self) -> None:
         """
@@ -256,13 +269,14 @@ class NodePropPredDataset(object):
         if ("fname" not in self.meta_dict) or ("nodefile" not in self.meta_dict):
             raise Exception("meta_dict does not contain all required filenames")
 
-        df, node_label_dict = self.generate_processed_files()
+        df, node_label_dict, edge_feat = self.generate_processed_files()
         sources = np.array(df["u"])
         destinations = np.array(df["i"])
         timestamps = np.array(df["ts"])
         edge_idxs = np.array(df["idx"])
         edge_label = np.ones(sources.shape[0])
-        self._edge_feat = np.array(df["w"])
+        #self._edge_feat = np.array(df["w"])
+        self._edge_feat = edge_feat
 
         full_data = {
             "sources": sources,

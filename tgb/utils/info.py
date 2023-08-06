@@ -31,6 +31,7 @@ DATA_URL_DICT = {
     "tgbn-trade": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-trade.zip",
     "tgbn-genre": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-genre.zip",
     "tgbn-reddit": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-reddit.zip",
+    "tgbn-token": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-token.zip",
 }
 
 DATA_VERSION_DICT = {
@@ -42,6 +43,7 @@ DATA_VERSION_DICT = {
     "tgbn-trade": 1,
     "tgbn-genre": 1,
     "tgbn-reddit": 1,
+    "tgbn-token": 1,
 }
 
 #"https://object-arbutus.cloud.computecanada.ca/tgb/wiki_neg.zip" #for all negative samples of the wiki dataset
@@ -56,6 +58,7 @@ DATA_EVAL_METRIC_DICT = {
     "tgbn-trade": "ndcg",
     "tgbn-genre": "ndcg",
     "tgbn-reddit": "ndcg",
+    "tgbn-token": "ndcg",
 }
 
 
@@ -63,4 +66,5 @@ DATA_NUM_CLASSES = {
     "tgbn-trade": 255,
     "tgbn-genre": 513,
     "tgbn-reddit": 698,
+    "tgbn-token": 1001,
 }

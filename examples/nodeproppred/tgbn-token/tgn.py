@@ -3,6 +3,7 @@ import argparse
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
+import numpy as np
 
 from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn import TGNMemory
@@ -26,6 +27,7 @@ parser.parse_args()
 args = parser.parse_args()
 # setting random seed
 seed = int(args.seed) #1,2,3,4,5
+print ("setting random seed to be", seed)
 torch.manual_seed(seed)
 set_random_seed(seed)
 
@@ -34,7 +36,7 @@ lr = 0.0001
 epochs = 50
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-name = "tgbn-trade"
+name = "tgbn-token"
 dataset = PyGNodePropPredDataset(name=name, root="datasets")
 train_mask = dataset.train_mask
 val_mask = dataset.val_mask
@@ -121,10 +123,10 @@ def train():
 
     total_loss = 0
     label_t = dataset.get_label_time()  # check when does the first label start
-    num_label_ts = 0
     total_score = 0
+    num_label_ts = 0
 
-    for batch in train_loader:
+    for batch in tqdm(train_loader):
         batch = batch.to(device)
         optimizer.zero_grad()
         src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
@@ -185,7 +187,6 @@ def train():
             loss = criterion(pred, labels.to(device))
             np_pred = pred.cpu().detach().numpy()
             np_true = labels.cpu().detach().numpy()
-
             input_dict = {
                 "y_true": np_true,
                 "y_pred": np_pred,
@@ -195,7 +196,6 @@ def train():
             score = result_dict[eval_metric]
             total_score += score
             num_label_ts += 1
-
             loss.backward()
             optimizer.step()
             total_loss += float(loss)
@@ -216,11 +216,12 @@ def test(loader):
     memory.eval()
     gnn.eval()
     node_pred.eval()
-    total_score = 0
+
     label_t = dataset.get_label_time()  # check when does the first label start
     num_label_ts = 0
+    total_score = 0
 
-    for batch in loader:
+    for batch in tqdm(loader):
         batch = batch.to(device)
         src, dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 

@@ -41,7 +41,7 @@ test_loader = TemporalDataLoader(test_data, batch_size=batch_size)
 
 def test_n_upate(loader):
     label_t = dataset.get_label_time()  # check when does the first label start
-    num_labels = 0
+    num_label_ts = 0
     total_score = 0
 
     for batch in loader:
@@ -82,10 +82,10 @@ def test_n_upate(loader):
             result_dict = evaluator.eval(input_dict)
             score = result_dict[eval_metric]
             total_score += score
-            num_labels += label_ts.shape[0]
+            num_label_ts += 1
 
     metric_dict = {}
-    metric_dict[eval_metric] = total_score / num_labels
+    metric_dict[eval_metric] = total_score / num_label_ts 
     return metric_dict
 
 

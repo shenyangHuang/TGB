@@ -13,6 +13,7 @@ import timeit
 from tqdm import tqdm
 import torch
 from torch_geometric.loader import TemporalDataLoader
+import numpy as np
 
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed
@@ -23,6 +24,7 @@ from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
 from modules.memory_module import DyRepMemory
+from modules.early_stopping import  EarlyStopMonitor
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 
 
@@ -230,7 +232,7 @@ start_overall = timeit.default_timer()
 args, _ = get_args()
 print("INFO: Arguments:", args)
 
-DATA = "tgbn-genre"
+DATA = "tgbn-token"
 LR = args.lr
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value  
