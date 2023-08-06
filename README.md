@@ -18,9 +18,21 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ![TGB dataloading and evaluation pipeline](imgs/pipeline.png)
 
+**To submit to [TGB leaderboard](https://tgb.complexdatalab.com/), please fill in this [google form](https://forms.gle/SEsXvN1QHo9tSFwx9)**
+
+**See all version differences and update notes [here](https://tgb.complexdatalab.com/docs/update/)**
+
 ### Annoucements
 
-**Please update to version `0.7.5`**
+**Please update to version `0.8.0`**
+
+#### version `0.8.0`
+
+fixing metric computation issue in node property prediction task, `tgbn` leaderboards results are updated to reflect the changes.
+Please refer to `examples/nodeproppred/` example folders to how to compute the metric correctly. No changes for `linkproppred` datasets.
+
+
+#### version `0.7.5`
 
 the negative samples for the `tgbl-wiki` and `tgbl-review` dataset has been updated and redownload of the dataset would be needed (will be prompted automatically in this version when you use the dataloader)
 
