@@ -10,22 +10,16 @@ now reporting transductive MRR vs. inductive MRR
 not used for leaderboard    
 """
 
-import math
 import timeit
-
 import os
 import os.path as osp
 from pathlib import Path
 import numpy as np
 
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.nn import Linear
 
-from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
 
-from torch_geometric.nn import TransformerConv
 
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
@@ -37,6 +31,7 @@ from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
 from modules.memory_module import TGNMemory
 from modules.early_stopping import  EarlyStopMonitor
+from modules.nodebank import NodeBank
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
@@ -112,10 +107,14 @@ def train():
 
 
 @torch.no_grad()
-def test(loader, neg_sampler, split_mode):
+def test_tvi(loader, neg_sampler, split_mode, nodebank):
     r"""
     Evaluated the dynamic link prediction
-    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
+    each positive edge is evaluated against many negative edges
+    compute both transductive and inductive MRR
+    transductive: the source node to predict from is in the training set
+    inductive: the source node to predict from has not been observed in the test set
+    #! nodebank should have stored the edges from training set
 
     Parameters:
         loader: an object containing positive attributes of the positive edges of the evaluation set
@@ -128,7 +127,9 @@ def test(loader, neg_sampler, split_mode):
     model['gnn'].eval()
     model['link_pred'].eval()
 
-    perf_list = []
+
+    transductive_list = []
+    inductive_list = []
 
     for pos_batch in loader:
         pos_src, pos_dst, pos_t, pos_msg = (
@@ -141,6 +142,10 @@ def test(loader, neg_sampler, split_mode):
         neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, split_mode=split_mode)
 
         for idx, neg_batch in enumerate(neg_batch_list):
+
+            src_node = pos_src[idx].item()
+
+
             src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
             dst = torch.tensor(
                 np.concatenate(
@@ -172,15 +177,20 @@ def test(loader, neg_sampler, split_mode):
                 "y_pred_neg": np.array(y_pred[1:, :].squeeze(dim=-1).cpu()),
                 "eval_metric": [metric],
             }
-            perf_list.append(evaluator.eval(input_dict)[metric])
+
+            if (nodebank.query_node(src_node)):
+                transductive_list.append(evaluator.eval(input_dict)[metric])
+            else:
+                inductive_list.append(evaluator.eval(input_dict)[metric])
 
         # Update memory and neighbor loader with ground-truth state.
         model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
-    perf_metrics = float(torch.tensor(perf_list).mean())
+    transductive_metrics = float(torch.tensor(transductive_list).mean())
+    inductive_metrics = float(torch.tensor(inductive_list).mean())
 
-    return perf_metrics
+    return transductive_metrics, inductive_metrics
 
 # ==========
 # ==========
@@ -278,6 +288,11 @@ print("==========================================================")
 evaluator = Evaluator(name=DATA)
 neg_sampler = dataset.negative_sampler
 
+#! initialize the nodebank
+nodebank = NodeBank(train_data.src.cpu().numpy(), train_data.dst.cpu().numpy())
+print ("tracking transductive and inductive mrr")
+
+
 # for saving the results...
 results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
 if not osp.exists(results_path):
@@ -317,13 +332,16 @@ for run_idx in range(NUM_RUNS):
 
         # validation
         start_val = timeit.default_timer()
-        perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
-        print(f"\tValidation {metric}: {perf_metric_val: .4f}")
+        #perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
+        transductive_mrr, inductive_mrr = test_tvi(val_loader, neg_sampler, split_mode="val", nodebank=nodebank)
+        print(f"\tValidation transductive {metric}: {transductive_mrr: .4f}")
+        print(f"\tValidation inductive {metric}: {inductive_mrr: .4f}")
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
-        val_perf_list.append(perf_metric_val)
+        #val_perf_list.append(perf_metric_val)
+        val_perf_list.append(transductive_mrr)
 
         # check for early stopping
-        if early_stopper.step_check(perf_metric_val, model):
+        if early_stopper.step_check(transductive_mrr, model):
             break
 
     train_val_time = timeit.default_timer() - start_train_val
@@ -338,10 +356,14 @@ for run_idx in range(NUM_RUNS):
 
     # final testing
     start_test = timeit.default_timer()
-    perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
+    #perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
+    transductive_test, inductive_test = test_tvi(test_loader, neg_sampler, split_mode="test", nodebank=nodebank)
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-    print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+    print(f"\tTest: {metric}: {transductive_test: .4f}")
+    print(f"\tTest: {metric}: {inductive_test: .4f}")
+    # print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+
     test_time = timeit.default_timer() - start_test
     print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
@@ -350,7 +372,7 @@ for run_idx in range(NUM_RUNS):
                   'run': run_idx,
                   'seed': SEED,
                   f'val {metric}': val_perf_list,
-                  f'test {metric}': perf_metric_test,
+                  f'test {metric}': transductive_test,
                   'test_time': test_time,
                   'tot_train_val_time': train_val_time
                   }, 
