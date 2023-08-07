@@ -1,5 +1,4 @@
 !requirements*.txt
-
 #dataset
 *.xz
 *.parquet
@@ -22,6 +21,7 @@ electronics/
 software/
 *.py[cod]
 *$py.class
+saved_models/
 
 # C extensions
 *.so
