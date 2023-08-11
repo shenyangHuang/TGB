@@ -132,7 +132,9 @@ def get_dataset_stats(data, temporal_stats=False):
 
     # compute new node ratio 
     val_nn_ratio = get_node_ratio(data['train'], data['val'])
-    test_nn_ratio = get_node_ratio(data['train_val'], data['test'])
+    #test_nn_ratio = get_node_ratio(data['train_val'], data['test'])
+    test_nn_ratio = get_node_ratio(data['train'], data['test'])
+
 
     stats_dict = {
                   'num_nodes': num_nodes,
@@ -189,7 +191,7 @@ def main():
                      'timestamps': data['timestamps'],
                      }
 
-    elif DATA in ['tgbn-trade', 'tgbn-genre', 'tgbn-reddit']:
+    elif DATA in ['tgbn-trade', 'tgbn-genre', 'tgbn-reddit', 'tgbn-token']:
         # load data: node prop. pred.
         dataset = PyGNodePropPredDataset(name=DATA, root="datasets")
         data = dataset.get_TemporalData()
