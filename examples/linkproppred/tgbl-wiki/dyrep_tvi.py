@@ -1,15 +1,18 @@
 """
-Dynamic Link Prediction with a TGN model with Early Stopping
-Reference: 
+DyRep
+    This has been implemented with intuitions from the following sources:
+    - https://github.com/twitter-research/tgn
     - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 
+    Spec.:
+        - Memory Updater: RNN
+        - Embedding Module: ID
+        - Message Function: ATTN
+
 command for an example run:
-    python examples/linkproppred/tgbl-wiki/tgn.py --data "tgbl-wiki" --num_run 1 --seed 1
-
-now reporting transductive MRR vs. inductive MRR
-not used for leaderboard    
+    python examples/linkproppred/tgbl-wiki/dyrep.py --data "tgbl-wiki" --num_run 1 --seed 1
 """
-
+import math
 import timeit
 import os
 import os.path as osp
@@ -17,7 +20,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch_geometric.loader import TemporalDataLoader
-
 
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
@@ -27,10 +29,10 @@ from modules.emb_module import GraphAttentionEmbedding
 from modules.msg_func import IdentityMessage
 from modules.msg_agg import LastAggregator
 from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import TGNMemory
+from modules.memory_module import DyRepMemory
 from modules.early_stopping import  EarlyStopMonitor
-from modules.nodebank import NodeBank
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
+
 
 
 # ==========
@@ -39,7 +41,7 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 def train():
     r"""
-    Training procedure for TGN model
+    Training procedure for DyRep model
     This function uses some objects that are globally defined in the current scrips 
 
     Parameters:
@@ -48,14 +50,12 @@ def train():
         None
             
     """
-
     model['memory'].train()
     model['gnn'].train()
     model['link_pred'].train()
 
     model['memory'].reset_state()  # Start with a fresh memory.
     neighbor_loader.reset_state()  # Start with an empty graph.
-
 
     total_loss = 0
     for batch in train_loader:
@@ -79,13 +79,6 @@ def train():
 
         # Get updated memory of all nodes involved in the computation.
         z, last_update = model['memory'](n_id)
-        z = model['gnn'](
-            z,
-            last_update,
-            edge_index,
-            data.t[e_id].to(device),
-            data.msg[e_id].to(device),
-        )
 
         pos_out = model['link_pred'](z[assoc[src]], z[assoc[pos_dst]])
         neg_out = model['link_pred'](z[assoc[src]], z[assoc[neg_dst]])
@@ -93,15 +86,24 @@ def train():
         loss = criterion(pos_out, torch.ones_like(pos_out))
         loss += criterion(neg_out, torch.zeros_like(neg_out))
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(src, pos_dst, t, msg)
+        # update the memory with ground-truth
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(src, pos_dst, t, msg, z, assoc)
+
+        # update neighbor loader
         neighbor_loader.insert(src, pos_dst)
 
         loss.backward()
         optimizer.step()
         model['memory'].detach()
         total_loss += float(loss) * batch.num_events
-        
+
         # checking GPU memory usage
         free_mem, used_mem, total_mem = 0, 0, 0
         if torch.cuda.is_available():
@@ -121,11 +123,7 @@ def train():
 def test_tvi(loader, neg_sampler, split_mode, nodebank):
     r"""
     Evaluated the dynamic link prediction
-    each positive edge is evaluated against many negative edges
-    compute both transductive and inductive MRR
-    transductive: the source node to predict from is in the training set
-    inductive: the source node to predict from has not been observed in the test set
-    #! nodebank should have stored the edges from training set
+    Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
 
     Parameters:
         loader: an object containing positive attributes of the positive edges of the evaluation set
@@ -138,9 +136,8 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
     model['gnn'].eval()
     model['link_pred'].eval()
 
-
-    transductive_list = []
-    inductive_list = []
+    perf_trans_list = []
+    perf_induc_list = []
 
     for pos_batch in loader:
         pos_src, pos_dst, pos_t, pos_msg = (
@@ -153,10 +150,6 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
         neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, split_mode=split_mode)
 
         for idx, neg_batch in enumerate(neg_batch_list):
-
-            src_node = pos_src[idx].item()
-
-
             src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
             dst = torch.tensor(
                 np.concatenate(
@@ -172,41 +165,46 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
 
             # Get updated memory of all nodes involved in the computation.
             z, last_update = model['memory'](n_id)
-            z = model['gnn'](
-                z,
-                last_update,
-                edge_index,
-                data.t[e_id].to(device),
-                data.msg[e_id].to(device),
-            )
 
             y_pred = model['link_pred'](z[assoc[src]], z[assoc[dst]])
-
             # compute MRR
             input_dict = {
                 "y_pred_pos": np.array([y_pred[0, :].squeeze(dim=-1).cpu()]),
                 "y_pred_neg": np.array(y_pred[1:, :].squeeze(dim=-1).cpu()),
                 "eval_metric": [metric],
             }
-
-            if (nodebank.query_node(src_node)):
-                transductive_list.append(evaluator.eval(input_dict)[metric])
+            # perf_list.append(evaluator.eval(input_dict)[metric])
+            if nodebank.query_node(src_node):
+                perf_trans_list.append(evaluator.eval(input_dict)[metric])
             else:
-                inductive_list.append(evaluator.eval(input_dict)[metric])
+                perf_induc_list.append(evaluator.eval(input_dict)[metric])
+        
+        # update the memory with positive edges
+        n_id = torch.cat([pos_src, pos_dst]).unique()
+        n_id, edge_index, e_id = neighbor_loader(n_id)
+        assoc[n_id] = torch.arange(n_id.size(0), device=device)
+        z, last_update = model['memory'](n_id)
+        z = model['gnn'](
+            z,
+            last_update,
+            edge_index,
+            data.t[e_id].to(device),
+            data.msg[e_id].to(device),
+        )
+        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg, z, assoc)
 
-        # Update memory and neighbor loader with ground-truth state.
-        model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
+        # update the neighbor loader
         neighbor_loader.insert(pos_src, pos_dst)
 
-    transductive_metrics = float(torch.tensor(transductive_list).mean())
-    inductive_metrics = float(torch.tensor(inductive_list).mean())
+    # perf_metric = float(torch.tensor(perf_list).mean())
+    perf_trans = float(torch.tensor(perf_trans_list))
+    perf_induc = float(torch.tensor(perf_induc_list))
 
-    return transductive_metrics, inductive_metrics
+    return perf_trans, perf_induc
 
 # ==========
 # ==========
 # ==========
-
 
 # Start...
 start_overall = timeit.default_timer()
@@ -229,8 +227,9 @@ PATIENCE = args.patience
 NUM_RUNS = args.num_run
 NUM_NEIGHBORS = 10
 
-
-MODEL_NAME = 'TGN'
+MODEL_NAME = 'DyRep'
+USE_SRC_EMB_IN_MSG = False
+USE_DST_EMB_IN_MSG = True
 # ==========
 
 # set the device
@@ -260,15 +259,20 @@ min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
-memory = TGNMemory(
+# 1) memory
+memory = DyRepMemory(
     data.num_nodes,
     data.msg.size(-1),
     MEM_DIM,
     TIME_DIM,
     message_module=IdentityMessage(data.msg.size(-1), MEM_DIM, TIME_DIM),
     aggregator_module=LastAggregator(),
+    memory_updater_type='rnn',
+    use_src_emb_in_msg=USE_SRC_EMB_IN_MSG,
+    use_dst_emb_in_msg=USE_DST_EMB_IN_MSG
 ).to(device)
 
+# 2) GNN
 gnn = GraphAttentionEmbedding(
     in_channels=MEM_DIM,
     out_channels=EMB_DIM,
@@ -276,12 +280,14 @@ gnn = GraphAttentionEmbedding(
     time_enc=memory.time_enc,
 ).to(device)
 
+# 3) link predictor
 link_pred = LinkPredictor(in_channels=EMB_DIM).to(device)
 
 model = {'memory': memory,
          'gnn': gnn,
          'link_pred': link_pred}
 
+# define an optimizer
 optimizer = torch.optim.Adam(
     set(model['memory'].parameters()) | set(model['gnn'].parameters()) | set(model['link_pred'].parameters()),
     lr=LR,
@@ -301,8 +307,7 @@ neg_sampler = dataset.negative_sampler
 
 #! initialize the nodebank
 nodebank = NodeBank(train_data.src.cpu().numpy(), train_data.dst.cpu().numpy())
-print ("tracking transductive and inductive mrr")
-
+print ("INFO: Tracking transductive and inductive MRR.")
 
 # for saving the results...
 results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
@@ -338,10 +343,9 @@ for run_idx in range(NUM_RUNS):
     for epoch in range(1, NUM_EPOCH + 1):
         # training
         start_epoch_train = timeit.default_timer()
-        loss, free_mem, used_mem, loss_mem = train()
-        end_epoch_train = timeit.default_timer()
+        loss = train()
         print(
-            f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}"
+            f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {timeit.default_timer() - start_epoch_train: .4f}"
         )
         train_times_l.append(end_epoch_train - start_epoch_train)
         free_mem_l.append(free_mem)
@@ -350,22 +354,22 @@ for run_idx in range(NUM_RUNS):
 
         # validation
         start_val = timeit.default_timer()
-        #perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
-        transductive_mrr, inductive_mrr = test_tvi(val_loader, neg_sampler, split_mode="val", nodebank=nodebank)
+        # perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
+        perf_trans_metric_val, perf_induc_metric_val = test_tvi(val_loader, neg_sampler, split_mode='val', nodebank)
         end_val = timeit.default_timer()
-        print(f"\tValidation {metric} transductive: {transductive_mrr: .4f}")
-        print(f"\tValidation {metric} inductive: {inductive_mrr: .4f}")
+        print(f"\tValidation {metric} transductive: {perf_trans_metric_val: .4f}")
+        print(f"\tValidation {metric} inductive: {perf_induc_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {end_val - start_val: .4f}")
         val_perf_trans_list.append(transductive_mrr)
         val_perf_induc_list.append(inductive_mrr)
         val_times_l.append(end_val - start_val)
 
         # check for early stopping
-        if early_stopper.step_check(transductive_mrr, model):
+        if early_stopper.step_check(perf_metric_val, model):
             break
 
     train_val_time = timeit.default_timer() - start_train_val
-    print(f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
+    print(f"Train & Validation Total Elapsed Time (s): {train_val_time: .4f}")
 
     # ==================================================== Test
     # first, load the best model
@@ -376,18 +380,18 @@ for run_idx in range(NUM_RUNS):
 
     # final testing
     start_test = timeit.default_timer()
-    #perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
+    # perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
     transductive_test, inductive_test = test_tvi(test_loader, neg_sampler, split_mode="test", nodebank=nodebank)
+    
 
     print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
     print(f"\tTest: {metric} transductive: {transductive_test: .4f}")
     print(f"\tTest: {metric} inductive: {inductive_test: .4f}")
     # print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-
     test_time = timeit.default_timer() - start_test
     print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
-    save_results({'data': DATA,
+    ave_results({'data': DATA,
                   'model': MODEL_NAME,
                   'run': run_idx,
                   'seed': SEED,
