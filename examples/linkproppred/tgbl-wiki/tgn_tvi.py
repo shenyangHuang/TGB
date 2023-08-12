@@ -102,19 +102,7 @@ def train():
         model['memory'].detach()
         total_loss += float(loss) * batch.num_events
         
-        # checking GPU memory usage
-        free_mem, used_mem, total_mem = 0, 0, 0
-        if torch.cuda.is_available():
-            print("DEBUG: device: {}".format(torch.cuda.get_device_name(0)))
-            free_mem, total_mem = torch.cuda.mem_get_info()
-            used_mem = total_mem - free_mem
-            logger.info("------------Epoch {}: GPU memory usage-----------".format(epoch))
-            logger.info("Free memory: {}".format(free_mem))
-            logger.info("Total available memory: {}".format(total_mem))
-            logger.info("Used memory: {}".format(used_mem))
-            logger.info("--------------------------------------------")
-
-    return total_loss / train_data.num_events, free_mem, used_mem, total_mem
+    return total_loss / train_data.num_events
 
 
 @torch.no_grad()
@@ -338,15 +326,27 @@ for run_idx in range(NUM_RUNS):
     for epoch in range(1, NUM_EPOCH + 1):
         # training
         start_epoch_train = timeit.default_timer()
-        loss, free_mem, used_mem, loss_mem = train()
+        loss = train()
         end_epoch_train = timeit.default_timer()
         print(
             f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}"
         )
+        # checking GPU memory usage
+        free_mem, used_mem, total_mem = 0, 0, 0
+        if torch.cuda.is_available():
+            print("DEBUG: device: {}".format(torch.cuda.get_device_name(0)))
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            used_mem = total_mem - free_mem
+            print("------------Epoch {}: GPU memory usage-----------".format(epoch))
+            print("Free memory: {}".format(free_mem))
+            print("Total available memory: {}".format(total_mem))
+            print("Used memory: {}".format(used_mem))
+            print("--------------------------------------------")
+            
         train_times_l.append(end_epoch_train - start_epoch_train)
-        free_mem_l.append(free_mem)
-        used_mem_l.append(used_mem)
-        total_mem_l.append(total_mem)
+        free_mem_l.append(float((free_mem*1.0)/2**30))  # in GB
+        used_mem_l.append(float((used_mem*1.0)/2**30))  # in GB
+        total_mem_l.append(float((total_mem*1.0)/2**30))  # in GB
 
         # validation
         start_val = timeit.default_timer()

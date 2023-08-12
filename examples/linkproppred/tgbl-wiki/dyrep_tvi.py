@@ -32,6 +32,7 @@ from modules.neighbor_loader import LastNeighborLoader
 from modules.memory_module import DyRepMemory
 from modules.early_stopping import  EarlyStopMonitor
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
+from modules.nodebank import NodeBank
 
 
 
@@ -104,19 +105,7 @@ def train():
         model['memory'].detach()
         total_loss += float(loss) * batch.num_events
 
-        # checking GPU memory usage
-        free_mem, used_mem, total_mem = 0, 0, 0
-        if torch.cuda.is_available():
-            print("DEBUG: device: {}".format(torch.cuda.get_device_name(0)))
-            free_mem, total_mem = torch.cuda.mem_get_info()
-            used_mem = total_mem - free_mem
-            logger.info("------------Epoch {}: GPU memory usage-----------".format(epoch))
-            logger.info("Free memory: {}".format(free_mem))
-            logger.info("Total available memory: {}".format(total_mem))
-            logger.info("Used memory: {}".format(used_mem))
-            logger.info("--------------------------------------------")
-
-    return total_loss / train_data.num_events, free_mem, used_mem, total_mem
+    return total_loss / train_data.num_events
 
 
 @torch.no_grad()
@@ -347,15 +336,29 @@ for run_idx in range(NUM_RUNS):
         print(
             f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {timeit.default_timer() - start_epoch_train: .4f}"
         )
+        
+        # checking GPU memory usage
+        free_mem, used_mem, total_mem = 0, 0, 0
+        if torch.cuda.is_available():
+            print("DEBUG: device: {}".format(torch.cuda.get_device_name(0)))
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            used_mem = total_mem - free_mem
+            print("------------Epoch {}: GPU memory usage-----------".format(epoch))
+            print("Free memory: {}".format(free_mem))
+            print("Total available memory: {}".format(total_mem))
+            print("Used memory: {}".format(used_mem))
+            print("--------------------------------------------")
+        
+        end_epoch_train = timeit.default_timer()
         train_times_l.append(end_epoch_train - start_epoch_train)
-        free_mem_l.append(free_mem)
-        used_mem_l.append(used_mem)
-        total_mem_l.append(total_mem)
+        free_mem_l.append(float((free_mem*1.0)/2**30))  # in GB
+        used_mem_l.append(float((used_mem*1.0)/2**30))  # in GB
+        total_mem_l.append(float((total_mem*1.0)/2**30))  # in GB
 
         # validation
         start_val = timeit.default_timer()
         # perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
-        perf_trans_metric_val, perf_induc_metric_val = test_tvi(val_loader, neg_sampler, split_mode='val', nodebank)
+        perf_trans_metric_val, perf_induc_metric_val = test_tvi(val_loader, neg_sampler, split_mode='val', nodebank=nodebank)
         end_val = timeit.default_timer()
         print(f"\tValidation {metric} transductive: {perf_trans_metric_val: .4f}")
         print(f"\tValidation {metric} inductive: {perf_induc_metric_val: .4f}")
