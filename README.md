@@ -24,8 +24,6 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ### Annoucements
 
-if website is unaccessible, please use [this link](https://tgb-website.pages.dev/) instead.
-
 **Please update to version `0.8.0`**
 
 #### version `0.8.0`
@@ -55,6 +53,9 @@ The API documentations can be found [here](https://shenyanghuang.github.io/TGB/)
 all dataset download links can be found at [info.py](https://github.com/shenyangHuang/TGB/blob/main/tgb/utils/info.py)
 
 TGB dataloader will also automatically download the dataset as well as the negative samples for the link property prediction datasets.
+
+if website is unaccessible, please use [this link](https://tgb-website.pages.dev/) instead.
+
 
 ### Running Example Methods
 
