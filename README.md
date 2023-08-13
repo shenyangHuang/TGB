@@ -24,6 +24,8 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ### Annoucements
 
+if website is unaccessible, please use [this link](https://tgb-website.pages.dev/) instead.
+
 **Please update to version `0.8.0`**
 
 #### version `0.8.0`
