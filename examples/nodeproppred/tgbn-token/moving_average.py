@@ -6,6 +6,7 @@ simply predict last seen label for the node
 import timeit
 import numpy as np
 from torch_geometric.loader import TemporalDataLoader
+from tqdm import tqdm
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
@@ -43,7 +44,7 @@ def test_n_upate(loader):
     num_label_ts = 0
     total_score = 0
 
-    for batch in loader:
+    for batch in tqdm(loader):
         batch = batch.to(device)
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
 

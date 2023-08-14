@@ -36,4 +36,5 @@ class NodePredictor(torch.nn.Module):
         h = self.lin_node(node_embed)
         h = h.relu()
         h = self.out(h)
+        # h = F.log_softmax(h, dim=-1)
         return h
