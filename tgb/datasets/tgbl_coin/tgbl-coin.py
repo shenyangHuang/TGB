@@ -145,6 +145,39 @@ def clean_edgelist(fname, outname, node_dict):
                         write.writerow([t, u, v, w])
 
 
+
+def sort_edgelist(in_file, outname):
+    """
+    sort the edges by timestamp
+    """
+    row_dict = {} #{day: {row: row}}
+    line_idx = 0
+    with open(outname, "w") as outf:
+        write = csv.writer(outf)
+        fields = ["day", "src", "dst", "callsign", "typecode"]
+        write.writerow(fields)
+        with open(in_file, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=",")
+            for row in csv_reader:
+                if line_idx == 0:  # header
+                    line_idx += 1
+                    continue
+                ts = int(row[0])
+                if ts not in row_dict:
+                    row_dict[ts] = {}
+                    row_dict[ts][line_idx] = row
+                else:
+                    row_dict[ts][line_idx] = row
+                line_idx += 1
+        
+        for ts in sorted(row_dict.keys()):
+            for idx in row_dict[ts].keys():
+                row = row_dict[ts][idx]
+                write.writerow(row)
+
+
+
+
 def main():
     """
     keeping subgraph of most active nodes
@@ -156,8 +189,15 @@ def main():
     # outname = "stablecoin_freq10.csv"
     # clean_edgelist(fname, outname, node_dict)
 
-    fname = "stablecoin_freq10.csv"
-    analyze_csv(fname)
+    # fname = "stablecoin_freq10.csv"
+    # analyze_csv(fname)
+
+    """
+    sort edgelist by time
+    """
+    in_file = "tgbl-coin_edgelist.csv"
+    outname = "tgbl-coin_edgelist_sorted.csv"
+    sort_edgelist(in_file, outname)
 
 
 if __name__ == "__main__":

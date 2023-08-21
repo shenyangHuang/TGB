@@ -121,6 +121,7 @@ train_mask = dataset.train_mask
 val_mask = dataset.val_mask
 test_mask = dataset.test_mask
 
+
 #data for memory in edgebank
 hist_src = np.concatenate([data['sources'][train_mask]])
 hist_dst = np.concatenate([data['destinations'][train_mask]])

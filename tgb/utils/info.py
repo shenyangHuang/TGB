@@ -46,8 +46,8 @@ DATA_VERSION_DICT = {
     "tgbn-token": 1,
 }
 
-#"https://object-arbutus.cloud.computecanada.ca/tgb/wiki_neg.zip" #for all negative samples of the wiki dataset
-#"https://object-arbutus.cloud.computecanada.ca/tgb/review_ns100.zip" #for 100 ns samples in review
+#"tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight_v2.zip",
+
 
 DATA_EVAL_METRIC_DICT = {
     "tgbl-wiki": "mrr",

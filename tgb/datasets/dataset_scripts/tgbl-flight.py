@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from os import listdir
+from datetime import datetime
 
 
 def find_csv_filenames(path_to_dir, suffix=".csv"):
@@ -184,6 +185,45 @@ def clean_node_feat(in_file, outname):
                     write.writerow(out)
 
 
+
+def sort_edgelist(in_file, outname):
+    """
+    sort the edges by day
+    """
+    TIME_FORMAT = "%Y-%m-%d"
+    row_dict = {} #{day: {row: row}}
+    line_idx = 0
+    with open(outname, "w") as outf:
+        write = csv.writer(outf)
+        fields = ["day", "src", "dst", "callsign", "typecode"]
+        write.writerow(fields)
+        with open(in_file, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=",")
+            for row in csv_reader:
+                if line_idx == 0:  # header
+                    line_idx += 1
+                    continue
+                day = row[0]
+                ts = datetime.strptime(day, TIME_FORMAT)
+                ts = ts.timestamp()
+                if ts not in row_dict:
+                    row_dict[ts] = {}
+                    row_dict[ts][line_idx] = row
+                else:
+                    row_dict[ts][line_idx] = row
+                line_idx += 1
+        
+        for ts in sorted(row_dict.keys()):
+            for idx in row_dict[ts].keys():
+                row = row_dict[ts][idx]
+                write.writerow(row)
+
+
+                
+
+
+
+
 def main():
     """
     instructions for recompiling the dataset from
@@ -219,10 +259,10 @@ def main():
     """
     merge all edgelists into one file
     """
-    in_dir = "edgelists/"
-    outname = "opensky_edgelist.csv"
-    csv_names = find_csv_filenames(in_dir)
-    merge_edgelist(csv_names, in_dir, outname)
+    # in_dir = "edgelists/"
+    # outname = "opensky_edgelist.csv"
+    # csv_names = find_csv_filenames(in_dir)
+    # merge_edgelist(csv_names, in_dir, outname)
 
     """
     clean the node features
@@ -230,6 +270,14 @@ def main():
     # in_file = "edgelists/airport_codes.csv"
     # outname = "airport_node_feat.csv"
     # clean_node_feat(in_file, outname)
+
+
+    """
+    sort the edgelist by day
+    """
+    in_file = "tgbl-flight_edgelist.csv"
+    outname = "tgbl-flight_edgelist_sorted.csv"
+    sort_edgelist(in_file, outname)
 
 
 if __name__ == "__main__":

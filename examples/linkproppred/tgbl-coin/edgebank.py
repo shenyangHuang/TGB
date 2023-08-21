@@ -126,6 +126,11 @@ hist_src = np.concatenate([data['sources'][train_mask]])
 hist_dst = np.concatenate([data['destinations'][train_mask]])
 hist_ts = np.concatenate([data['timestamps'][train_mask]])
 
+
+# #! check if edges are sorted
+# sorted = np.all(np.diff(data['timestamps']) >= 0)
+# print (" INFO: Edges are sorted: ", sorted)
+
 # Set EdgeBank with memory updater
 edgebank = EdgeBankPredictor(
         hist_src,
