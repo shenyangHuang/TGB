@@ -139,6 +139,8 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
         neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, split_mode=split_mode)
 
         for idx, neg_batch in enumerate(neg_batch_list):
+            src_node = pos_src[idx].item()
+            
             src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
             dst = torch.tensor(
                 np.concatenate(
@@ -186,8 +188,8 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
         neighbor_loader.insert(pos_src, pos_dst)
 
     # perf_metric = float(torch.tensor(perf_list).mean())
-    perf_trans = float(torch.tensor(perf_trans_list))
-    perf_induc = float(torch.tensor(perf_induc_list))
+    perf_trans = float(torch.tensor(perf_trans_list).mean())
+    perf_induc = float(torch.tensor(perf_induc_list).mean())
 
     return perf_trans, perf_induc
 
@@ -363,12 +365,12 @@ for run_idx in range(NUM_RUNS):
         print(f"\tValidation {metric} transductive: {perf_trans_metric_val: .4f}")
         print(f"\tValidation {metric} inductive: {perf_induc_metric_val: .4f}")
         print(f"\tValidation: Elapsed time (s): {end_val - start_val: .4f}")
-        val_perf_trans_list.append(transductive_mrr)
-        val_perf_induc_list.append(inductive_mrr)
+        val_perf_trans_list.append(perf_trans_metric_val)
+        val_perf_induc_list.append(perf_induc_metric_val)
         val_times_l.append(end_val - start_val)
 
         # check for early stopping
-        if early_stopper.step_check(perf_metric_val, model):
+        if early_stopper.step_check(perf_trans_metric_val, model):
             break
 
     train_val_time = timeit.default_timer() - start_train_val
@@ -394,7 +396,7 @@ for run_idx in range(NUM_RUNS):
     test_time = timeit.default_timer() - start_test
     print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
-    ave_results({'data': DATA,
+    save_results({'data': DATA,
                   'model': MODEL_NAME,
                   'run': run_idx,
                   'seed': SEED,

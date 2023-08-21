@@ -144,7 +144,6 @@ def test_tvi(loader, neg_sampler, split_mode, nodebank):
 
             src_node = pos_src[idx].item()
 
-
             src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
             dst = torch.tensor(
                 np.concatenate(
