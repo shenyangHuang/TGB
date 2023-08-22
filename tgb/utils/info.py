@@ -37,7 +37,7 @@ DATA_URL_DICT = {
 DATA_VERSION_DICT = {
     "tgbl-wiki": 2,  
     "tgbl-review": 2,
-    "tgbl-coin": 1,
+    "tgbl-coin": 2,
     "tgbl-comment": 1,
     "tgbl-flight": 2,
     "tgbn-trade": 1,
