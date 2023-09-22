@@ -303,21 +303,42 @@ for run_idx in range(NUM_RUNS):
     dataset.load_val_ns()
 
     val_perf_list = []
+    train_times_l, val_times_l = [], []
+    free_mem_l, total_mem_l, used_mem_l = [], [], []
     start_train_val = timeit.default_timer()
     for epoch in range(1, NUM_EPOCH + 1):
         # training
         start_epoch_train = timeit.default_timer()
         loss = train()
+        end_epoch_train = timeit.default_timer()
         print(
-            f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {timeit.default_timer() - start_epoch_train: .4f}"
+            f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {end_epoch_train - start_epoch_train: .4f}"
         )
+        # checking GPU memory usage
+        free_mem, used_mem, total_mem = 0, 0, 0
+        if torch.cuda.is_available():
+            print("DEBUG: device: {}".format(torch.cuda.get_device_name(0)))
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            used_mem = total_mem - free_mem
+            print("------------Epoch {}: GPU memory usage-----------".format(epoch))
+            print("Free memory: {}".format(free_mem))
+            print("Total available memory: {}".format(total_mem))
+            print("Used memory: {}".format(used_mem))
+            print("--------------------------------------------")
+        
+        train_times_l.append(end_epoch_train - start_epoch_train)
+        free_mem_l.append(float((free_mem*1.0)/2**30))  # in GB
+        used_mem_l.append(float((used_mem*1.0)/2**30))  # in GB
+        total_mem_l.append(float((total_mem*1.0)/2**30))  # in GB
 
         # validation
         start_val = timeit.default_timer()
         perf_metric_val = test(val_loader, neg_sampler, split_mode="val")
+        end_val = timeit.default_timer()
         print(f"\tValidation {metric}: {perf_metric_val: .4f}")
-        print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
+        print(f"\tValidation: Elapsed time (s): {end_val - start_val: .4f}")
         val_perf_list.append(perf_metric_val)
+        val_times_l.append(end_val - start_val)
 
         # check for early stopping
         if early_stopper.step_check(perf_metric_val, model):
@@ -342,14 +363,20 @@ for run_idx in range(NUM_RUNS):
     test_time = timeit.default_timer() - start_test
     print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
-    save_results({'model': MODEL_NAME,
-                  'data': DATA,
+    save_results({'data': DATA,
+                  'model': MODEL_NAME,
                   'run': run_idx,
                   'seed': SEED,
+                  'train_times': train_times_l,
+                  'free_mem': free_mem_l,
+                  'total_mem': total_mem_l,
+                  'used_mem': used_mem_l,
+                  'max_used_mem': max(used_mem_l),
+                  'val_times': val_times_l,
                   f'val {metric}': val_perf_list,
                   f'test {metric}': perf_metric_test,
                   'test_time': test_time,
-                  'tot_train_val_time': train_val_time
+                  'train_val_total_time': np.sum(np.array(train_times_l)) + np.sum(np.array(val_times_l)),
                   }, 
     results_filename)
 
