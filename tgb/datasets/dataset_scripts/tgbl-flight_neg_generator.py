@@ -13,7 +13,7 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 20 #100
+    num_neg_e_per_pos = 20
     neg_sample_strategy = "hist_rnd" #"rnd"
     rnd_seed = 42
 
@@ -50,7 +50,7 @@ def main():
     )
 
     # generate evaluation set
-    partial_path = "./"
+    partial_path = "."
     # generate validation negative edge set
     start_time = time.time()
     split_mode = "val"

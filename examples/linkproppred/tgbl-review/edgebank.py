@@ -111,10 +111,13 @@ DATA = "tgbl-review"
 
 MODEL_NAME = 'EdgeBank'
 
+
+
 # data loading with `numpy`
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
 data = dataset.full_data  
 metric = dataset.eval_metric
+
 
 # get masks
 train_mask = dataset.train_mask
