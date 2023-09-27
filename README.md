@@ -1,20 +1,20 @@
 <!-- # TGB -->
 ![TGB logo](imgs/logo.png)
 
+**Temporal Graph Benchmark for Machine Learning on Temporal Graphs** (NeurIPS 2023 Datasets and Benchmarks Track)
 <h4>
 	<a href="https://arxiv.org/abs/2307.01026"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
 	<a href="https://pypi.org/project/py-tgb/"><img src="https://img.shields.io/pypi/v/py-tgb.svg?color=brightgreen"></a>
 	<a href="https://tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/website-blue"></a>
 	<a href="https://docs.tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/docs-orange"></a>
-</h4>
-Temporal Graph Benchmark for Machine Learning on Temporal Graphs 
+</h4> 
 
 
 Overview of the Temporal Graph Benchmark (TGB) pipeline:
-- TGB includes large-scale and realistic datasets from five different domains with both dynamic link prediction and node property prediction tasks
+- TGB includes large-scale and realistic datasets from five different domains with both dynamic link prediction and node property prediction tasks.
 - TGB automatically downloads datasets and processes them into `numpy`, `PyTorch` and `PyG compatible TemporalData` formats. 
 - Novel TG models can be easily evaluated on TGB datasets via reproducible and realistic evaluation protocols. 
-- TGB provides public and online leaderboards to track recent developments in temporal graph learning domain
+- TGB provides public and online leaderboards to track recent developments in temporal graph learning domain.
 
 ![TGB dataloading and evaluation pipeline](imgs/pipeline.png)
 
@@ -24,22 +24,23 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ### Annoucements
 
-**Please update to version `0.8.0`**
+**Excited to annouce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track!**
 
-#### version `0.8.0`
-
-fixing metric computation issue in node property prediction task, `tgbn` leaderboards results are updated to reflect the changes.
-Please refer to `examples/nodeproppred/` example folders to how to compute the metric correctly. No changes for `linkproppred` datasets.
+Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
 
 
-#### version `0.7.5`
+**Please update to version `0.9.0`**
 
-the negative samples for the `tgbl-wiki` and `tgbl-review` dataset has been updated and redownload of the dataset would be needed (will be prompted automatically in this version when you use the dataloader)
+#### version `0.9.0`
+
+Added the large `tgbn-token` dataset with 72 million edges to the `nodeproppred` dataset. 
+
+fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be promted in terminal).
 
 
 ### Pip Install
 
-You can install TGB via [pip](https://pypi.org/project/py-tgb/)
+You can install TGB via [pip](https://pypi.org/project/py-tgb/). **Requires python >= 3.9**
 ```
 pip install py-tgb
 ```
@@ -60,6 +61,22 @@ TGB dataloader will also automatically download the dataset as well as the negat
 - For the dynamic node property prediction task, see the [`examples/nodeproppred`](https://github.com/shenyangHuang/TGB/tree/main/examples/nodeproppred) folder for example scripts to run TGN, DyRep and EdgeBank on TGB datasets.
 - For all other baselines, please see the [TGB_Baselines](https://github.com/fpour/TGB_Baselines) repo.
 
+### Acknowledgments
+We thank the [OGB](https://ogb.stanford.edu/) team for their support throughout this project and sharing their website code for the construction of [TGB website](https://tgb.complexdatalab.com/).
+
+
+### Citation
+
+If code or data from this repo is useful for your project, please consider citing our paper:
+```
+@article{huang2023temporal,
+  title={Temporal graph benchmark for machine learning on temporal graphs},
+  author={Huang, Shenyang and Poursafaei, Farimah and Danovitch, Jacob and Fey, Matthias and Hu, Weihua and Rossi, Emanuele and Leskovec, Jure and Bronstein, Michael and Rabusseau, Guillaume and Rabbany, Reihaneh},
+  journal={Advances in Neural Information Processing Systems},
+  year={2023}
+}
+```
+<!-- 
 
 ### Install dependency
 Our implementation works with python >= 3.9 and can be installed as follows
@@ -149,8 +166,4 @@ torch-sparse==0.6.17
 torch-spline-conv==1.2.2
 pandas==1.5.3
 clint==0.5.1
-```
-
-
-### Acknowledgments
-We thank the [OGB](https://ogb.stanford.edu/) team for their support throughout this project and sharing their website code for the construction of [TGB website](https://tgb.complexdatalab.com/).
+``` -->
