@@ -641,7 +641,7 @@ def csv_to_pd_data(
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
     print("numpy allocated")
-    TIME_FORMAT = "%Y-%m-%d"  # 2019-01-01
+    TIME_FORMAT = "%Y-%m-%d" + "-%z" # 2019-01-01
     node_ids = {}
     unique_id = 0
 
@@ -655,7 +655,8 @@ def csv_to_pd_data(
                 continue
             else:
                 ts = row[0]
-                date_cur = datetime.strptime(ts, TIME_FORMAT)
+                tz_offset = "-" + "-0500"
+                date_cur = datetime.strptime(ts + tz_offset, TIME_FORMAT)
                 ts = float(date_cur.timestamp())
                 src = row[1]
                 dst = row[2]

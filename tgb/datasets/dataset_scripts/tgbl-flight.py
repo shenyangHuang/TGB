@@ -6,7 +6,6 @@ from tqdm import tqdm
 from os import listdir
 from datetime import datetime
 
-
 def find_csv_filenames(path_to_dir, suffix=".csv"):
     r"""
     find all csv files in a directory
@@ -219,9 +218,13 @@ def sort_edgelist(in_file, outname):
                 write.writerow(row)
 
 
-                
-
-
+def date2ts(date_str: str) -> float:
+    r"""
+    convert date string to timestamp
+    """
+    TIME_FORMAT = "%Y-%m-%d-%z"
+    date_cur = datetime.strptime(date_str, TIME_FORMAT)
+    return float(date_cur.timestamp())
 
 
 def main():
@@ -275,9 +278,22 @@ def main():
     """
     sort the edgelist by day
     """
-    in_file = "tgbl-flight_edgelist.csv"
-    outname = "tgbl-flight_edgelist_sorted.csv"
-    sort_edgelist(in_file, outname)
+    # in_file = "tgbl-flight_edgelist.csv"
+    # outname = "tgbl-flight_edgelist_sorted.csv"
+    # sort_edgelist(in_file, outname)
+
+
+    """
+    fixing time zone different for strip time
+    """
+    tz_offset = "-0500"
+    ts = "2021-11-29" + "-" + tz_offset
+    print (date2ts(ts))
+
+
+    tz_offset = "+0000"
+    ts_utc = "2021-11-29" + "-" + tz_offset
+    print (date2ts(ts_utc))
 
 
 if __name__ == "__main__":
