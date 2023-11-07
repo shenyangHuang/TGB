@@ -154,6 +154,7 @@ results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.js
 # loading the validation negative samples
 dataset.load_val_ns()
 
+
 # testing ...
 start_val = timeit.default_timer()
 perf_metric_test = test(data, val_mask, neg_sampler, split_mode='val')

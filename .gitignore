@@ -1,5 +1,6 @@
 !requirements*.txt
 #dataset
+*.npz
 *.xz
 *.parquet
 *.gz
