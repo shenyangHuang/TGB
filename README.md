@@ -29,13 +29,19 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
 
 
-**Please update to version `0.9.0`**
+**Please update to version `0.9.1`**
+
+
+#### version `0.9.1`
+
+Fixed an issue for `tgbl-flight` where the timestamp conversion is incorrect due to time zone differences. If you had issues with `tgbl-flight` before, please update your package. 
+
 
 #### version `0.9.0`
 
 Added the large `tgbn-token` dataset with 72 million edges to the `nodeproppred` dataset. 
 
-fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be promted in terminal).
+Fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be promted in terminal).
 
 
 ### Pip Install
