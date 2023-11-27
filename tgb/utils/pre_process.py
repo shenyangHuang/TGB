@@ -5,7 +5,8 @@ import pandas as pd
 import os.path as osp
 import time
 import csv
-from datetime import datetime, timedelta
+import datetime
+from datetime import date
 
 """
 functions for wikipedia dataset
@@ -619,12 +620,11 @@ def convert_str2int(
     return out
 
 
-#! panda dataframe can't take numpy 2d arrays
 def csv_to_pd_data(
     fname: str,
 ) -> pd.DataFrame:
     r"""
-    currently used by open sky dataset
+    currently used by tgbl-flight dataset
     convert the raw .csv data to pandas dataframe and numpy array
     input .csv file format should be: timestamp, node u, node v, attributes
     Args:
@@ -641,9 +641,9 @@ def csv_to_pd_data(
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
     print("numpy allocated")
-    TIME_FORMAT = "%Y-%m-%d" + "-%z" # 2019-01-01
     node_ids = {}
     unique_id = 0
+    ts_format = None
 
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
@@ -655,9 +655,26 @@ def csv_to_pd_data(
                 continue
             else:
                 ts = row[0]
-                tz_offset = "-" + "-0500"
-                date_cur = datetime.strptime(ts + tz_offset, TIME_FORMAT)
-                ts = float(date_cur.timestamp())
+                if ts_format is None:
+                    if (ts.isdigit()):
+                        ts_format = True
+                    else:
+                        ts_format = False
+                
+                if ts_format:
+                    ts = float(int(ts)) #unix timestamp already
+                else:
+                    #convert to unix timestamp
+                    TIME_FORMAT = "%Y-%m-%d"
+                    date_cur = datetime.datetime.strptime(ts, TIME_FORMAT)
+                    ts = float(date_cur.timestamp())
+                    # TIME_FORMAT = "%Y-%m-%d" # 2019-01-01
+                    # date_cur  = date.fromisoformat(ts)
+                    # dt = datetime.datetime.combine(date_cur, datetime.datetime.min.time())
+                    # dt = dt.replace(tzinfo=datetime.timezone.edt)
+                    # ts = float(dt.timestamp())
+
+
                 src = row[1]
                 dst = row[2]
 

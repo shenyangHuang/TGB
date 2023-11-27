@@ -34,6 +34,10 @@ DATA_URL_DICT = {
     "tgbn-token": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-token.zip",
 }
 
+
+#"tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight_edgelist_v2_ts.zip",
+
+
 DATA_VERSION_DICT = {
     "tgbl-wiki": 2,  
     "tgbl-review": 2,
