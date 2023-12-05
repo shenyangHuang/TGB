@@ -29,7 +29,12 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
 
 
-**Please update to version `0.9.1`**
+**Please update to version `0.9.2`**
+
+#### version `0.9.2`
+
+Update the fix for `tgbl-flight` where now the unix timestamps are provided directly in the dataset. If you had issues with `tgbl-flight`, please remove `TGB/tgb/datasets/tgbl_flight`and redownload the dataset for a clean install
+
 
 
 #### version `0.9.1`
