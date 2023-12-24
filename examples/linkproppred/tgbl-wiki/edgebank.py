@@ -42,7 +42,7 @@ def test(data, test_mask, neg_sampler, split_mode):
         neg_sampler: an object that gives the negative edges corresponding to each positive edge
         split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
     Returns:
-        perf_metric: the result of the performance evaluaiton
+        perf_metric: the result of the performance evaluation
     """
     num_batches = math.ceil(len(data['sources'][test_mask]) / BATCH_SIZE)
     perf_list = []
