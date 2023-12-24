@@ -22,9 +22,9 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 **See all version differences and update notes [here](https://tgb.complexdatalab.com/docs/update/)**
 
-### Annoucements
+### Announcements
 
-**Excited to annouce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track!**
+**Excited to announce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track!**
 
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
 
@@ -46,7 +46,7 @@ Fixed an issue for `tgbl-flight` where the timestamp conversion is incorrect due
 
 Added the large `tgbn-token` dataset with 72 million edges to the `nodeproppred` dataset. 
 
-Fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be promted in terminal).
+Fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be prompted in terminal).
 
 
 ### Pip Install
