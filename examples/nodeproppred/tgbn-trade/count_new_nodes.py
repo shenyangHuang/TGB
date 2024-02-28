@@ -31,7 +31,7 @@ def count_nodes(data, test_mask, nodebank):
         neg_sampler: an object that gives the negative edges corresponding to each positive edge
         split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
     Returns:
-        perf_metric: the result of the performance evaluaiton
+        perf_metric: the result of the performance evaluation
     """
     node_dict_new = {}
     node_dict = {}

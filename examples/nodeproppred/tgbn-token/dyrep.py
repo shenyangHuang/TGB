@@ -282,7 +282,7 @@ test_loader = TemporalDataLoader(test_data, batch_size=BATCH_SIZE)
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-# neighhorhood sampler
+# neighborhood sampler
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
