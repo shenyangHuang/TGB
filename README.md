@@ -24,10 +24,13 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ### Announcements
 
-**Excited to announce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track!**
+**Excited to announce TGX, a companion package for analyzing temporal graphs is accepted to WSDM 2024 Demo Track**
+
+TGX supports all TGB datasets and provides numerous temporal graph visualization plots and statistics out of the box. See our paper: [Temporal Graph Analysis with TGX](https://arxiv.org/abs/2402.03651) and [TGX website](https://complexdata-mila.github.io/TGX/).
+
+**Excited to announce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track**
 
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
-
 
 **Please update to version `0.9.2`**
 
