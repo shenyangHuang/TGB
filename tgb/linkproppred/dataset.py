@@ -21,6 +21,7 @@ from tgb.utils.pre_process import (
     csv_to_pd_data_sc,
     csv_to_pd_data_rc,
     load_edgelist_wiki,
+    csv_to_tkg_data,
 )
 from tgb.utils.utils import save_pkl, load_pkl
 
@@ -90,6 +91,9 @@ class LinkPropPredDataset(object):
         self._train_data = None
         self._val_data = None
         self._test_data = None
+
+        # for tkg
+        self._edge_type = None
 
         self.download()
         # check if the root directory exists, if not create it
@@ -223,6 +227,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict["fname"])
             elif self.name == "tgbl-wiki":
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
+            elif self.name == "tkgl-polecat":
+                df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -246,7 +252,6 @@ class LinkPropPredDataset(object):
         timestamps = np.array(df["ts"])
         edge_idxs = np.array(df["idx"])
         weights = np.array(df["w"])
-
         edge_label = np.ones(len(df))  # should be 1 for all pos edges
         self._edge_feat = edge_feat
         self._node_feat = node_feat
@@ -260,6 +265,13 @@ class LinkPropPredDataset(object):
             "w": weights,
             "edge_label": edge_label,
         }
+
+        #* for tkg
+        if ("edge_type" in df):
+            edge_type = np.array(df["edge_type"])
+            self._edge_type = edge_type
+        full_data["edge_type"] = edge_type
+
         self._full_data = full_data
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
         self._train_mask = _train_mask
@@ -347,6 +359,15 @@ class LinkPropPredDataset(object):
             edge_feat: np.ndarray, [E, feat_dim] or None if there is no edge feature
         """
         return self._edge_feat
+    
+    @property
+    def edge_type(self) -> Optional[np.ndarray]:
+        r"""
+        Returns the edge types of the dataset with dim [E, 1], only for temporal knowledge graph and temporal heterogeneous graph
+        Returns:
+            edge_type: np.ndarray, [E, 1] or None if it is not a TKG or THG
+        """
+        return self._edge_type
 
     @property
     def full_data(self) -> Dict[str, Any]:
@@ -397,17 +418,24 @@ class LinkPropPredDataset(object):
 
 
 def main():
-    name = "tgbl-comment" 
-    dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
-    dataset.node_feat
-    dataset.edge_feat  # not the edge weights
-    dataset.full_data
-    dataset.full_data["edge_idxs"]
-    dataset.full_data["sources"]
-    dataset.full_data["destinations"]
-    dataset.full_data["timestamps"]
-    dataset.full_data["edge_label"]
+    name = "tkgl-polecat"
+    dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
+    dataset.edge_type
+
+
+
+    # name = "tgbl-comment" 
+    # dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
+
+    # dataset.node_feat
+    # dataset.edge_feat  # not the edge weights
+    # dataset.full_data
+    # dataset.full_data["edge_idxs"]
+    # dataset.full_data["sources"]
+    # dataset.full_data["destinations"]
+    # dataset.full_data["timestamps"]
+    # dataset.full_data["edge_label"]
 
 
 if __name__ == "__main__":
