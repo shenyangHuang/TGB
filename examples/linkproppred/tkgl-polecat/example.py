@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 

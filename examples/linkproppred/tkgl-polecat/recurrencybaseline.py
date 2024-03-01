@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
 
 ## imports
 import json
@@ -10,13 +12,15 @@ from copy import copy
 import json
 import ray
 import timeit
+from itertools import groupby
+from operator import itemgetter
 
 #internal imports 
 import modules.tkg_utils as utils
-from data import data_handler #todo exchange
-from modules.recurrencybaseline_predictor import apply_baselines_remote, score_psi
+
+from modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor #apply_baselines_remote, score_psi
 # from tgb.tkglinkpred.evaluate import Evaluator #TODO
-# from tgb.tkglinkpred.dataset import LinkPredDataset #TODO
+from tgb.linkproppred.dataset import LinkPropPredDataset #TODO
 # from tgb.utils.utils import save_results
 
 
@@ -42,7 +46,7 @@ def create_basis_dict(data):
 
 ## test
 def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, num_processes, 
-         score_func_psi, window):
+         window):
     scores_dict_for_test = {}
     final_logging_dict = {}
     ## loop through relations and apply baselines
@@ -69,8 +73,8 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
             
             ## apply baselines for this relation
             object_references = [
-                apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
-                                    basis_dict, score_func_psi, 
+                rb_predictor.apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
+                                    basis_dict, 
                                     num_nodes, 2*num_rels, 
                                     lmbda_psi, alpha) for i in range(num_processes_tmp)]
             output = ray.get(object_references)
@@ -94,6 +98,22 @@ def train():
     """
     pass
 
+
+## todo: move these to dataset.py?
+def group_by(data: np.array, key_idx: int, rels: list) -> dict:
+    data_dict = {}
+    data_sorted = sorted(data, key=itemgetter(key_idx))
+    for key, group in groupby(data_sorted, key=itemgetter(key_idx)):
+        data_dict[key] = np.array(list(group))
+    return data_dict
+
+def add_inverse_quadruples(triples: np.array, num_rels:int) -> np.array:
+    inverse_triples = triples[:, [2, 1, 0, 3]]
+    inverse_triples[:, 1] = inverse_triples[:, 1] + num_rels  # we also need inverse triples
+    all_triples = np.concatenate((triples[:,0:4], inverse_triples))
+
+    return all_triples
+
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
@@ -111,25 +131,41 @@ start_o = time.time()
 
 parsed = get_args()
 ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
-score_func_psi = score_psi #TODO
 
+## load dataset and prepare it accordingly
+name = "tkgl-polecat"
+dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
-## load dataset - TODO: change
-dataset = (parsed["dataset"], 3) # identifier, timestamp_column_idx
-train_data, valid_data, test_data, stat = data_handler.load(dataset[0])
-num_nodes, num_rels = int(stat[0]), int(stat[1])
-train_data = data_handler.add_inverse_quadruples(train_data, num_rels)
-valid_data = data_handler.add_inverse_quadruples(valid_data, num_rels)
-test_data = data_handler.add_inverse_quadruples(test_data, num_rels)
-train_valid_data = np.concatenate((train_data, valid_data))
-all_data = np.concatenate((train_data, valid_data, test_data))
+relations = dataset.edge_type.astype(int)
+num_rels = len(set(relations))
 rels = np.arange(0,2*num_rels)
-test_data_prel = data_handler.group_by(test_data, 1, rels)
-all_data_prel = data_handler.group_by(all_data, 1, rels)
+subjects = dataset.full_data["sources"].astype(int)
+objects= dataset.full_data["destinations"].astype(int)
+num_nodes = len(set(dataset.full_data['sources'].astype(int)+ dataset.full_data['destinations'].astype(int)))
+timestamps = dataset.full_data["timestamps"].astype(int)
+
+all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
+train_data = all_quads[dataset.train_mask]
+valid_data = all_quads[dataset.val_mask]
+test_data = all_quads[dataset.test_mask]
+
+train_data = add_inverse_quadruples(train_data, num_rels)
+valid_data = add_inverse_quadruples(valid_data, num_rels)
+test_data = add_inverse_quadruples(test_data, num_rels)
+train_valid_data = np.concatenate([train_data, valid_data])
+all_data = np.concatenate([train_data, valid_data, test_data])
+
+test_data_prel = group_by(test_data, 1, rels)
+all_data_prel = group_by(all_data, 1, rels)
+
+
 
 ## load rules
 basis_dict = create_basis_dict(train_valid_data)
 
+## init
+
+rb_predictor = RecurrencyBaselinePredictor()
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
@@ -142,7 +178,8 @@ else: # use preset lmbda and alpha; same for all relations
 
 end_train = time.time()
 start_test = time.time()
-eval_scores = test(best_config)
+eval_scores = test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, parsed['num_processes'], 
+         parsed['window'])
 
 # print some infos:
 end_o = time.time()

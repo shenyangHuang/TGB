@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+
 from typing import Optional, Dict, Any, Tuple
 import os
 import os.path as osp
