@@ -214,7 +214,13 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
 
 
 ## todo: move these to dataset.py?
-def group_by(data: np.array, key_idx: int, rels: list) -> dict:
+def group_by(data: np.array, key_idx: int) -> dict:
+    """
+    group data in an np array to dict; where key is specified by key_idx. for example groups elements of array by relations
+    :param data: [np.array] data to be grouped
+    :param key_idx: [int] index for element of interest
+    returns data_dict: dict with key: values of element at index key_idx, values: all elements in data that have that value
+    """
     data_dict = {}
     data_sorted = sorted(data, key=itemgetter(key_idx))
     for key, group in groupby(data_sorted, key=itemgetter(key_idx)):
@@ -222,6 +228,13 @@ def group_by(data: np.array, key_idx: int, rels: list) -> dict:
     return data_dict
 
 def add_inverse_quadruples(triples: np.array, num_rels:int) -> np.array:
+    """
+    creates an inverse triple for each triple in triples. inverse triple swaps subject and objsect, and increases 
+    relation id by num_rels
+    :param triples: [np.array] dataset triples
+    :param num_rels: [int] number of relations that we have originally
+    returns all_triples: [np.array] triples including inverse triples
+    """
     inverse_triples = triples[:, [2, 1, 0, 3]]
     inverse_triples[:, 1] = inverse_triples[:, 1] + num_rels  # we also need inverse triples
     all_triples = np.concatenate((triples[:,0:4], inverse_triples))
@@ -231,6 +244,7 @@ def add_inverse_quadruples(triples: np.array, num_rels:int) -> np.array:
 def reformat_ts(timestamps):
     """ reformat timestamps s.t. they start with 0, and have stepsize 1.
     :param timestamps: np.array() with timestamps
+    returns: np.array(ts_new)
     """
     all_ts = list(set(timestamps))
     all_ts.sort()
