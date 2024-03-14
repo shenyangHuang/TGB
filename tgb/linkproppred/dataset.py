@@ -270,7 +270,7 @@ class LinkPropPredDataset(object):
         if ("edge_type" in df):
             edge_type = np.array(df["edge_type"])
             self._edge_type = edge_type
-        full_data["edge_type"] = edge_type
+            full_data["edge_type"] = edge_type
 
         self._full_data = full_data
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
