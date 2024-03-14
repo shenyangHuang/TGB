@@ -257,9 +257,9 @@ class LinkPropPredDataset(object):
         self._node_feat = node_feat
 
         full_data = {
-            "sources": sources,
-            "destinations": destinations,
-            "timestamps": timestamps,
+            "sources": sources.astype(int),
+            "destinations": destinations.astype(int),
+            "timestamps": timestamps.astype(int),
             "edge_idxs": edge_idxs,
             "edge_feat": edge_feat,
             "w": weights,
@@ -268,9 +268,9 @@ class LinkPropPredDataset(object):
 
         #* for tkg
         if ("edge_type" in df):
-            edge_type = np.array(df["edge_type"])
+            edge_type = np.array(df["edge_type"]).astype(int)
             self._edge_type = edge_type
-        full_data["edge_type"] = edge_type
+            full_data["edge_type"] = edge_type
 
         self._full_data = full_data
         _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
@@ -341,6 +341,46 @@ class LinkPropPredDataset(object):
         self.ns_sampler.load_eval_set(
             fname=self.meta_dict["test_ns"], split_mode="test"
         )
+
+    @property
+    def num_nodes(self) -> int:
+        r"""
+        Returns the total number of unique nodes in the dataset 
+        Returns:
+            num_nodes: int, the number of unique nodes
+        """
+        src = self._full_data["sources"]
+        dst = self._full_data["destinations"]
+        all_nodes = np.concatenate((src, dst), axis=0)
+        print (all_nodes.shape)
+        uniq_nodes = np.unique(all_nodes, axis=0)
+        print (uniq_nodes.shape)
+        return uniq_nodes.shape[0]
+    
+
+    @property
+    def num_edges(self) -> int:
+        r"""
+        Returns the total number of edges in the dataset
+        Returns:
+            num_edges: int, the number of edges
+        """
+        src = self._full_data["sources"]
+        return src.shape[0]
+    
+
+    @property
+    def num_rels(self) -> int:
+        r"""
+        Returns the number of relation types in the dataset
+        Returns:
+            num_rels: int, the number of relation types
+        """
+        #* if it is a homogenous graph
+        if ("edge_type" not in self._full_data):
+            return 1
+        else:
+            return np.unique(self._full_data["edge_type"]).shape[0]
 
     @property
     def node_feat(self) -> Optional[np.ndarray]:
