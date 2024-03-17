@@ -146,6 +146,17 @@ class NegativeEdgeGenerator(object):
                     edge_t_dict[(pos_t, pos_s, edge_type)] = {pos_d:1}
                 else:
                     edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
+
+            pos_src, pos_dst, pos_timestamp, edge_type = (
+                data.src.cpu().numpy(),
+                data.dst.cpu().numpy(),
+                data.t.cpu().numpy(),
+                data.edge_type.cpu().numpy(),
+            )
+            # generate a list of negative destinations for each positive edge
+            pos_edge_tqdm = tqdm(
+                zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
+            )
             
             for (
                 pos_s,

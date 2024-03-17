@@ -84,10 +84,12 @@ class NegativeEdgeSampler(object):
                     pos_src: Tensor, 
                     pos_dst: Tensor, 
                     pos_timestamp: Tensor, 
+                    edge_type: Tensor = None,
                     split_mode: str = "test") -> list:
         r"""
         For each positive edge in the `pos_batch`, return a list of negative edges
         `split_mode` specifies whether the valiation or test evaluation set should be retrieved.
+        modify now to include edge type argument
 
         Parameters:
             pos_src: list of positive source nodes
@@ -115,6 +117,8 @@ class NegativeEdgeSampler(object):
             pos_dst = pos_dst.detach().cpu().numpy()
         if torch is not None and isinstance(pos_timestamp, torch.Tensor):
             pos_timestamp = pos_timestamp.detach().cpu().numpy()
+        if torch is not None and isinstance(edge_type, torch.Tensor):
+            edge_type = edge_type.detach().cpu().numpy()
         
         if not isinstance(pos_src, np.ndarray) or not isinstance(pos_dst, np.ndarray) or not(pos_timestamp, np.ndarray):
             raise RuntimeError(
@@ -122,17 +126,31 @@ class NegativeEdgeSampler(object):
                 )
 
         neg_samples = []
-        for pos_s, pos_d, pos_t in zip(pos_src, pos_dst, pos_timestamp):
-            if (pos_s, pos_d, pos_t) not in self.eval_set[split_mode]:
-                raise ValueError(
-                    f"The edge ({pos_s}, {pos_d}, {pos_t}) is not in the '{split_mode}' evaluation set! Please check the implementation."
-                )
-            else:
-                neg_samples.append(
-                    [
-                        int(neg_dst)
-                        for neg_dst in self.eval_set[split_mode][(pos_s, pos_d, pos_t)]
-                    ]
-                )
+        if (edge_type is None):
+            for pos_s, pos_d, pos_t in zip(pos_src, pos_dst, pos_timestamp):
+                if (pos_s, pos_d, pos_t) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}) is not in the '{split_mode}' evaluation set! Please check the implementation."
+                    )
+                else:
+                    neg_samples.append(
+                        [
+                            int(neg_dst)
+                            for neg_dst in self.eval_set[split_mode][(pos_s, pos_d, pos_t)]
+                        ]
+                    )
+        else:
+            for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
+                if (pos_s, pos_d, pos_t, e_type) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
+                    )
+                else:
+                    neg_samples.append(
+                        [
+                            int(neg_dst)
+                            for neg_dst in self.eval_set[split_mode][(pos_s, pos_d, pos_t, e_type)]
+                        ]
+                    )
 
         return neg_samples

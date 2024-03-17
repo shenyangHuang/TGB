@@ -10,8 +10,6 @@ Reference:
 
 import timeit
 import numpy as np
-from sklearn.metrics import average_precision_score, roc_auc_score
-from torch_geometric.loader import TemporalDataLoader
 from tqdm import tqdm
 import math
 import os
