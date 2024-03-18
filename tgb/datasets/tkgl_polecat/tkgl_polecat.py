@@ -1,5 +1,7 @@
 import csv
 import datetime
+import glob, os
+
 
 def load_csv_raw(fname):
     r"""
@@ -9,7 +11,8 @@ def load_csv_raw(fname):
     """
     out_dict = {}
     first_row = True
-    with open(fname, 'r') as f:
+    num_lines = 0
+    with open(fname, 'r', encoding='ISO-8859-1') as f:
         reader = csv.reader(f, delimiter ='\t')
         for row in reader: 
             if first_row:
@@ -19,6 +22,9 @@ def load_csv_raw(fname):
             relation_type = row[2]
             head = row[7]
             tail = row[15]
+
+            if (len(date) == 0):
+                continue
             
             if ("None" in date or "None" in head or "None" in tail or "None" in relation_type):
                 continue
@@ -27,6 +33,7 @@ def load_csv_raw(fname):
                 TIME_FORMAT = "%Y-%m-%d" #2018-01-01
                 date_cur = datetime.datetime.strptime(date, TIME_FORMAT)
                 ts = int(date_cur.timestamp())
+                num_lines += 1
                 if (ts in out_dict):
                     if (head, tail, relation_type) in out_dict[ts]:
                         out_dict[ts][(head, tail, relation_type)] += 1
@@ -35,7 +42,7 @@ def load_csv_raw(fname):
                 else:
                     out_dict[ts] = {}
                     out_dict[ts][(head, tail, relation_type)] = 1
-    return out_dict
+    return out_dict, num_lines
 
 def write2csv(outname, out_dict):
 
@@ -68,11 +75,51 @@ def write2csv(outname, out_dict):
 
 
 def main():
-    fname = "2018-Jan.txt"
-    print ("hi")
-    lines = load_csv_raw(fname)
-    outname = "tkgl-polecat_edgelist.csv"
-    write2csv(outname, lines)
+
+    #example
+    # fname = "2018-Jan.txt"
+    # print ("hi")
+    # lines = load_csv_raw(fname)
+    # outname = "tkgl-polecat_edgelist.csv"
+    # write2csv(outname, lines)
+
+    total_lines = 0
+    num_days = 0
+    #1. find all files with .txt in the folder
+    for file in glob.glob("*.txt"):
+        outname = file[-12:-4] + "_edgelist.csv"
+        if ("Jan" in outname):
+            outname = outname.replace("Jan", "01")
+        elif ("Feb" in outname):
+            outname = outname.replace("Feb", "02")
+        elif ("Mar" in outname):
+            outname = outname.replace("Mar", "03")
+        elif ("Apr" in outname):
+            outname = outname.replace("Apr", "04")
+        elif ("May" in outname):
+            outname = outname.replace("May", "05")
+        elif ("Jun" in outname):
+            outname = outname.replace("Jun", "06")
+        elif ("Jul" in outname):
+            outname = outname.replace("Jul", "07")
+        elif ("Aug" in outname):
+            outname = outname.replace("Aug", "08")
+        elif ("Sep" in outname):
+            outname = outname.replace("Sep", "09")
+        elif ("Oct" in outname):
+            outname = outname.replace("Oct", "10")
+        elif ("Nov" in outname):
+            outname = outname.replace("Nov", "11")
+        elif ("Dec" in outname):
+            outname = outname.replace("Dec", "12")
+        print ("processing", file, "to", outname)
+        edge_dict, num_lines = load_csv_raw(file)
+        total_lines += num_lines
+        num_days += len(edge_dict)
+        write2csv(outname, edge_dict)
+    print ("total number of lines", total_lines)
+    print ("total number of days", num_days)
+
 
 
 if __name__ == "__main__":

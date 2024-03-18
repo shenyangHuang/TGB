@@ -59,6 +59,33 @@ class PyGLinkPropPredDataset(Dataset):
             negative_sampler: NegativeEdgeSampler
         """
         return self._ns_sampler
+    
+    @property
+    def num_nodes(self) -> int:
+        r"""
+        Returns the total number of unique nodes in the dataset 
+        Returns:
+            num_nodes: int, the number of unique nodes
+        """
+        return self.dataset.num_nodes
+    
+    @property
+    def num_rels(self) -> int:
+        r"""
+        Returns the total number of unique relations in the dataset 
+        Returns:
+            num_rels: int, the number of unique relations
+        """
+        return self.dataset.num_rels
+    
+    @property
+    def num_edges(self) -> int:
+        r"""
+        Returns the total number of edges in the dataset 
+        Returns:
+            num_edges: int, the number of edges
+        """
+        return self.dataset.num_edges
 
     def load_val_ns(self) -> None:
         r"""
