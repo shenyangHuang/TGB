@@ -16,9 +16,9 @@ from operator import itemgetter
 
 #internal imports 
 import tgb_modules.tkg_utils as utils
-
 from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor #apply_baselines_remote, score_psi
-# from tgb.tkglinkpred.evaluate import Evaluator #TODO
+
+from tgb.linkproppred.evaluate import Evaluator #TODO
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 # from tgb.utils.utils import save_results #TODO
 
@@ -29,7 +29,7 @@ def create_basis_dict(data):
     """
     data: concatenated train and vali data, INCLUDING INVERSE QUADRUPLES. we need it for the relation ids.
     """
-    rels = list(set(train_valid_data[:,1]))
+    rels = list(set(train_val_data[:,1]))
     basis_dict = {}
     for rel in rels:
         basis_id_new = []
@@ -105,7 +105,7 @@ def apply_baselines_remote(i, num_queries, test_data, all_data, window, basis_di
                 num_rels, lmbda_psi, alpha)
 
 ## train
-def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, trainvalid_data_prel, num_processes, 
+def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, num_processes, 
          window):
     """ optional, find best values for lambda and alpha
     """
@@ -124,18 +124,18 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
         best_config[str(rel_key)]['alpha'] = [default_alpha,0]  #default    
         best_config[str(rel_key)]['other_alpha_mrrs'] = list(np.zeros(len(params_dict['alpha'])))
         
-        if rel in valid_data_prel.keys():      
+        if rel in val_data_prel.keys():      
             # valid data for this relation  
-            valid_data_c_rel = copy(valid_data_prel[rel])
-            timesteps_valid = list(set(valid_data_c_rel[:,3]))
+            val_data_c_rel = copy(val_data_prel[rel])
+            timesteps_valid = list(set(val_data_c_rel[:,3]))
             timesteps_valid.sort()
-            trainvalid_data_c_rel = trainvalid_data_prel[rel]
+            trainval_data_c_rel = trainval_data_prel[rel]
             
             # queries per process if multiple processes
-            num_queries = len(valid_data_c_rel) // num_processes
+            num_queries = len(val_data_c_rel) // num_processes
             if num_queries < num_processes: # if we do not have enough queries for all the processes
                 num_processes_tmp = copy(1)
-                num_queries = copy(len(valid_data_c_rel))
+                num_queries = copy(len(val_data_c_rel))
             else:
                 num_processes_tmp = copy(num_processes)
 
@@ -147,13 +147,13 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
             best_mrr_psi = 0
             lmbda_mrrs = []
 
-            best_config[str(rel_key)]['num_app_valid'] = copy(len(valid_data_c_rel))
-            best_config[str(rel_key)]['num_app_train_valid'] = copy(len(trainvalid_data_c_rel))         
+            best_config[str(rel_key)]['num_app_valid'] = copy(len(val_data_c_rel))
+            best_config[str(rel_key)]['num_app_train_valid'] = copy(len(trainval_data_c_rel))         
             best_config[str(rel_key)]['not_trained'] = 'False'       
 
             for lmbda_psi in lmbdas_psi:    
                 object_references = [
-                        apply_baselines_remote.remote(i, num_queries, valid_data_c_rel, trainvalid_data_c_rel, window, 
+                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, num_nodes, 2*num_rels, 
                                         lmbda_psi, alpha) for i in range(num_processes_tmp)]
                 output = ray.get(object_references)
@@ -163,7 +163,7 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
                     scores_dict_for_eval.update(output[proc_loop][1])
 
                 # compute mrr
-                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval, valid_data_c_rel, timesteps_valid) #TODO
+                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval, val_data_c_rel, timesteps_valid) #TODO
                 mrr = mrr_and_friends[1]
 
                 # # is new mrr better than previous best? if yes: store lmbda
@@ -184,7 +184,7 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
             best_mrr_alpha = 0
             for alpha in alphas:
                 object_references = [
-                        apply_baselines_remote.remote(i, num_queries, valid_data_c_rel, trainvalid_data_c_rel, window, 
+                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, num_nodes, 2*num_rels,                                         
                                         lmbda_psi, alpha) for i in range(num_processes_tmp)]
                 output_alpha = ray.get(object_references)
@@ -194,7 +194,7 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, t
                     scores_dict_for_eval_alpha.update(output_alpha[proc_loop][1])
 
                 # compute mrr
-                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval_alpha, valid_data_c_rel, timesteps_valid)
+                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval_alpha, val_data_c_rel, timesteps_valid)
                 mrr_alpha = mrr_and_friends[1]
 
                 # is new mrr better than previous best? if yes: store alpha
@@ -227,19 +227,19 @@ def group_by(data: np.array, key_idx: int) -> dict:
         data_dict[key] = np.array(list(group))
     return data_dict
 
-def add_inverse_quadruples(triples: np.array, num_rels:int) -> np.array:
+def add_inverse_quadruples(quadruples: np.array, num_rels:int) -> np.array:
     """
-    creates an inverse triple for each triple in triples. inverse triple swaps subject and objsect, and increases 
+    creates an inverse quadruple for each quadruple in quadruples. inverse quadruple swaps subject and objsect, and increases 
     relation id by num_rels
-    :param triples: [np.array] dataset triples
+    :param quadruples: [np.array] dataset quadruples
     :param num_rels: [int] number of relations that we have originally
-    returns all_triples: [np.array] triples including inverse triples
+    returns all_quadruples: [np.array] quadruples including inverse quadruples
     """
-    inverse_triples = triples[:, [2, 1, 0, 3]]
-    inverse_triples[:, 1] = inverse_triples[:, 1] + num_rels  # we also need inverse triples
-    all_triples = np.concatenate((triples[:,0:4], inverse_triples))
+    inverse_quadruples = quadruples[:, [2, 1, 0, 3]]
+    inverse_quadruples[:, 1] = inverse_quadruples[:, 1] + num_rels  # we also need inverse quadruples
+    all_quadruples = np.concatenate((quadruples[:,0:4], inverse_quadruples))
 
-    return all_triples
+    return all_quadruples
 
 def reformat_ts(timestamps):
     """ reformat timestamps s.t. they start with 0, and have stepsize 1.
@@ -281,31 +281,55 @@ ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
 name = parsed["dataset"]
 dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
-relations = dataset.edge_type.astype(int)
-num_rels = len(set(relations))
+relations = dataset.edge_type#.astype(int)
+num_rels = dataset.num_rels#len(set(relations))
 rels = np.arange(0,2*num_rels)
-subjects = dataset.full_data["sources"].astype(int)
-objects= dataset.full_data["destinations"].astype(int)
-num_nodes = max(np.concatenate((dataset.full_data['sources'].astype(int), dataset.full_data['destinations'].astype(int))))
-timestamps = dataset.full_data["timestamps"].astype(int)
+subjects = dataset.full_data["sources"]#.astype(int)
+objects= dataset.full_data["destinations"]#.astype(int)
+num_nodes = dataset.num_nodes #max(np.concatenate((dataset.full_data['sources'].astype(int), dataset.full_data['destinations'].astype(int))))
+timestamps = dataset.full_data["timestamps"]#.astype(int)
 
-timestamps = reformat_ts(timestamps)
+# timestamps = reformat_ts(timestamps)
+
 
 all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
 train_data = all_quads[dataset.train_mask]
-valid_data = all_quads[dataset.val_mask]
+val_data = all_quads[dataset.val_mask]
 test_data = all_quads[dataset.test_mask]
 
-train_data = add_inverse_quadruples(train_data, num_rels)
-valid_data = add_inverse_quadruples(valid_data, num_rels)
-test_data = add_inverse_quadruples(test_data, num_rels)
-train_valid_data = np.concatenate([train_data, valid_data])
-all_data = np.concatenate([train_data, valid_data, test_data])
 
-test_data_prel = group_by(test_data, 1, rels)
-all_data_prel = group_by(all_data, 1, rels)
-valid_data_prel = group_by(valid_data, 1, rels)
-trainvalid_data_prel = group_by(train_valid_data, 1, rels)
+metric = dataset.eval_metric
+evaluator = Evaluator(name=name)
+neg_sampler = dataset.negative_sampler
+
+#load the ns samples first
+dataset.load_val_ns()
+neg_batch_list_val = [None for k in range(len(val_data[:,0]))]
+num_neg_samples = [None for k in range(len(val_data[:,0]))]
+for i, (src, dst, t, rel) in enumerate(zip(val_data[:,0], val_data[:,2], val_data[:,3], val_data[:,1])):
+    #must use np array to query
+    neg_sam = neg_sampler.query_batch(np.array([src]), np.array([dst]), np.array([t]), edge_type=np.array([rel]), split_mode='val')
+    assert(len(neg_sam) ==1)
+    neg_batch_list_val[i] = neg_sam[0]
+    num_neg_samples[i] = len(neg_batch_list_val[i])
+
+
+
+print (f"retrieved all negative samples for val set. In total we have {len(neg_batch_list_val)} entries")
+print (f"In average we have {np.mean(num_neg_samples)} neg samples per quadruple, where we have in total {num_nodes} nodes")
+
+print("For now not adding inverse triples - To be done later")
+# train_data = add_inverse_quadruples(train_data, num_rels)
+# val_data = add_inverse_quadruples(val_data, num_rels)
+# test_data = add_inverse_quadruples(test_data, num_rels)
+train_val_data = np.concatenate([train_data, val_data])
+all_data = np.concatenate([train_data, val_data, test_data])
+
+test_data_prel = group_by(test_data, 1)
+all_data_prel = group_by(all_data, 1)
+val_data_prel = group_by(val_data, 1)
+trainval_data_prel = group_by(train_val_data, 1)
+
 
 #
 if parsed['train_flag']:
@@ -316,7 +340,7 @@ if parsed['train_flag']:
     default_alpha = params_dict['alpha'][-2]
 
 ## load rules
-basis_dict = create_basis_dict(train_valid_data)
+basis_dict = create_basis_dict(train_val_data)
 
 ## init
 
@@ -324,7 +348,7 @@ rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
-    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, valid_data_prel, trainvalid_data_prel, parsed['num_processes'], 
+    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, parsed['num_processes'], 
          parsed['window'])
 else: # use preset lmbda and alpha; same for all relations
     best_config = {} 

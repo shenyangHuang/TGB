@@ -3,7 +3,7 @@ import numpy as np
 from collections import Counter
 import time
 import torch
-import modules2.logging_utils as logging_utils
+import tgb_modules.logging_utils as logging_utils
 
 class RecurrencyBaselinePredictor(object):
     def __init__(self, rels):
