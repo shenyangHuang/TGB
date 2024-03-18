@@ -15,9 +15,9 @@ from itertools import groupby
 from operator import itemgetter
 
 #internal imports 
-import modules2.tkg_utils as utils
+import tgb_modules.tkg_utils as utils
 
-from modules2.recurrencybaseline_predictor import RecurrencyBaselinePredictor #apply_baselines_remote, score_psi
+from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor #apply_baselines_remote, score_psi
 # from tgb.tkglinkpred.evaluate import Evaluator #TODO
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 # from tgb.utils.utils import save_results #TODO

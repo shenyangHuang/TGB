@@ -17,12 +17,12 @@ from torch_geometric.loader import TemporalDataLoader
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed
 from tgb.nodeproppred.evaluate import Evaluator
-from modules.decoder import NodePredictor
-from modules.emb_module import GraphAttentionEmbedding
-from modules.msg_func import IdentityMessage
-from modules.msg_agg import LastAggregator
-from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import DyRepMemory
+from tgb_modules.decoder import NodePredictor
+from tgb_modules.emb_module import GraphAttentionEmbedding
+from tgb_modules.msg_func import IdentityMessage
+from tgb_modules.msg_agg import LastAggregator
+from tgb_modules.neighbor_loader import LastNeighborLoader
+from tgb_modules.memory_module import DyRepMemory
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 
 
