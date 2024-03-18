@@ -106,6 +106,7 @@ class LinkPropPredDataset(object):
         if preprocess:
             self.pre_process()
 
+        
         self.ns_sampler = NegativeEdgeSampler(
             dataset_name=self.name, strategy="hist_rnd"
         )
