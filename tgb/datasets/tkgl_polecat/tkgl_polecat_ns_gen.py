@@ -1,7 +1,7 @@
 import time
 from tgb.linkproppred.tkg_negative_generator import NegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
-
+from utils import add_inverse_quadruples_pyg
 
 
 def main():
@@ -22,6 +22,12 @@ def main():
     val_mask = dataset.val_mask
     test_mask = dataset.test_mask
     data = dataset.get_TemporalData()
+
+    #! add reverse relations too
+    #! masks need to be added too
+    data = add_inverse_quadruples_pyg(data)
+
+
 
     data_splits = {}
     data_splits['train'] = data[train_mask]
