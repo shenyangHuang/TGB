@@ -1,5 +1,151 @@
+'''
+       Recurrency Baseline
+	  
+  File:     recurrencybaseline.py
+  Authors:  Julia Gastinger (julia.gastinger@neclab.eu)
+
+NEC Laboratories Europe GmbH, Copyright (c) 2024, All rights reserved.  
+
+       THIS HEADER MAY NOT BE EXTRACTED OR MODIFIED IN ANY WAY.
+ 
+       PROPRIETARY INFORMATION ---  
+
+SOFTWARE LICENSE AGREEMENT
+
+ACADEMIC OR NON-PROFIT ORGANIZATION NONCOMMERCIAL RESEARCH USE ONLY
+
+BY USING OR DOWNLOADING THE SOFTWARE, YOU ARE AGREEING TO THE TERMS OF THIS
+LICENSE AGREEMENT.  IF YOU DO NOT AGREE WITH THESE TERMS, YOU MAY NOT USE OR
+DOWNLOAD THE SOFTWARE.
+
+This is a license agreement ("Agreement") between your academic institution
+or non-profit organization or self (called "Licensee" or "You" in this
+Agreement) and NEC Laboratories Europe GmbH (called "Licensor" in this
+Agreement).  All rights not specifically granted to you in this Agreement
+are reserved for Licensor. 
+
+RESERVATION OF OWNERSHIP AND GRANT OF LICENSE: Licensor retains exclusive
+ownership of any copy of the Software (as defined below) licensed under this
+Agreement and hereby grants to Licensee a personal, non-exclusive,
+non-transferable license to use the Software for noncommercial research
+purposes, without the right to sublicense, pursuant to the terms and
+conditions of this Agreement. NO EXPRESS OR IMPLIED LICENSES TO ANY OF
+LICENSOR'S PATENT RIGHTS ARE GRANTED BY THIS LICENSE. As used in this
+Agreement, the term "Software" means (i) the actual copy of all or any
+portion of code for program routines made accessible to Licensee by Licensor
+pursuant to this Agreement, inclusive of backups, updates, and/or merged
+copies permitted hereunder or subsequently supplied by Licensor,  including
+all or any file structures, programming instructions, user interfaces and
+screen formats and sequences as well as any and all documentation and
+instructions related to it, and (ii) all or any derivatives and/or
+modifications created or made by You to any of the items specified in (i).
+
+CONFIDENTIALITY/PUBLICATIONS: Licensee acknowledges that the Software is
+proprietary to Licensor, and as such, Licensee agrees to receive all such
+materials and to use the Software only in accordance with the terms of this
+Agreement.  Licensee agrees to use reasonable effort to protect the Software
+from unauthorized use, reproduction, distribution, or publication. All
+publication materials mentioning features or use of this software must
+explicitly include an acknowledgement the software was developed by NEC
+Laboratories Europe GmbH.
+
+COPYRIGHT: The Software is owned by Licensor.  
+
+PERMITTED USES:  The Software may be used for your own noncommercial
+internal research purposes. You understand and agree that Licensor is not
+obligated to implement any suggestions and/or feedback you might provide
+regarding the Software, but to the extent Licensor does so, you are not
+entitled to any compensation related thereto.
+
+DERIVATIVES: You may create derivatives of or make modifications to the
+Software, however, You agree that all and any such derivatives and
+modifications will be owned by Licensor and become a part of the Software
+licensed to You under this Agreement.  You may only use such derivatives and
+modifications for your own noncommercial internal research purposes, and you
+may not otherwise use, distribute or copy such derivatives and modifications
+in violation of this Agreement.
+
+BACKUPS:  If Licensee is an organization, it may make that number of copies
+of the Software necessary for internal noncommercial use at a single site
+within its organization provided that all information appearing in or on the
+original labels, including the copyright and trademark notices are copied
+onto the labels of the copies.
+
+USES NOT PERMITTED:  You may not distribute, copy or use the Software except
+as explicitly permitted herein. Licensee has not been granted any trademark
+license as part of this Agreement.  Neither the name of NEC Laboratories
+Europe GmbH nor the names of its contributors may be used to endorse or
+promote products derived from this Software without specific prior written
+permission.
+
+You may not sell, rent, lease, sublicense, lend, time-share or transfer, in
+whole or in part, or provide third parties access to prior or present
+versions (or any parts thereof) of the Software.
+
+ASSIGNMENT: You may not assign this Agreement or your rights hereunder
+without the prior written consent of Licensor. Any attempted assignment
+without such consent shall be null and void.
+
+TERM: The term of the license granted by this Agreement is from Licensee's
+acceptance of this Agreement by downloading the Software or by using the
+Software until terminated as provided below.  
+
+The Agreement automatically terminates without notice if you fail to comply
+with any provision of this Agreement.  Licensee may terminate this Agreement
+by ceasing using the Software.  Upon any termination of this Agreement,
+Licensee will delete any and all copies of the Software. You agree that all
+provisions which operate to protect the proprietary rights of Licensor shall
+remain in force should breach occur and that the obligation of
+confidentiality described in this Agreement is binding in perpetuity and, as
+such, survives the term of the Agreement.
+
+FEE: Provided Licensee abides completely by the terms and conditions of this
+Agreement, there is no fee due to Licensor for Licensee's use of the
+Software in accordance with this Agreement.
+
+DISCLAIMER OF WARRANTIES:  THE SOFTWARE IS PROVIDED "AS-IS" WITHOUT WARRANTY
+OF ANY KIND INCLUDING ANY WARRANTIES OF PERFORMANCE OR MERCHANTABILITY OR
+FITNESS FOR A PARTICULAR USE OR PURPOSE OR OF NON- INFRINGEMENT.  LICENSEE
+BEARS ALL RISK RELATING TO QUALITY AND PERFORMANCE OF THE SOFTWARE AND
+RELATED MATERIALS.
+
+SUPPORT AND MAINTENANCE: No Software support or training by the Licensor is
+provided as part of this Agreement.  
+
+EXCLUSIVE REMEDY AND LIMITATION OF LIABILITY: To the maximum extent
+permitted under applicable law, Licensor shall not be liable for direct,
+indirect, special, incidental, or consequential damages or lost profits
+related to Licensee's use of and/or inability to use the Software, even if
+Licensor is advised of the possibility of such damage.
+
+EXPORT REGULATION: Licensee agrees to comply with any and all applicable
+export control laws, regulations, and/or other laws related to embargoes and
+sanction programs administered by law.
+
+SEVERABILITY: If any provision(s) of this Agreement shall be held to be
+invalid, illegal, or unenforceable by a court or other tribunal of competent
+jurisdiction, the validity, legality and enforceability of the remaining
+provisions shall not in any way be affected or impaired thereby.
+
+NO IMPLIED WAIVERS: No failure or delay by Licensor in enforcing any right
+or remedy under this Agreement shall be construed as a waiver of any future
+or other exercise of such right or remedy by Licensor.
+
+GOVERNING LAW: This Agreement shall be construed and enforced in accordance
+with the laws of Germany without reference to conflict of laws principles.
+You consent to the personal jurisdiction of the courts of this country and
+waive their rights to venue outside of Germany.
+
+ENTIRE AGREEMENT AND AMENDMENTS: This Agreement constitutes the sole and
+entire agreement between Licensee and Licensor as to the matter set forth
+herein and supersedes any previous agreements, understandings, and
+arrangements between the parties relating hereto.
+
+       THIS HEADER MAY NOT BE EXTRACTED OR MODIFIED IN ANY WAY.
+'''
+
 import sys
-sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+# sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
 
 ## imports
 
@@ -15,10 +161,8 @@ from itertools import groupby
 from operator import itemgetter
 
 #internal imports 
-import tgb_modules.tkg_utils as utils
-from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor #apply_baselines_remote, score_psi
-
-from tgb.linkproppred.evaluate import Evaluator #TODO
+from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor 
+from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 # from tgb.utils.utils import save_results #TODO
 
@@ -44,10 +188,12 @@ def create_basis_dict(data):
 
 
 ## test
-def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, num_processes, 
-         window):
+def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, neg_sampler, num_processes, 
+         window, evaluator):
     scores_dict_for_test = {}
     final_logging_dict = {}
+    perf_list_all = []
+    hits_list_all =[]
     ## loop through relations and apply baselines
     for rel in rels:
         start = time.time()
@@ -70,42 +216,58 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
                 num_processes_tmp = num_processes      
             
             ## apply baselines for this relation
+            neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
+                                    np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
+            pos_samples_batch = test_data_c_rel[:,2]
             ## use this if you wanna use ray:
             object_references = [
                 apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
                                     basis_dict, 
-                                    num_nodes, 2*num_rels, 
-                                    lmbda_psi, alpha) for i in range(num_processes_tmp)]
+                                    num_nodes, 2*num_rels, lmbda_psi, 
+                                    alpha, evaluator, neg_samples_batch, pos_samples_batch, mode='test') for i in range(num_processes_tmp)]
             output = ray.get(object_references)
 
-            ## use this if you dont wanna use ray:
-            # output = rb_predictor.apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
-            #                         basis_dict, 
-            #                         num_nodes, 2*num_rels, 
-            #                         lmbda_psi, alpha)
-            
+            # batch_data = test_data[test_queries_idx[0]]
 
-            ## updates the scores and logging dict for each process
+            # updates the scores and logging dict for each process
             for proc_loop in range(num_processes_tmp):
                 scores_dict_for_test.update(output[proc_loop][1])
                 final_logging_dict.update(output[proc_loop][0])
+                perf_list_all.extend(output[proc_loop][2])
+                hits_list_all.extend(output[proc_loop][3])
+
+            ## use this if you dont wanna use ray:
+            # neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
+            #                         np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
+            # pos_samples_batch = test_data_c_rel[:,2]
+            # output = rb_predictor.apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
+            #                         basis_dict, 
+            #                         num_nodes, 2*num_rels, 
+            #                         lmbda_psi, alpha, neg_samples_batch,pos_samples_batch, 
+            #                         evaluator)
+            # scores_dict_for_test, final_logging_dict, perf_list, hits_list = output
+            # perf_list_all.extend(perf_list)
+            # hits_list_all.extend(hits_list)
+            
+
 
         end = time.time()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
 
     # perf_metrics = 0 #TODO
-    return scores_dict_for_test
+    return scores_dict_for_test, perf_list_all, hits_list_all
 
 
 @ray.remote
 def apply_baselines_remote(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha):
+                num_rels, lmbda_psi, alpha, evaluator, neg_samples_batch, pos_samples_batch, mode):
+
     return rb_predictor.apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha)
+                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator)
 
 ## train
-def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, num_processes, 
+def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, num_processes, 
          window):
     """ optional, find best values for lambda and alpha
     """
@@ -116,11 +278,8 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
 
         best_config[str(rel_key)] = {}
         best_config[str(rel_key)]['not_trained'] = 'True'    
-
         best_config[str(rel_key)]['lmbda_psi'] = [default_lmbda_psi,0] #default
         best_config[str(rel_key)]['other_lmbda_mrrs'] = list(np.zeros(len(params_dict['lmbda_psi'])))
-
-
         best_config[str(rel_key)]['alpha'] = [default_alpha,0]  #default    
         best_config[str(rel_key)]['other_alpha_mrrs'] = list(np.zeros(len(params_dict['alpha'])))
         
@@ -130,7 +289,9 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             timesteps_valid = list(set(val_data_c_rel[:,3]))
             timesteps_valid.sort()
             trainval_data_c_rel = trainval_data_prel[rel]
-            
+            neg_samples_batch = neg_sampler.query_batch(np.array(val_data_c_rel[:,0]), np.array(val_data_c_rel[:,2]), 
+                                    np.array(val_data_c_rel[:,4]), edge_type=np.array(val_data_c_rel[:,1]), split_mode='val')
+            pos_samples_batch = val_data_c_rel[:,2]
             # queries per process if multiple processes
             num_queries = len(val_data_c_rel) // num_processes
             if num_queries < num_processes: # if we do not have enough queries for all the processes
@@ -151,27 +312,36 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             best_config[str(rel_key)]['num_app_train_valid'] = copy(len(trainval_data_c_rel))         
             best_config[str(rel_key)]['not_trained'] = 'False'       
 
-            for lmbda_psi in lmbdas_psi:    
+            
+            for lmbda_psi in lmbdas_psi:   
+                perf_list_all = []
+                hits_list_all = []
+                ## use this if you wanna use ray:
                 object_references = [
-                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, num_nodes, 2*num_rels, 
-                                        lmbda_psi, alpha) for i in range(num_processes_tmp)]
+                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                                        basis_dict, 
+                                        num_nodes, 2*num_rels, lmbda_psi, 
+                                        alpha, evaluator, neg_samples_batch, 
+                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
                 output = ray.get(object_references)
 
-                scores_dict_for_eval = {}
+                # batch_data = test_data[test_queries_idx[0]]
+
+                # updates the scores and logging dict for each process
                 for proc_loop in range(num_processes_tmp):
-                    scores_dict_for_eval.update(output[proc_loop][1])
+                    # scores_dict_for_eval_lambda.update(output[proc_loop][1])
+                    # final_logging_dict.update(output[proc_loop][0])
+                    perf_list_all.extend(output[proc_loop][2])
+                    hits_list_all.extend(output[proc_loop][3])
 
                 # compute mrr
-                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval, val_data_c_rel, timesteps_valid) #TODO
-                mrr = mrr_and_friends[1]
-
+                mrr = np.mean(perf_list_all)
                 # # is new mrr better than previous best? if yes: store lmbda
                 if mrr > best_mrr_psi:
-                    best_mrr_psi = mrr
+                    best_mrr_psi = float(mrr)
                     best_lmbda_psi = lmbda_psi
 
-                lmbda_mrrs.append(mrr)
+                lmbda_mrrs.append(float(mrr))
             best_config[str(rel_key)]['lmbda_psi'] = [best_lmbda_psi, best_mrr_psi]
             best_config[str(rel_key)]['other_lmbda_mrrs'] = lmbda_mrrs
 
@@ -181,27 +351,36 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             lmbda_psi = best_config[str(rel_key)]['lmbda_psi'][0] # use the best lmbda psi
 
             alpha_mrrs = []
+            # perf_list_all = []
             best_mrr_alpha = 0
             for alpha in alphas:
+                perf_list_all = []
+                hits_list_all = []
+                ## use this if you wanna use ray:
                 object_references = [
-                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, num_nodes, 2*num_rels,                                         
-                                        lmbda_psi, alpha) for i in range(num_processes_tmp)]
-                output_alpha = ray.get(object_references)
+                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                                        basis_dict, 
+                                        num_nodes, 2*num_rels, lmbda_psi, 
+                                        alpha, evaluator, neg_samples_batch, 
+                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
+                output = ray.get(object_references)
 
-                scores_dict_for_eval_alpha = {}
+
+                # updates the scores and logging dict for each process
                 for proc_loop in range(num_processes_tmp):
-                    scores_dict_for_eval_alpha.update(output_alpha[proc_loop][1])
+                    # scores_dict_for_eval_lambda.update(output[proc_loop][1])
+                    # final_logging_dict.update(output[proc_loop][0])
+                    perf_list_all.extend(output[proc_loop][2])
+                    hits_list_all.extend(output[proc_loop][3])
 
                 # compute mrr
-                mrr_and_friends = utils.compute_mrr(scores_dict_for_eval_alpha, val_data_c_rel, timesteps_valid)
-                mrr_alpha = mrr_and_friends[1]
+                mrr_alpha = np.mean(perf_list_all)
 
                 # is new mrr better than previous best? if yes: store alpha
                 if mrr_alpha > best_mrr_alpha:
-                    best_mrr_alpha = mrr_alpha
+                    best_mrr_alpha = float(mrr_alpha)
                     best_alpha = alpha
-                alpha_mrrs.append(mrr_alpha)
+                alpha_mrrs.append(float(mrr_alpha))
 
             best_config[str(rel_key)]['alpha'] = [best_alpha, best_mrr_alpha]
             best_config[str(rel_key)]['other_alpha_mrrs'] = alpha_mrrs
@@ -264,10 +443,11 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) #ICEWS14, ICEWS18, GDELT, YAGO, WIKI
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
-    parser.add_argument("--num_processes", "-p", default=10, type=int)
+    parser.add_argument("--num_processes", "-p", default=4, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.999, type=float) # fix alpha. used if trainflag == false
     parser.add_argument("--train_flag", "-tr",  default=True) # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
 
     parsed = vars(parser.parse_args())
     return parsed
@@ -281,42 +461,25 @@ ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
 name = parsed["dataset"]
 dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
-relations = dataset.edge_type#.astype(int)
-num_rels = dataset.num_rels#len(set(relations))
+relations = dataset.edge_type
+num_rels = dataset.num_rels
 rels = np.arange(0,2*num_rels)
-subjects = dataset.full_data["sources"]#.astype(int)
-objects= dataset.full_data["destinations"]#.astype(int)
-num_nodes = dataset.num_nodes #max(np.concatenate((dataset.full_data['sources'].astype(int), dataset.full_data['destinations'].astype(int))))
-timestamps = dataset.full_data["timestamps"]#.astype(int)
+subjects = dataset.full_data["sources"]
+objects= dataset.full_data["destinations"]
+num_nodes = dataset.num_nodes 
+timestamps_orig = dataset.full_data["timestamps"]
 
-# timestamps = reformat_ts(timestamps)
+timestamps = reformat_ts(timestamps_orig)
 
-
-all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
+all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
 train_data = all_quads[dataset.train_mask]
 val_data = all_quads[dataset.val_mask]
 test_data = all_quads[dataset.test_mask]
 
-
 metric = dataset.eval_metric
 evaluator = Evaluator(name=name)
 neg_sampler = dataset.negative_sampler
-
-#load the ns samples first
-dataset.load_val_ns()
-neg_batch_list_val = [None for k in range(len(val_data[:,0]))]
-num_neg_samples = [None for k in range(len(val_data[:,0]))]
-for i, (src, dst, t, rel) in enumerate(zip(val_data[:,0], val_data[:,2], val_data[:,3], val_data[:,1])):
-    #must use np array to query
-    neg_sam = neg_sampler.query_batch(np.array([src]), np.array([dst]), np.array([t]), edge_type=np.array([rel]), split_mode='val')
-    assert(len(neg_sam) ==1)
-    neg_batch_list_val[i] = neg_sam[0]
-    num_neg_samples[i] = len(neg_batch_list_val[i])
-
-
-
-print (f"retrieved all negative samples for val set. In total we have {len(neg_batch_list_val)} entries")
-print (f"In average we have {np.mean(num_neg_samples)} neg samples per quadruple, where we have in total {num_nodes} nodes")
+evaluator = Evaluator(name=name)
 
 print("For now not adding inverse triples - To be done later")
 # train_data = add_inverse_quadruples(train_data, num_rels)
@@ -331,7 +494,12 @@ val_data_prel = group_by(val_data, 1)
 trainval_data_prel = group_by(train_val_data, 1)
 
 
-#
+#load the ns samples 
+if parsed['train_flag']:
+    dataset.load_val_ns()
+dataset.load_test_ns()
+
+# parameter options
 if parsed['train_flag']:
     params_dict = {}
     params_dict['lmbda_psi'] = [0, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.5, 0.9, 1.0001] 
@@ -343,13 +511,16 @@ if parsed['train_flag']:
 basis_dict = create_basis_dict(train_val_data)
 
 ## init
-
 rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
-    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, parsed['num_processes'], 
+    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
+    if parsed['save_config']:
+        import json
+        with open('best_config.json', 'w') as outfile:
+            json.dump(best_config, outfile)
 else: # use preset lmbda and alpha; same for all relations
     best_config = {} 
     for rel in rels:
@@ -359,16 +530,15 @@ else: # use preset lmbda and alpha; same for all relations
 
 end_train = time.time()
 start_test = time.time()
-eval_scores = test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, parsed['num_processes'], 
-         parsed['window'])
+eval_scores, perf_list_all, hits_list_all = test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, 
+                                                 all_data_prel, neg_sampler, parsed['num_processes'], 
+                                                parsed['window'], evaluator)
 
-# compute mrr
-#TODO
-# print("Now computing the test MRR")
-# timesteps_test = list(set(test_data[:,3]))
-# timesteps_test.sort()
-# mrr_and_friends = utils.compute_mrr(scores_dict_for_test, test_data, timesteps_test)
-# mrr = mrr_and_friends[1]
+
+print(f"The MRR is {np.mean(perf_list_all)}")
+print(f"The Hits@10 is {np.mean(hits_list_all)}")
+print(f"We have {len(perf_list_all)} predictions")
+print(f"The test set has len {len(test_data)} ")
 
 # print some infos:
 end_o = time.time()
@@ -392,10 +562,6 @@ lines = [
 # Write lines to the file
 with open("runtimes.txt", "w") as file:
     file.writelines(lines)
-
-
-
-
 
 
 ray.shutdown()
