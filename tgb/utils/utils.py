@@ -8,6 +8,45 @@ import torch
 from typing import Any
 import numpy as np
 from torch_geometric.data import TemporalData
+import pandas as pd
+
+
+def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
+    r"""
+    adds the inverse relations required for the model to the dataframe
+    """
+    if ("edge_type" not in df):
+        raise ValueError("edge_type is required to invert relation in TKG")
+    
+    sources = np.array(df["u"])
+    destinations = np.array(df["i"])
+    timestamps = np.array(df["ts"])
+    edge_idxs = np.array(df["idx"])
+    weights = np.array(df["w"])
+    edge_type = np.array(df["edge_type"])
+
+    num_rels = np.unique(edge_type).shape[0]
+    inv_edge_type = edge_type + num_rels
+
+    all_sources = np.concatenate([sources, destinations])
+    all_destinations = np.concatenate([destinations, sources])
+    all_timestamps = np.concatenate([timestamps, timestamps])
+    all_edge_idxs = np.concatenate([edge_idxs, edge_idxs+edge_idxs.max()+1])
+    all_weights = np.concatenate([weights, weights])
+    all_edge_types = np.concatenate([edge_type, inv_edge_type])
+
+    return pd.DataFrame(
+            {
+                "u": all_sources,
+                "i": all_destinations,
+                "ts": all_timestamps,
+                "label": np.ones(all_timestamps.shape[0]),
+                "idx": all_edge_idxs,
+                "w": all_weights,
+                "edge_type": all_edge_types,
+            }
+        )
+
 
 
 def add_inverse_quadruples_np(quadruples: np.array, 
