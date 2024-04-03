@@ -145,7 +145,7 @@ arrangements between the parties relating hereto.
 '''
 
 import sys
-# sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
 
 ## imports
 
@@ -219,35 +219,35 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
             neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
                                     np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
             pos_samples_batch = test_data_c_rel[:,2]
+            
             ## use this if you wanna use ray:
-            object_references = [
-                apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
-                                    basis_dict, 
-                                    num_nodes, 2*num_rels, lmbda_psi, 
-                                    alpha, evaluator, neg_samples_batch, pos_samples_batch, mode='test') for i in range(num_processes_tmp)]
-            output = ray.get(object_references)
+            if num_processes > 1:
+                object_references = [
+                    apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
+                                        basis_dict, 
+                                        num_nodes, num_rels, lmbda_psi, 
+                                        alpha, evaluator, neg_samples_batch, pos_samples_batch, mode='test') for i in range(num_processes_tmp)]
+                output = ray.get(object_references)
 
-            # batch_data = test_data[test_queries_idx[0]]
+                # batch_data = test_data[test_queries_idx[0]]
 
-            # updates the scores and logging dict for each process
-            for proc_loop in range(num_processes_tmp):
-                scores_dict_for_test.update(output[proc_loop][1])
-                final_logging_dict.update(output[proc_loop][0])
-                perf_list_all.extend(output[proc_loop][2])
-                hits_list_all.extend(output[proc_loop][3])
+                # updates the scores and logging dict for each process
+                for proc_loop in range(num_processes_tmp):
+                    scores_dict_for_test.update(output[proc_loop][1])
+                    final_logging_dict.update(output[proc_loop][0])
+                    perf_list_all.extend(output[proc_loop][2])
+                    hits_list_all.extend(output[proc_loop][3])
 
             ## use this if you dont wanna use ray:
-            # neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
-            #                         np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
-            # pos_samples_batch = test_data_c_rel[:,2]
-            # output = rb_predictor.apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
-            #                         basis_dict, 
-            #                         num_nodes, 2*num_rels, 
-            #                         lmbda_psi, alpha, neg_samples_batch,pos_samples_batch, 
-            #                         evaluator)
-            # scores_dict_for_test, final_logging_dict, perf_list, hits_list = output
-            # perf_list_all.extend(perf_list)
-            # hits_list_all.extend(hits_list)
+            else:
+                output = rb_predictor.apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
+                                        basis_dict, 
+                                        num_nodes, num_rels, 
+                                        lmbda_psi, alpha, neg_samples_batch,pos_samples_batch, 
+                                        evaluator)
+                scores_dict_for_test, final_logging_dict, perf_list, hits_list = output
+                perf_list_all.extend(perf_list)
+                hits_list_all.extend(hits_list)
             
 
 
@@ -317,10 +317,11 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                 perf_list_all = []
                 hits_list_all = []
                 ## use this if you wanna use ray:
+
                 object_references = [
                     apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, 
-                                        num_nodes, 2*num_rels, lmbda_psi, 
+                                        num_nodes, num_rels, lmbda_psi, 
                                         alpha, evaluator, neg_samples_batch, 
                                         pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
                 output = ray.get(object_references)
@@ -360,7 +361,7 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                 object_references = [
                     apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, 
-                                        num_nodes, 2*num_rels, lmbda_psi, 
+                                        num_nodes, num_rels, lmbda_psi, 
                                         alpha, evaluator, neg_samples_batch, 
                                         pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
                 output = ray.get(object_references)
@@ -406,19 +407,6 @@ def group_by(data: np.array, key_idx: int) -> dict:
         data_dict[key] = np.array(list(group))
     return data_dict
 
-def add_inverse_quadruples(quadruples: np.array, num_rels:int) -> np.array:
-    """
-    creates an inverse quadruple for each quadruple in quadruples. inverse quadruple swaps subject and objsect, and increases 
-    relation id by num_rels
-    :param quadruples: [np.array] dataset quadruples
-    :param num_rels: [int] number of relations that we have originally
-    returns all_quadruples: [np.array] quadruples including inverse quadruples
-    """
-    inverse_quadruples = quadruples[:, [2, 1, 0, 3]]
-    inverse_quadruples[:, 1] = inverse_quadruples[:, 1] + num_rels  # we also need inverse quadruples
-    all_quadruples = np.concatenate((quadruples[:,0:4], inverse_quadruples))
-
-    return all_quadruples
 
 def reformat_ts(timestamps):
     """ reformat timestamps s.t. they start with 0, and have stepsize 1.
@@ -443,10 +431,10 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) #ICEWS14, ICEWS18, GDELT, YAGO, WIKI
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
-    parser.add_argument("--num_processes", "-p", default=4, type=int)
+    parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.999, type=float) # fix alpha. used if trainflag == false
-    parser.add_argument("--train_flag", "-tr",  default=True) # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha
     parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
 
     parsed = vars(parser.parse_args())
@@ -463,7 +451,7 @@ dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 
 relations = dataset.edge_type
 num_rels = dataset.num_rels
-rels = np.arange(0,2*num_rels)
+rels = np.arange(0,num_rels)
 subjects = dataset.full_data["sources"]
 objects= dataset.full_data["destinations"]
 num_nodes = dataset.num_nodes 
@@ -479,12 +467,9 @@ test_data = all_quads[dataset.test_mask]
 metric = dataset.eval_metric
 evaluator = Evaluator(name=name)
 neg_sampler = dataset.negative_sampler
-evaluator = Evaluator(name=name)
 
-print("For now not adding inverse triples - To be done later")
-# train_data = add_inverse_quadruples(train_data, num_rels)
-# val_data = add_inverse_quadruples(val_data, num_rels)
-# test_data = add_inverse_quadruples(test_data, num_rels)
+
+
 train_val_data = np.concatenate([train_data, val_data])
 all_data = np.concatenate([train_data, val_data, test_data])
 
