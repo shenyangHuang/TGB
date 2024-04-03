@@ -24,6 +24,7 @@ from tgb.utils.pre_process import (
     csv_to_tkg_data,
 )
 from tgb.utils.utils import save_pkl, load_pkl
+from tgb.utils.utils import add_inverse_quadruples
 
 
 class LinkPropPredDataset(object):
@@ -244,10 +245,15 @@ class LinkPropPredDataset(object):
         Pre-process the dataset and generates the splits, must be run before dataset properties can be accessed
         generates the edge data and different train, val, test splits
         """
-        # TODO for link prediction, y =1 because these are all true edges, edge feat = weight + edge feat
 
         # check if path to file is valid
         df, edge_feat, node_feat = self.generate_processed_files()
+
+        #TODO for tkgl datasets, add inverse relations here
+        #! design choice, only stores the original edges not the inverse relations on disc
+        if ("tkgl" in self.name):
+            df = add_inverse_quadruples(df)
+
         sources = np.array(df["u"])
         destinations = np.array(df["i"])
         timestamps = np.array(df["ts"])
