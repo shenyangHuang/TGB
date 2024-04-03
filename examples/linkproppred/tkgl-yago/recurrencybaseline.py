@@ -429,12 +429,12 @@ def reformat_ts(timestamps):
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) #ICEWS14, ICEWS18, GDELT, YAGO, WIKI
+    parser.add_argument("--dataset", "-d", default="tkgl-yago", type=str) #ICEWS14, ICEWS18, GDELT, YAGO, WIKI
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.999, type=float) # fix alpha. used if trainflag == false
-    parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--train_flag", "-tr",  default=True) # do we need training, ie selection of lambda and alpha
     parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
 
     parsed = vars(parser.parse_args())
@@ -525,6 +525,7 @@ print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
 
+# print some infos:
 # Lines to write to the file
 lines_scores = [
     name + "\n",
@@ -539,7 +540,6 @@ lines_scores = [
 with open("mrrs.txt", "w") as file:
     file.writelines(lines_scores)
 
-# print some infos:
 end_o = time.time()
 train_time_o = round(end_train- start_train, 6)  
 test_time_o = round(end_o- start_test, 6)  
