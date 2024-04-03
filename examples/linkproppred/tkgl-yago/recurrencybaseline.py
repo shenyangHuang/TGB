@@ -164,7 +164,8 @@ from operator import itemgetter
 from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor 
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-# from tgb.utils.utils import save_results #TODO
+from tgb.utils.utils import set_random_seed
+from tgb.utils.utils import save_results 
 
 
 ## preprocess: define rules
@@ -429,14 +430,14 @@ def reformat_ts(timestamps):
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="tkgl-yago", type=str) #ICEWS14, ICEWS18, GDELT, YAGO, WIKI
+    parser.add_argument("--dataset", "-d", default="tkgl-yago", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.999, type=float) # fix alpha. used if trainflag == false
-    parser.add_argument("--train_flag", "-tr",  default=True) # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha
     parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
-
+    parser.add_argument('--seed', type=int, help='Random seed', default=1)
     parsed = vars(parser.parse_args())
     return parsed
 
@@ -448,6 +449,11 @@ ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
 ## load dataset and prepare it accordingly
 name = parsed["dataset"]
 dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
+DATA = name
+MODEL_NAME = 'RecurrencyBaseline'
+
+SEED = parsed['seed']  # set the random seed for consistency
+set_random_seed(SEED)
 
 relations = dataset.edge_type
 num_rels = dataset.num_rels
@@ -525,21 +531,6 @@ print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
 
-# print some infos:
-# Lines to write to the file
-lines_scores = [
-    name + "\n",
-    datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n",
-    f"The MRR is {np.mean(perf_list_all)}" + "\n",
-    f"The Hits@10 is {np.mean(hits_list_all)}" + "\n",
-    f"We have {len(perf_list_all)} predictions" + "\n",
-    f"The test set has len {len(test_data)} "
-]
-
-# Write lines to the file
-with open("mrrs.txt", "w") as file:
-    file.writelines(lines_scores)
-
 end_o = time.time()
 train_time_o = round(end_train- start_train, 6)  
 test_time_o = round(end_o- start_test, 6)  
@@ -548,19 +539,30 @@ print("Running Training to find best configs finished in {} seconds.".format(tra
 print("Running testing with best configs finished in {} seconds.".format(test_time_o))
 print("Running all steps finished in {} seconds.".format(total_time_o))
 
+# for saving the results...
+import os
+import os.path as osp
+from pathlib import Path
+results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
+if not osp.exists(results_path):
+    os.mkdir(results_path)
+    print('INFO: Create directory {}'.format(results_path))
+Path(results_path).mkdir(parents=True, exist_ok=True)
+results_filename = f'{results_path}/{MODEL_NAME}_NONE_{DATA}_results.json'
 
-# Lines to write to the file
-lines = [
-    name + "\n",
-    datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n",
-    "Running Training to find best configs finished in {} seconds.\n".format(train_time_o),
-    "Running testing with best configs finished in {} seconds.\n".format(test_time_o),
-    "Running all steps finished in {} seconds.\n".format(total_time_o)
-]
 
-# Write lines to the file
-with open("runtimes.txt", "w") as file:
-    file.writelines(lines)
+metric = name.eval_metric
+save_results({'model': MODEL_NAME,
+              'train_flag': parsed['train_flag'],
+              'data': DATA,
+              'run': 1,
+              'seed': SEED,
+              metric: float(np.mean(perf_list_all)),
+              'hits10': float(np.mean(hits_list_all)),
+              'test_time': test_time_o,
+              'tot_train_val_time': total_time_o
+              }, 
+    results_filename)
 
 
 ray.shutdown()
