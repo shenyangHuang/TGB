@@ -3,7 +3,6 @@ from tgb.linkproppred.tkg_negative_generator import NegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
-
 def main():
     r"""
     Generate negative edges for the validation or test phase
@@ -22,6 +21,8 @@ def main():
     val_mask = dataset.val_mask
     test_mask = dataset.test_mask
     data = dataset.get_TemporalData()
+
+
 
     data_splits = {}
     data_splits['train'] = data[train_mask]

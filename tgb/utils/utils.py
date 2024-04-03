@@ -1,12 +1,88 @@
-import numpy as np
 import random
 import os
 import pickle
-from typing import Any
 import sys
 import argparse
 import json
-import io
+import torch
+from typing import Any
+import numpy as np
+from torch_geometric.data import TemporalData
+import pandas as pd
+
+
+def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
+    r"""
+    adds the inverse relations required for the model to the dataframe
+    """
+    if ("edge_type" not in df):
+        raise ValueError("edge_type is required to invert relation in TKG")
+    
+    sources = np.array(df["u"])
+    destinations = np.array(df["i"])
+    timestamps = np.array(df["ts"])
+    edge_idxs = np.array(df["idx"])
+    weights = np.array(df["w"])
+    edge_type = np.array(df["edge_type"])
+
+    num_rels = np.unique(edge_type).shape[0]
+    inv_edge_type = edge_type + num_rels
+
+    all_sources = np.concatenate([sources, destinations])
+    all_destinations = np.concatenate([destinations, sources])
+    all_timestamps = np.concatenate([timestamps, timestamps])
+    all_edge_idxs = np.concatenate([edge_idxs, edge_idxs+edge_idxs.max()+1])
+    all_weights = np.concatenate([weights, weights])
+    all_edge_types = np.concatenate([edge_type, inv_edge_type])
+
+    return pd.DataFrame(
+            {
+                "u": all_sources,
+                "i": all_destinations,
+                "ts": all_timestamps,
+                "label": np.ones(all_timestamps.shape[0]),
+                "idx": all_edge_idxs,
+                "w": all_weights,
+                "edge_type": all_edge_types,
+            }
+        )
+
+
+
+def add_inverse_quadruples_np(quadruples: np.array, 
+                              num_rels:int) -> np.array:
+    """
+    creates an inverse quadruple for each quadruple in quadruples. inverse quadruple swaps subject and objsect, and increases 
+    relation id by num_rels
+    :param quadruples: [np.array] dataset quadruples, [src, relation_id, dst, timestamp ]
+    :param num_rels: [int] number of relations that we have originally
+    returns all_quadruples: [np.array] quadruples including inverse quadruples
+    """
+    inverse_quadruples = quadruples[:, [2, 1, 0, 3]]
+    inverse_quadruples[:, 1] = inverse_quadruples[:, 1] + num_rels  # we also need inverse quadruples
+    all_quadruples = np.concatenate((quadruples[:,0:4], inverse_quadruples))
+    return all_quadruples
+
+
+def add_inverse_quadruples_pyg(data: TemporalData, num_rels:int=-1) -> list:
+    r"""
+    creates an inverse quadruple from PyG TemporalData object, returns both the original and inverse quadruples
+    """
+    timestamp = data.t
+    head = data.src
+    tail = data.dst
+    msg = data.msg
+    edge_type = data.edge_type #relation
+    num_rels = torch.max(edge_type).item() + 1
+    inv_type = edge_type + num_rels
+    all_data = TemporalData(src=torch.cat([head, tail]), 
+                            dst=torch.cat([tail, head]), 
+                            t=torch.cat([timestamp, timestamp.clone()]), 
+                            edge_type=torch.cat([edge_type, inv_type]), 
+                            msg=torch.cat([msg, msg.clone()]),
+                            y = torch.cat([data.y, data.y.clone()]),)
+    return all_data
+
 
 
 # import torch
