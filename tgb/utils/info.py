@@ -33,6 +33,7 @@ DATA_URL_DICT = {
     "tgbn-reddit": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-reddit.zip",
     "tgbn-token": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-token.zip",
     "tkgl-polecat": "https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-polecat.zip",
+    "tkgl-yago":"https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-yago.zip",
 }
 
 
@@ -48,6 +49,7 @@ DATA_VERSION_DICT = {
     "tgbn-reddit": 1,
     "tgbn-token": 1,
     "tkgl-polecat": 1,
+    "tkgl-yago": 1,
 }
 
 
@@ -58,6 +60,7 @@ DATA_EVAL_METRIC_DICT = {
     "tgbl-comment": "mrr",
     "tgbl-flight": "mrr",
     "tkgl-polecat": "mrr",
+    "tkgl-yago": "mrr",
     "tgbn-trade": "ndcg",
     "tgbn-genre": "ndcg",
     "tgbn-reddit": "ndcg",

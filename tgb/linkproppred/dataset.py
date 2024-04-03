@@ -234,6 +234,10 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
             elif self.name == "tkgl-polecat":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            elif self.name == "tkgl-yago":
+                df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            else:
+                raise ValueError(f"Dataset {self.name} not found.")
 
             save_pkl(edge_feat, OUT_EDGE_FEAT)
             df.to_pickle(OUT_DF)
@@ -283,7 +287,11 @@ class LinkPropPredDataset(object):
             full_data["edge_type"] = edge_type
 
         self._full_data = full_data
-        _train_mask, _val_mask, _test_mask = self.generate_splits(full_data)
+
+        if ("yago" in self.name):
+            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.097, test_ratio=0.099)
+        else:
+            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.15, test_ratio=0.15)
         self._train_mask = _train_mask
         self._val_mask = _val_mask
         self._test_mask = _test_mask
@@ -362,9 +370,7 @@ class LinkPropPredDataset(object):
         src = self._full_data["sources"]
         dst = self._full_data["destinations"]
         all_nodes = np.concatenate((src, dst), axis=0)
-        print (all_nodes.shape)
         uniq_nodes = np.unique(all_nodes, axis=0)
-        print (uniq_nodes.shape)
         return uniq_nodes.shape[0]
     
 
