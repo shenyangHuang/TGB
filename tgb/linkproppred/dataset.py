@@ -289,7 +289,7 @@ class LinkPropPredDataset(object):
         self._full_data = full_data
 
         if ("yago" in self.name):
-            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.097, test_ratio=0.099)
+            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.1, test_ratio=0.10) #99) #val_ratio=0.097, test_ratio=0.099)
         else:
             _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.15, test_ratio=0.15)
         self._train_mask = _train_mask
