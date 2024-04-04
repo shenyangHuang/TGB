@@ -14,6 +14,21 @@ import os
 import pickle
 import argparse
 import numpy as np
+import csv
+
+def write2csv(outname, out_dict):
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['timestamp', 'head', 'tail', 'relation_type'])
+        for edge in out_dict.keys():
+            ts = edge[0]
+            src = edge[1]
+            dst = edge[2]
+            rel_type = edge[3]
+            row = [ts, src, dst, rel_type]
+            writer.writerow(row)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -46,34 +61,37 @@ def main():
     print(wjd_dump_path)
     num_totals = 95000000
 
-    tmp = np.linspace(0, num_totals, args.num_chunks + 1).astype(np.int64)
-    start_idx = tmp[args.chunk]
-    end_idx = tmp[args.chunk + 1]
+    # tmp = np.linspace(0, num_totals, args.num_chunks + 1).astype(np.int64)
+    # start_idx = tmp[args.chunk]
+    # end_idx = tmp[args.chunk + 1]
 
 
     start_idx = 0
-    end_idx = 2
+    end_idx = 1000000 #10000000 #1000
     print('Start: ', start_idx)
     print('End: ', end_idx)
 
+    edge_dict = {} #{()}
+    dummy_rel_set = set([])
 
-    for i, entity_dict in enumerate(tqdm(wjd, total=num_totals)):
+    for i, entity_dict in enumerate(tqdm(wjd, total=(end_idx-start_idx))):
         #! entity_dict keys(['type', 'id', 'labels', 'descriptions', 'aliases', 'claims', 'sitelinks', 'pageid', 'ns', 'title', 'lastrevid', 'modified'])
+        # head = entity_dict['id']
+        # type = entity_dict['type']
+        # labels = entity_dict['labels']
+        # descriptions = entity_dict['descriptions']
+        # aliases = entity_dict['aliases']
+        # if ('claims' in entity_dict):
+        #     claims = entity_dict['claims']
+        #     for key in claims.keys():
+        #         print (key)
+        #         print (claims[key])
+        # sitelinks = entity_dict['sitelinks']
 
-        head = entity_dict['id']
-        type = entity_dict['type']
-        labels = entity_dict['labels']
-        descriptions = entity_dict['descriptions']
-        aliases = entity_dict['aliases']
-        if ('claims' in entity_dict):
-            claims = entity_dict['claims']
-            print (claims.keys())
-        sitelinks = entity_dict['sitelinks']
-
-        print (head)
-        # print (type)  #always item
-        print (labels['en'])
-        print (descriptions['en'])
+        # print (head)
+        # # print (type)  #always item
+        # print (labels['en'])
+        # print (descriptions['en'])
         # print (aliases.keys())
         # print (sitelinks)
 
@@ -84,6 +102,43 @@ def main():
         if not (start_idx <= i and i < end_idx):
             continue
 
+        head = entity_dict['id']
+
+        # head needs to start from 'Q'
+        if head[0] == 'Q':
+            head_id = head
+            if 'claims' in entity_dict:
+                claim_dict = entity_dict['claims']
+                rel_list = list(claim_dict.keys())
+                for rel in rel_list:
+                    tail_list = claim_dict[rel]
+                    if rel[0] == 'P':
+                        timestr = None
+                        #! continue debug here
+                        for tail in tail_list:
+                            if ("qualifiers" in tail):
+                                for q in tail["qualifiers"]:
+                                    for item in tail["qualifiers"][q]:
+                                        if item['datatype'] == 'time':
+                                            if 'datavalue' in item:
+                                                timestr = item['datavalue']['value']['time']
+                                            # print (item['datavalue']['value']['time'])
+                        if timestr is not None:
+                            if (tail['mainsnak']['datatype'] == 'wikibase-item'):
+                                    if 'rank' in tail and tail['rank'] != 'deprecated':
+                                        if 'datavalue' in tail['mainsnak']:
+                                            if 'id' in tail['mainsnak']['datavalue']['value']:
+                                                tail_id = tail['mainsnak']['datavalue']['value']['id']
+                                            else: 
+                                                tail_id = 'Q' + str(tail['mainsnak']['datavalue']['value']['numeric-id'])
+                                            edge_dict[(timestr, head_id, tail_id, rel)] = 1
+    
+    #! write edges to file
+    outname = "tkgl-wikidata_sample.csv"
+    write2csv(outname, edge_dict)
+
+                                    
+                      
 
 
 
