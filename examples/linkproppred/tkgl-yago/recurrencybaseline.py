@@ -72,7 +72,7 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
                     apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
                                         basis_dict, 
                                         num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, pos_samples_batch) for i in range(num_processes_tmp)]
+                                        alpha, neg_samples_batch, pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
                 output = ray.get(object_references)
 
                 # updates the scores and logging dict for each process
@@ -161,8 +161,8 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                         apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                             basis_dict, 
                                             num_nodes, num_rels, lmbda_psi, 
-                                            alpha, evaluator, neg_samples_batch, 
-                                            pos_samples_batch) for i in range(num_processes_tmp)]
+                                            alpha, neg_samples_batch, 
+                                            pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
                     output = ray.get(object_references)
 
                     # updates the scores and logging dict for each process
@@ -170,11 +170,11 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                         perf_list_all.extend(output[proc_loop][0])
                         hits_list_all.extend(output[proc_loop][1])
                 else:
-                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, 
+                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, 
+                                        window, basis_dict, 
                                         num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch)                    
+                                        alpha, neg_samples_batch, 
+                                        pos_samples_batch, evaluator)                    
                     perf_list_all.extend(perf_list)
                     hits_list_all.extend(hits_list)
                 # compute mrr
@@ -206,8 +206,8 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                         apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
                                             basis_dict, 
                                             num_nodes, num_rels, lmbda_psi, 
-                                            alpha, evaluator, neg_samples_batch, 
-                                            pos_samples_batch) for i in range(num_processes_tmp)]
+                                            alpha, neg_samples_batch, 
+                                            pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
                     output = ray.get(object_references)
 
                     # updates the scores and logging dict for each process
@@ -218,8 +218,8 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                     perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, 
                                         num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch)                    
+                                        alpha, neg_samples_batch, 
+                                        pos_samples_batch, evaluator)                    
                     perf_list_all.extend(perf_list)
                     hits_list_all.extend(hits_list)
 

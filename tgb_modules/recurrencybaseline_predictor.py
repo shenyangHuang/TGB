@@ -8,7 +8,7 @@ from operator import itemgetter
 
 @ray.remote
 def apply_baselines_remote(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha, evaluator, neg_samples_batch, pos_samples_batch):
+                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator):
 
     return apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator)
@@ -61,15 +61,16 @@ def apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num
     if len(all_data_ts) >0:
         sum_delta_t = update_delta_t(np.min(all_data_ts[:,3]), np.max(all_data_ts[:,3]), cur_ts, lmbda_psi)
 
-    predictions_xi=torch.zeros(num_nodes) 
-    predictions_psi=torch.zeros(num_nodes)
+    predictions_xi=np.zeros(num_nodes) 
+    predictions_psi=np.zeros(num_nodes)
 
-    hits_list = []
-    perf_list = []
-    for j in test_queries_idx:     
+    hits_list = [0] * len(test_queries_idx)
+    perf_list = [0] * len(test_queries_idx)
+    for element_id, j in enumerate(test_queries_idx):     
         neg_sample_el = neg_samples[j]
-        pos_sample_el = pos_sample[j]
+        pos_sample_el = pos_sample[j]        
         test_query = test_data[j]
+        assert(pos_sample_el == test_query[2])
         cands_dict = dict() 
         cands_dict_psi = dict() 
         # 1) update timestep and known triples
@@ -95,25 +96,32 @@ def apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num
             if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                        
                 cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t)
                 if len(cands_dict_psi)>0:                
-                    predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
+                    # predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
+                    predictions_psi = create_scores_array(cands_dict_psi, num_nodes)
 
         #### BASELINE XI      
-        predictions_xi = create_scores_tensor(rel_obj_dist_cur_ts[test_query[1]], num_nodes)
+        predictions_xi = create_scores_array(rel_obj_dist_cur_ts[test_query[1]], num_nodes)
+        # predictions_xi = create_scores_tensor(rel_obj_dist_cur_ts[test_query[1]], num_nodes)
 
         #### Combine Both
         predictions_all = 1000*alpha*predictions_psi + 1000*(1-alpha)*predictions_xi           
-        predictions_of_interest_pos = predictions_all[pos_sample_el].unsqueeze(0)
+        # predictions_of_interest_pos = predimctions_all[pos_sample_el].unsqueeze(0)
+        predictions_of_interest_pos = np.array(predictions_all[pos_sample_el])
         predictions_of_interest_neg = predictions_all[neg_sample_el]
-
         input_dict = {
-            "y_pred_pos": np.array([predictions_of_interest_pos]),
-            "y_pred_neg": np.array(predictions_of_interest_neg ),
+            "y_pred_pos": predictions_of_interest_pos,
+            "y_pred_neg": predictions_of_interest_neg,
             "eval_metric": ['mrr'], 
         }
+        # input_dict = {
+        #     "y_pred_pos": np.array([predictions_of_interest_pos]),
+        #     "y_pred_neg": np.array(predictions_of_interest_neg ),
+        #     "eval_metric": ['mrr'], 
+        # }
         predictions = evaluator.eval(input_dict)
-        perf_list.append(predictions['mrr'])
-        hits_list.append(predictions['hits@10'])
-        assert(pos_sample_el == test_query[2])
+        perf_list[element_id] = predictions['mrr']
+        hits_list[element_id] = predictions['hits@10']
+        
 
     return perf_list, hits_list
 
@@ -347,4 +355,18 @@ def create_scores_tensor(predictions_dict, num_nodes, device=None):
     return predictions
 
 
+def create_scores_array(predictions_dict, num_nodes):
+    # predictions_dict is a dictionary mapping indices to values
+    # num_nodes is the size of the array
+
+    # Convert keys and values of the predictions_dict into NumPy arrays
+    keys_array = np.array(list(predictions_dict.keys()))
+    values_array = np.array(list(predictions_dict.values()))
+
+    # Create an array of zeros with the desired shape
+    predictions = np.zeros(num_nodes)
+
+    # Use advanced indexing to scatter values into predictions array
+    predictions[keys_array.astype(int)] = values_array.astype(float)
+    return predictions
 
