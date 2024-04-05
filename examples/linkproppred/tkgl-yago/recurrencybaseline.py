@@ -156,20 +156,27 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                 perf_list_all = []
                 hits_list_all = []
                 ## use this if you wanna use ray:
+                if num_processes > 1:
+                    object_references = [
+                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                                            basis_dict, 
+                                            num_nodes, num_rels, lmbda_psi, 
+                                            alpha, evaluator, neg_samples_batch, 
+                                            pos_samples_batch) for i in range(num_processes_tmp)]
+                    output = ray.get(object_references)
 
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                    # updates the scores and logging dict for each process
+                    for proc_loop in range(num_processes_tmp):
+                        perf_list_all.extend(output[proc_loop][0])
+                        hits_list_all.extend(output[proc_loop][1])
+                else:
+                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, 
                                         num_nodes, num_rels, lmbda_psi, 
                                         alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
-
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
-
+                                        pos_samples_batch)                    
+                    perf_list_all.extend(perf_list)
+                    hits_list_all.extend(hits_list)
                 # compute mrr
                 mrr = np.mean(perf_list_all)
                 # # is new mrr better than previous best? if yes: store lmbda
@@ -194,21 +201,27 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                 perf_list_all = []
                 hits_list_all = []
                 ## use this if you wanna use ray:
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                if num_processes > 1:
+                    object_references = [
+                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
+                                            basis_dict, 
+                                            num_nodes, num_rels, lmbda_psi, 
+                                            alpha, evaluator, neg_samples_batch, 
+                                            pos_samples_batch) for i in range(num_processes_tmp)]
+                    output = ray.get(object_references)
+
+                    # updates the scores and logging dict for each process
+                    for proc_loop in range(num_processes_tmp):
+                        perf_list_all.extend(output[proc_loop][0])
+                        hits_list_all.extend(output[proc_loop][1])
+                else:
+                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, window, 
                                         basis_dict, 
                                         num_nodes, num_rels, lmbda_psi, 
                                         alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
-
-
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    # scores_dict_for_eval_lambda.update(output[proc_loop][1])
-                    # final_logging_dict.update(output[proc_loop][0])
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
+                                        pos_samples_batch)                    
+                    perf_list_all.extend(perf_list)
+                    hits_list_all.extend(hits_list)
 
                 # compute mrr
                 mrr_alpha = np.mean(perf_list_all)
@@ -226,10 +239,6 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
     return best_config
-
-
-
-## todo: move these to dataset.py?
 
 
 
