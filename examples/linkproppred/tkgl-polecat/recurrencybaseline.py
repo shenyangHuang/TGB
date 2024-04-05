@@ -8,46 +8,72 @@ import time
 import argparse
 import numpy as np
 from copy import copy
-
+import os
+import os.path as osp
+from pathlib import Path
 
 import ray
-from datetime import datetime
-from itertools import groupby
-from operator import itemgetter
+
 
 #internal imports 
-from tgb_modules.recurrencybaseline_predictor import RecurrencyBaselinePredictor 
+from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
+from tgb_modules.recurrencybaseline_utils import create_basis_dict, group_by, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import set_random_seed
 from tgb.utils.utils import save_results 
 
 
-## preprocess: define rules
-def create_basis_dict(data):
-    ""
-    """
-    data: concatenated train and vali data, INCLUDING INVERSE QUADRUPLES. we need it for the relation ids.
-    """
-    rels = list(set(train_val_data[:,1]))
-    basis_dict = {}
-    for rel in rels:
-        basis_id_new = []
-        rule_dict = {}
-        rule_dict["head_rel"] = int(rel)
-        rule_dict["body_rels"] = [int(rel)] #same body and head relation -> what happened before happens again
-        rule_dict["conf"] = 1 #same confidence for every rule
-        rule_new = rule_dict
-        basis_id_new.append(rule_new)
-        basis_dict[str(rel)] = basis_id_new
-    return basis_dict
+def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, all_data_c_rel, alpha, lmbda_psi,
+            perf_list_all, hits_list_all, window):
+    first_ts = data_c_rel[0][3]
+    ## use this if you wanna use ray:
+    num_queries = len(data_c_rel) // num_processes
+    if num_queries < num_processes: # if we do not have enough queries for all the processes
+        num_processes_tmp = 1
+        num_queries = len(data_c_rel)
+    else:
+        num_processes_tmp = num_processes  
+    if num_processes > 1:
+        object_references =[]                   
+        
+        for i in range(num_processes_tmp):
+            num_test_queries = len(data_c_rel) - (i + 1) * num_queries
+            if num_test_queries >= num_queries:
+                test_queries_idx =[i * num_queries, (i + 1) * num_queries]
+            else:
+                test_queries_idx = [i * num_queries, len(test_data)]
+            neg_samples_b = neg_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
+            pos_samples_b = pos_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
+            valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
+
+            ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
+                                basis_dict, 
+                                num_nodes, num_rels, lmbda_psi, 
+                                alpha, neg_samples_b, pos_samples_b, evaluator,first_ts)
+            object_references.append(ob)
+
+        output = ray.get(object_references)
+
+        # updates the scores and logging dict for each process
+        for proc_loop in range(num_processes_tmp):
+            perf_list_all.extend(output[proc_loop][0])
+            hits_list_all.extend(output[proc_loop][1])
+
+    else:
+        perf_list, hits_list = apply_baselines(len(data_c_rel), data_c_rel, all_data_c_rel, 
+                            window, basis_dict, 
+                            num_nodes, num_rels, lmbda_psi, 
+                            alpha, neg_samples_batch, 
+                            pos_samples_batch, evaluator,first_ts)                    
+        perf_list_all.extend(perf_list)
+        hits_list_all.extend(hits_list)
+    
+    return perf_list_all, hits_list_all
 
 
 ## test
-def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, neg_sampler, num_processes, 
-         window, evaluator):
-    scores_dict_for_test = {}
-    final_logging_dict = {}
+def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window):         
     perf_list_all = []
     hits_list_all =[]
     ## loop through relations and apply baselines
@@ -61,68 +87,36 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
             test_data_c_rel = test_data_prel[rel]
             timesteps_test = list(set(test_data_c_rel[:,3]))
             timesteps_test.sort()
-            all_data_c_rel = all_data_prel[rel]
-            
-            # queries per process if multiple processes
-            num_queries = len(test_data_c_rel) // num_processes
-            if num_queries < num_processes: # if we do not have enough queries for all the processes
-                num_processes_tmp = 1
-                num_queries = len(test_data_c_rel)
-            else:
-                num_processes_tmp = num_processes      
+            all_data_c_rel = all_data_prel[rel]         
             
             ## apply baselines for this relation
-            neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
-                                    np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
+            s = np.array(test_data_c_rel[:,0])
+            r = np.array(test_data_c_rel[:,1])
+            o = np.array(test_data_c_rel[:,2])
+            t = np.array(test_data_c_rel[:,4])
+            sample_start = time.time()
+            neg_samples_batch = neg_sampler.query_batch(s, o, 
+                                    t, edge_type=r, split_mode='test')
             pos_samples_batch = test_data_c_rel[:,2]
-            
-            ## use this if you wanna use ray:
-            if num_processes > 1:
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, pos_samples_batch, mode='test') for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
+            sample_end = time.time()
+            print(sample_end-sample_start, "to get neg samples")
 
-                # batch_data = test_data[test_queries_idx[0]]
-
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
-
-            ## use this if you dont wanna use ray:
-            else:
-                output = rb_predictor.apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, 
-                                        lmbda_psi, alpha, neg_samples_batch,pos_samples_batch, 
-                                        evaluator)
-                perf_list, hits_list = output
-                perf_list_all.extend(perf_list)
-                hits_list_all.extend(hits_list)
-            
-
+            perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                   all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
+                                                   window)
 
         end = time.time()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
 
-    # perf_metrics = 0 #TODO
-    return scores_dict_for_test, perf_list_all, hits_list_all
+    return perf_list_all, hits_list_all
 
 
-@ray.remote
-def apply_baselines_remote(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha, evaluator, neg_samples_batch, pos_samples_batch, mode):
 
-    return rb_predictor.apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator)
+
 
 ## train
-def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, num_processes, 
-         window):
+def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_processes, window):
     """ optional, find best values for lambda and alpha
     """
     best_config= {}
@@ -139,20 +133,20 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
         
         if rel in val_data_prel.keys():      
             # valid data for this relation  
-            val_data_c_rel = copy(val_data_prel[rel])
+            val_data_c_rel = val_data_prel[rel]
             timesteps_valid = list(set(val_data_c_rel[:,3]))
             timesteps_valid.sort()
             trainval_data_c_rel = trainval_data_prel[rel]
-            neg_samples_batch = neg_sampler.query_batch(np.array(val_data_c_rel[:,0]), np.array(val_data_c_rel[:,2]), 
-                                    np.array(val_data_c_rel[:,4]), edge_type=np.array(val_data_c_rel[:,1]), split_mode='val')
+
+            s = np.array(val_data_c_rel[:,0])
+            r = np.array(val_data_c_rel[:,1])
+            o = np.array(val_data_c_rel[:,2])
+            t = np.array(val_data_c_rel[:,4])
+
+            neg_samples_batch = neg_sampler.query_batch(s, o, 
+                                    t, edge_type=r, split_mode='val')
             pos_samples_batch = val_data_c_rel[:,2]
             # queries per process if multiple processes
-            num_queries = len(val_data_c_rel) // num_processes
-            if num_queries < num_processes: # if we do not have enough queries for all the processes
-                num_processes_tmp = copy(1)
-                num_queries = copy(len(val_data_c_rel))
-            else:
-                num_processes_tmp = copy(num_processes)
 
             ######  1) tune lmbda_psi ###############        
             lmbdas_psi = params_dict['lmbda_psi']        
@@ -165,30 +159,15 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             best_config[str(rel_key)]['num_app_valid'] = copy(len(val_data_c_rel))
             best_config[str(rel_key)]['num_app_train_valid'] = copy(len(trainval_data_c_rel))         
             best_config[str(rel_key)]['not_trained'] = 'False'       
-
             
             for lmbda_psi in lmbdas_psi:   
-                perf_list_all = []
-                hits_list_all = []
-                ## use this if you wanna use ray:
-
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
-
-                # batch_data = test_data[test_queries_idx[0]]
-
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
-
+                perf_list_r = []
+                hits_list_r = []
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                    trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
+                                                    window)
                 # compute mrr
-                mrr = np.mean(perf_list_all)
+                mrr = np.mean(perf_list_r)
                 # # is new mrr better than previous best? if yes: store lmbda
                 if mrr > best_mrr_psi:
                     best_mrr_psi = float(mrr)
@@ -208,27 +187,14 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             best_mrr_alpha = 0
             best_alpha=0.99
             for alpha in alphas:
-                perf_list_all = []
-                hits_list_all = []
-                ## use this if you wanna use ray:
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, evaluator, neg_samples_batch, 
-                                        pos_samples_batch, mode='val') for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
+                perf_list_r = []
+                hits_list_r = []
 
-
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    # scores_dict_for_eval_lambda.update(output[proc_loop][1])
-                    # final_logging_dict.update(output[proc_loop][0])
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
-
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                    trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
+                                                    window)
                 # compute mrr
-                mrr_alpha = np.mean(perf_list_all)
+                mrr_alpha = np.mean(perf_list_r)
 
                 # is new mrr better than previous best? if yes: store alpha
                 if mrr_alpha > best_mrr_alpha:
@@ -244,39 +210,6 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
         print("Relation {} finished in {} seconds.".format(rel, total_time))
     return best_config
 
-
-
-## todo: move these to dataset.py?
-def group_by(data: np.array, key_idx: int) -> dict:
-    """
-    group data in an np array to dict; where key is specified by key_idx. for example groups elements of array by relations
-    :param data: [np.array] data to be grouped
-    :param key_idx: [int] index for element of interest
-    returns data_dict: dict with key: values of element at index key_idx, values: all elements in data that have that value
-    """
-    data_dict = {}
-    data_sorted = sorted(data, key=itemgetter(key_idx))
-    for key, group in groupby(data_sorted, key=itemgetter(key_idx)):
-        data_dict[key] = np.array(list(group))
-    return data_dict
-
-
-def reformat_ts(timestamps):
-    """ reformat timestamps s.t. they start with 0, and have stepsize 1.
-    :param timestamps: np.array() with timestamps
-    returns: np.array(ts_new)
-    """
-    all_ts = list(set(timestamps))
-    all_ts.sort()
-    ts_min = np.min(all_ts)
-    ts_dist = all_ts[1] - all_ts[0]
-
-    ts_new = []
-    timestamps2 = timestamps - ts_min
-    for timestamp in timestamps2:
-        timestamp = int(timestamp/ts_dist)
-        ts_new.append(timestamp)
-    return np.array(ts_new)
 
 
 ## args
@@ -297,15 +230,14 @@ start_o = time.time()
 
 parsed = get_args()
 ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
+MODEL_NAME = 'RecurrencyBaseline'
+SEED = parsed['seed']  # set the random seed for consistency
+set_random_seed(SEED)
 
 ## load dataset and prepare it accordingly
 name = parsed["dataset"]
 dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 DATA = name
-MODEL_NAME = 'RecurrencyBaseline'
-
-SEED = parsed['seed']  # set the random seed for consistency
-set_random_seed(SEED)
 
 relations = dataset.edge_type
 num_rels = dataset.num_rels
@@ -314,8 +246,7 @@ subjects = dataset.full_data["sources"]
 objects= dataset.full_data["destinations"]
 num_nodes = dataset.num_nodes 
 timestamps_orig = dataset.full_data["timestamps"]
-
-timestamps = reformat_ts(timestamps_orig)
+timestamps = reformat_ts(timestamps_orig) # stepsize:1
 
 all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
 train_data = all_quads[dataset.train_mask]
@@ -326,16 +257,14 @@ metric = dataset.eval_metric
 evaluator = Evaluator(name=name)
 neg_sampler = dataset.negative_sampler
 
-
-
 train_val_data = np.concatenate([train_data, val_data])
 all_data = np.concatenate([train_data, val_data, test_data])
 
+# create dicts with key: relation id, values: triples for that relation id
 test_data_prel = group_by(test_data, 1)
 all_data_prel = group_by(all_data, 1)
 val_data_prel = group_by(val_data, 1)
 trainval_data_prel = group_by(train_val_data, 1)
-
 
 #load the ns samples 
 if parsed['train_flag']:
@@ -354,11 +283,11 @@ if parsed['train_flag']:
 basis_dict = create_basis_dict(train_val_data)
 
 ## init
-rb_predictor = RecurrencyBaselinePredictor(rels)
+# rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
-    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
     if parsed['save_config']:
         import json
@@ -373,9 +302,9 @@ else: # use preset lmbda and alpha; same for all relations
 
 end_train = time.time()
 start_test = time.time()
-eval_scores, perf_list_all, hits_list_all = test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, 
+perf_list_all, hits_list_all = test(best_config,rels, test_data_prel, 
                                                  all_data_prel, neg_sampler, parsed['num_processes'], 
-                                                parsed['window'], evaluator)
+                                                parsed['window'])
 
 
 print(f"The MRR is {np.mean(perf_list_all)}")
@@ -392,9 +321,7 @@ print("Running testing with best configs finished in {} seconds.".format(test_ti
 print("Running all steps finished in {} seconds.".format(total_time_o))
 
 # for saving the results...
-import os
-import os.path as osp
-from pathlib import Path
+
 results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
 if not osp.exists(results_path):
     os.mkdir(results_path)

@@ -7,14 +7,124 @@ import ray
 from operator import itemgetter
 
 @ray.remote
-def apply_baselines_remote(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator):
+def apply_baselines_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator,first_test_ts):
 
-    return apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
-                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator)
+    return apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+                num_rels, lmbda_psi, alpha, neg_samples_batch, pos_samples_batch, evaluator,first_test_ts)
 
+def apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+                num_rels, lmbda_psi, alpha, neg_samples, pos_sample, evaluator,first_test_ts):
+    """
+    Apply baselines psi and xi (multiprocessing possible).
 
-def apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+    Parameters:
+        i (int): process number
+        num_queries (int): minimum number of queries for each process
+        test_data (np.array): test quadruples (only used in single-step prediction, depending on window specified);
+            including inverse quadruples for subject prediction
+        all_data (np.array): train valid and test quadruples (test only used in single-step prediction, depending 
+            on window specified); including inverse quadruples  for subject prediction
+        window: int, specifying which values from the past can be used for prediction. 0: all edges before the test 
+        query timestamp are included. -2: multistep. all edges from train and validation set used. as long as they are 
+        < first_test_query_ts. Int n > 0, all edges within n timestamps before the test query timestamp are included.
+        basis_dict (dict): keys: rel_ids; specifies the predefined rules for each relation. 
+            in our case: head rel = tail rel, confidence =1 for all rels in train/valid set
+        score_func_psi (method): method to use for computing time decay for psi
+        num_nodes (int): number of nodes in the dataset
+        num_rels (int): number of relations in the dataset
+        baselinexi_flag (boolean): True: use baselinexi, False: do not use baselinexi
+        baselinepsi_flag (boolean): True: use baselinepsi, False: do not use baselinepsi
+        lambda_psi (float): parameter for time decay function for baselinepsi. 0: no decay, >1 very steep decay
+        alpha (float): parameter, weight to combine the scores from psi and xi. alpha*scores_psi + (1-alpha)*scores_xi
+    Returns:
+        logging_dict (dict): dict with one entry per test query (one per direction) key: string that desribes the query, 
+        with xxx before the requested node, 
+        values: list with two entries: [[tensor with one score per node], [np array with query_quadruple]]
+        example: '14_0_xxx1_336': [tensor([1.8019e+01, ...9592e-05]), array([ 14,   0,   1...ype=int32)]
+        scores_dict_eval (dict): dict  with one entry per test query (one per direction) key: str(test_qery), value: 
+        tensor with scores, one score per node. example: [14, 0, 1, 336]':tensor([1.8019e+01,5.1101e+02,..., 0.0000e+0])
+    """
+    # num_test_queries = len(test_data) - (i + 1) * num_queries
+    # if num_test_queries >= num_queries:
+    #     test_queries_idx = range(i * num_queries, (i + 1) * num_queries)
+    # else:
+    #     test_queries_idx = range(i * num_queries, len(test_data))
+
+    cur_ts = test_data[0][3]
+    first_test_query_ts = first_test_ts #test_data[0][3]
+    edges, all_data_ts = get_window_edges(all_data, cur_ts, window, first_test_query_ts) # get for the current 
+                            # timestep all previous quadruples per relation that fullfill time constraints
+
+    rel_obj_dist_cur_ts = update_distributions(edges, num_rels)
+    if len(all_data_ts) >0:
+        sum_delta_t = update_delta_t(np.min(all_data_ts[:,3]), np.max(all_data_ts[:,3]), cur_ts, lmbda_psi)
+
+    predictions_xi=np.zeros(num_nodes) 
+    predictions_psi=np.zeros(num_nodes)
+
+    hits_list = [0] * num_queries #len(test_queries_idx)
+    perf_list = [0] * num_queries #* len(test_queries_idx)
+    for j in range(num_queries):     
+        neg_sample_el = neg_samples[j]
+        pos_sample_el = pos_sample[j]        
+        test_query = test_data[j]
+        assert(pos_sample_el == test_query[2])
+        cands_dict = dict() 
+        cands_dict_psi = dict() 
+        # 1) update timestep and known triples
+        if test_query[3] != cur_ts: # if we have a new timestep
+            cur_ts = test_query[3]
+            edges, all_data_ts = get_window_edges(all_data, cur_ts, window, first_test_query_ts) # get for the current 
+            # timestep all previous quadruples per relation that fullfill time constraints
+            # update the object and rel-object distritbutions to take into account what timesteps to use
+            if window > -1: #otherwise: multistep, we do not need to update
+                rel_obj_dist_cur_ts = update_distributions( edges, num_rels)
+
+            if len(all_data_ts) >0:
+                if window > -1: #otherwise: multistep, we do not need to update
+                    sum_delta_t = update_delta_t(np.min(all_data_ts[:,3]), np.max(all_data_ts[:,3]), cur_ts, lmbda_psi)
+                        
+        #### BASELINE  PSI
+        # 2) apply rules for relation of interest, if we have any
+        if str(test_query[1]) in basis_dict: # do we have rules for the given relation?                
+            walk_edges = match_body_relations(basis_dict[str(test_query[1])][0], edges, test_query[0]) 
+                                # Find quadruples that match the rule (starting from the test query subject)
+                                # Find edges whose subject match the query subject and the relation matches
+                                # the relation in the rule body. np array with [[sub, obj, ts]]
+            if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                        
+                cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t)
+                if len(cands_dict_psi)>0:                
+                    # predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
+                    predictions_psi = create_scores_array(cands_dict_psi, num_nodes)
+
+        #### BASELINE XI      
+        predictions_xi = create_scores_array(rel_obj_dist_cur_ts[test_query[1]], num_nodes)
+        # predictions_xi = create_scores_tensor(rel_obj_dist_cur_ts[test_query[1]], num_nodes)
+
+        #### Combine Both
+        predictions_all = 1000*alpha*predictions_psi + 1000*(1-alpha)*predictions_xi           
+        # predictions_of_interest_pos = predimctions_all[pos_sample_el].unsqueeze(0)
+        predictions_of_interest_pos = np.array(predictions_all[pos_sample_el])
+        predictions_of_interest_neg = predictions_all[neg_sample_el]
+        input_dict = {
+            "y_pred_pos": predictions_of_interest_pos,
+            "y_pred_neg": predictions_of_interest_neg,
+            "eval_metric": ['mrr'], 
+        }
+        # input_dict = {
+        #     "y_pred_pos": np.array([predictions_of_interest_pos]),
+        #     "y_pred_neg": np.array(predictions_of_interest_neg ),
+        #     "eval_metric": ['mrr'], 
+        # }
+        predictions = evaluator.eval(input_dict)
+        perf_list[j] = predictions['mrr']
+        hits_list[j] = predictions['hits@10']
+        
+
+    return perf_list, hits_list
+
+def old_apply_baselines(i, num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, neg_samples, pos_sample, evaluator):
     """
     Apply baselines psi and xi (multiprocessing possible).

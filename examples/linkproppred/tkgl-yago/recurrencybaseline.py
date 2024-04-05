@@ -24,11 +24,56 @@ from tgb.utils.utils import set_random_seed
 from tgb.utils.utils import save_results 
 
 
+def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, all_data_c_rel, alpha, lmbda_psi,
+            perf_list_all, hits_list_all, window):
+    first_ts = data_c_rel[0][3]
+    ## use this if you wanna use ray:
+    num_queries = len(data_c_rel) // num_processes
+    if num_queries < num_processes: # if we do not have enough queries for all the processes
+        num_processes_tmp = 1
+        num_queries = len(data_c_rel)
+    else:
+        num_processes_tmp = num_processes  
+    if num_processes > 1:
+        object_references =[]                   
+        
+        for i in range(num_processes_tmp):
+            num_test_queries = len(data_c_rel) - (i + 1) * num_queries
+            if num_test_queries >= num_queries:
+                test_queries_idx =[i * num_queries, (i + 1) * num_queries]
+            else:
+                test_queries_idx = [i * num_queries, len(test_data)]
+            neg_samples_b = neg_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
+            pos_samples_b = pos_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
+            valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
+
+            ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
+                                basis_dict, 
+                                num_nodes, num_rels, lmbda_psi, 
+                                alpha, neg_samples_b, pos_samples_b, evaluator,first_ts)
+            object_references.append(ob)
+
+        output = ray.get(object_references)
+
+        # updates the scores and logging dict for each process
+        for proc_loop in range(num_processes_tmp):
+            perf_list_all.extend(output[proc_loop][0])
+            hits_list_all.extend(output[proc_loop][1])
+
+    else:
+        perf_list, hits_list = apply_baselines(len(data_c_rel), data_c_rel, all_data_c_rel, 
+                            window, basis_dict, 
+                            num_nodes, num_rels, lmbda_psi, 
+                            alpha, neg_samples_batch, 
+                            pos_samples_batch, evaluator,first_ts)                    
+        perf_list_all.extend(perf_list)
+        hits_list_all.extend(hits_list)
+    
+    return perf_list_all, hits_list_all
 
 
 ## test
-def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all_data_prel, neg_sampler, num_processes, 
-         window, evaluator):
+def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window):         
     perf_list_all = []
     hits_list_all =[]
     ## loop through relations and apply baselines
@@ -42,15 +87,7 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
             test_data_c_rel = test_data_prel[rel]
             timesteps_test = list(set(test_data_c_rel[:,3]))
             timesteps_test.sort()
-            all_data_c_rel = all_data_prel[rel]
-            
-            # queries per process if multiple processes
-            num_queries = len(test_data_c_rel) // num_processes
-            if num_queries < num_processes: # if we do not have enough queries for all the processes
-                num_processes_tmp = 1
-                num_queries = len(test_data_c_rel)
-            else:
-                num_processes_tmp = num_processes      
+            all_data_c_rel = all_data_prel[rel]         
             
             ## apply baselines for this relation
             s = np.array(test_data_c_rel[:,0])
@@ -60,37 +97,14 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
             sample_start = time.time()
             neg_samples_batch = neg_sampler.query_batch(s, o, 
                                     t, edge_type=r, split_mode='test')
-            # neg_samples_batch = neg_sampler.query_batch(np.array(test_data_c_rel[:,0]), np.array(test_data_c_rel[:,2]), 
-                                    # np.array(test_data_c_rel[:,4]), edge_type=np.array(test_data_c_rel[:,1]), split_mode='test')
             pos_samples_batch = test_data_c_rel[:,2]
             sample_end = time.time()
             print(sample_end-sample_start, "to get neg samples")
-            
-            ## use this if you wanna use ray:
-            if num_processes > 1:
-                object_references = [
-                    apply_baselines_remote.remote(i, num_queries, test_data_c_rel, all_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, neg_samples_batch, pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
-                output = ray.get(object_references)
 
-                # updates the scores and logging dict for each process
-                for proc_loop in range(num_processes_tmp):
-                    perf_list_all.extend(output[proc_loop][0])
-                    hits_list_all.extend(output[proc_loop][1])
+            perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                   all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
+                                                   window)
 
-            ## use this if you dont wanna use ray:
-            else:
-                output = apply_baselines(0, len(test_data_c_rel), test_data_c_rel, all_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, 
-                                        lmbda_psi, alpha, neg_samples_batch,pos_samples_batch, 
-                                        evaluator)
-                perf_list, hits_list = output
-                perf_list_all.extend(perf_list)
-                hits_list_all.extend(hits_list)
-            
         end = time.time()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
@@ -100,9 +114,9 @@ def test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, all
 
 
 
+
 ## train
-def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, num_processes, 
-         window):
+def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_processes, window):
     """ optional, find best values for lambda and alpha
     """
     best_config= {}
@@ -133,12 +147,6 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
                                     t, edge_type=r, split_mode='val')
             pos_samples_batch = val_data_c_rel[:,2]
             # queries per process if multiple processes
-            num_queries = len(val_data_c_rel) // num_processes
-            if num_queries < num_processes: # if we do not have enough queries for all the processes
-                num_processes_tmp = copy(1)
-                num_queries = copy(len(val_data_c_rel))
-            else:
-                num_processes_tmp = copy(num_processes)
 
             ######  1) tune lmbda_psi ###############        
             lmbdas_psi = params_dict['lmbda_psi']        
@@ -153,32 +161,13 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             best_config[str(rel_key)]['not_trained'] = 'False'       
             
             for lmbda_psi in lmbdas_psi:   
-                perf_list_all = []
-                hits_list_all = []
-                ## use this if you wanna use ray:
-                if num_processes > 1:
-                    object_references = [
-                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                            basis_dict, 
-                                            num_nodes, num_rels, lmbda_psi, 
-                                            alpha, neg_samples_batch, 
-                                            pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
-                    output = ray.get(object_references)
-
-                    # updates the scores and logging dict for each process
-                    for proc_loop in range(num_processes_tmp):
-                        perf_list_all.extend(output[proc_loop][0])
-                        hits_list_all.extend(output[proc_loop][1])
-                else:
-                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, 
-                                        window, basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, neg_samples_batch, 
-                                        pos_samples_batch, evaluator)                    
-                    perf_list_all.extend(perf_list)
-                    hits_list_all.extend(hits_list)
+                perf_list_r = []
+                hits_list_r = []
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                    trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
+                                                    window)
                 # compute mrr
-                mrr = np.mean(perf_list_all)
+                mrr = np.mean(perf_list_r)
                 # # is new mrr better than previous best? if yes: store lmbda
                 if mrr > best_mrr_psi:
                     best_mrr_psi = float(mrr)
@@ -198,33 +187,14 @@ def train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, tra
             best_mrr_alpha = 0
             best_alpha=0.99
             for alpha in alphas:
-                perf_list_all = []
-                hits_list_all = []
-                ## use this if you wanna use ray:
-                if num_processes > 1:
-                    object_references = [
-                        apply_baselines_remote.remote(i, num_queries, val_data_c_rel, trainval_data_c_rel, window, 
-                                            basis_dict, 
-                                            num_nodes, num_rels, lmbda_psi, 
-                                            alpha, neg_samples_batch, 
-                                            pos_samples_batch, evaluator) for i in range(num_processes_tmp)]
-                    output = ray.get(object_references)
+                perf_list_r = []
+                hits_list_r = []
 
-                    # updates the scores and logging dict for each process
-                    for proc_loop in range(num_processes_tmp):
-                        perf_list_all.extend(output[proc_loop][0])
-                        hits_list_all.extend(output[proc_loop][1])
-                else:
-                    perf_list, hits_list = apply_baselines(0, len(val_data_c_rel), val_data_c_rel, trainval_data_c_rel, window, 
-                                        basis_dict, 
-                                        num_nodes, num_rels, lmbda_psi, 
-                                        alpha, neg_samples_batch, 
-                                        pos_samples_batch, evaluator)                    
-                    perf_list_all.extend(perf_list)
-                    hits_list_all.extend(hits_list)
-
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                                                    trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
+                                                    window)
                 # compute mrr
-                mrr_alpha = np.mean(perf_list_all)
+                mrr_alpha = np.mean(perf_list_r)
 
                 # is new mrr better than previous best? if yes: store alpha
                 if mrr_alpha > best_mrr_alpha:
@@ -317,7 +287,7 @@ basis_dict = create_basis_dict(train_val_data)
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
-    best_config = train(params_dict, basis_dict, rels, num_nodes, num_rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
     if parsed['save_config']:
         import json
@@ -332,9 +302,9 @@ else: # use preset lmbda and alpha; same for all relations
 
 end_train = time.time()
 start_test = time.time()
-perf_list_all, hits_list_all = test(best_config, basis_dict, rels, num_nodes, num_rels, test_data_prel, 
+perf_list_all, hits_list_all = test(best_config,rels, test_data_prel, 
                                                  all_data_prel, neg_sampler, parsed['num_processes'], 
-                                                parsed['window'], evaluator)
+                                                parsed['window'])
 
 
 print(f"The MRR is {np.mean(perf_list_all)}")
