@@ -9,21 +9,13 @@ Complex Evolutional Pattern Learning for Temporal Knowledge Graph Reasoning. ACL
 
 import timeit
 import argparse
-import itertools
 import os
 import sys
-import time
-import pickle
-import copy
 import os.path as osp
-
-import dgl
 import numpy as np
 import torch
-# from tqdm import tqdm
-import random
-import torch.nn.modules.rnn
-from collections import defaultdict
+
+
 
 # internal imports
 from tgb_modules.rrgcn import RecurrentRGCN
@@ -33,11 +25,7 @@ from tgb_modules.cen_utils import split_by_time, build_sub_graph
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 
-
-# from rgcn.knowledge_graph import _read_triplets_as_list
 # from src.hyperparameter_range import hp_range
-# from rgcn import utils
-# from rgcn.utils import build_sub_graph
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
@@ -47,7 +35,7 @@ from tgb.linkproppred.dataset import LinkPropPredDataset
 # store and load models at correct location
 # 
 
-def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode, neg_samples):
+def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode):
     """
     :param model: model used to test
     :param history_list:    all input history snap shot list, not include output label train list or valid list
@@ -57,9 +45,12 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
     :param use_cuda:
     :param model_name:
     :param mode
-    : param neg_samples: negative samples
     :return mrr
     """
+    if mode =='test':
+        split_mode = 'test'
+    else:
+        split_mode = 'val'
 
     idx = 0
     start_time = len(history_list)
@@ -82,9 +73,14 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]
     
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
-        final_score = model.predict(history_glist, test_triples_input, use_cuda, neg_samples)
+        
 
 
+        neg_samples_batch = neg_sampler.query_batch(test_triples_input[:,0], test_triples_input[:,2], 
+                                test_triples_input[:,3], edge_type=test_triples_input[:,1], split_model=split_mode)
+        pos_samples_batch = test_triples_input[:,2]
+
+        final_score = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch) #TODO modify
         # used to global statistic
         mrr  = 0 # TODO
 
@@ -189,7 +185,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.start_history_len}'
         # if not os.path.exists('../models/{}/'.format(args.dataset)):
         #     os.makedirs('../models/{}/'.format(args.dataset))
-        # model_state_file = '../models/{}/{}'.format(args.dataset, model_name)  #TODO
+        model_state_file = save_model_dir + model_name
         print("Sanity Check: stat name : {}".format(model_state_file))
         print("Sanity Check: Is cuda available ? {}".format(torch.cuda.is_available()))
             
@@ -263,15 +259,15 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         print("\n"+"-"*10+"Load model with history length {}".format(args.start_history_len)+"-"*10+"\n")
         model.load_state_dict(init_checkpoint['state_dict'])
         test_history_len = args.start_history_len
-        mrr_raw, mrr, mrr_raw_r, mrr_r = test(model, 
-                                                args.start_history_len,
-                                                train_list+valid_list,
-                                                test_list, 
-                                                num_rels, 
-                                                num_nodes, 
-                                                use_cuda, 
-                                                init_state_file,  neg_samples,
-                                                mode="test")
+        mrr = test(model, 
+                    args.start_history_len,
+                    train_list+valid_list,
+                    test_list, 
+                    num_rels, 
+                    num_nodes, 
+                    use_cuda, 
+                    init_state_file,  neg_samples,
+                    mode="test")
         best_mrr_list = [mrr.item()]                                                   
         # start knowledge distillation
         ks_idx = 0
@@ -287,13 +283,9 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
             # load model with the least history length
             prev_model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{history_len-1}'
-            # prev_model_name = "{}-{}-ly{}-dilate{}-his{}-dp{}-gpu{}".format(args.encoder, args.decoder, args.n_layers, args.dilate_len, history_len-1, args.dropout, args.gpu)
-            # prev_state_file = '../models/{}/'.format(args.dataset) + prev_model_name # TODO
-            # checkpoint = torch.load(prev_state_file, map_location=torch.device(args.gpu)) #TODO
-            # print("Load Previous Model name: {}. Using best epoch : {}".format(prev_model_name, checkpoint['epoch']))  # use best stat checkpoint
+            prev_state_file = save_model_dir + prev_model_name
+            checkpoint = torch.load(prev_state_file, map_location=torch.device(args.gpu)) 
             model.load_state_dict(checkpoint['state_dict']) # TODO
-            # prev_model = copy.deepcopy(model)
-            # prev_model.eval()
             print("\n"+"-"*10+"start knowledge distillation for history length at "+ str(history_len)+"-"*10+"\n")
  
             best_mrr = 0
@@ -373,131 +365,6 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     prev_state_file,  neg_samples,
                     mode="test")
     return mrr
-
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='REGCN')
-
-    parser.add_argument("--gpu", type=int, default=-1,
-                        help="gpu")
-    parser.add_argument("--batch-size", type=int, default=1,
-                        help="batch-size")
-    parser.add_argument("-d", "--dataset", type=str, required=True,
-                        help="dataset to use")
-  
-    parser.add_argument("--run-statistic", action='store_true', default=False,
-                        help="statistic the result")
-
-    parser.add_argument("--relation-evaluation", action='store_true', default=False,
-                        help="save model accordding to the relation evalution")
-
-    
-    # configuration for encoder RGCN stat
-    parser.add_argument("--weight", type=float, default=1,
-                        help="weight of static constraint")
-    parser.add_argument("--task-weight", type=float, default=1,
-                        help="weight of entity prediction task")
-    parser.add_argument("--kl-weight", type=float, default=0.7,
-                        help="weight of entity prediction task")
-   
-    parser.add_argument("--encoder", type=str, default="uvrgcn",
-                        help="method of encoder")
-
-    parser.add_argument("--dropout", type=float, default=0.2,
-                        help="dropout probability")
-    parser.add_argument("--skip-connect", action='store_true', default=False,
-                        help="whether to use skip connect in a RGCN Unit")
-    parser.add_argument("--n-hidden", type=int, default=200,
-                        help="number of hidden units")
-    parser.add_argument("--opn", type=str, default="sub",
-                        help="opn of compgcn")
-
-    parser.add_argument("--n-bases", type=int, default=100,
-                        help="number of weight blocks for each relation")
-    parser.add_argument("--n-basis", type=int, default=100,
-                        help="number of basis vector for compgcn")
-    parser.add_argument("--n-layers", type=int, default=2,
-                        help="number of propagation rounds")
-    parser.add_argument("--self-loop", action='store_true', default=True,
-                        help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--layer-norm", action='store_true', default=False,
-                        help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--relation-prediction", action='store_true', default=False,
-                        help="add relation prediction loss")
-    parser.add_argument("--entity-prediction", action='store_true', default=False,
-                        help="add entity prediction loss")
-
-
-    # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=500,
-                        help="number of minimum training epochs on each time step")
-    parser.add_argument("--lr", type=float, default=0.001,
-                        help="learning rate")
-    parser.add_argument("--ft_epochs", type=int, default=30,
-                        help="number of minimum fine-tuning epoch")
-    parser.add_argument("--ft_lr", type=float, default=0.001,
-                        help="learning rate")
-    parser.add_argument("--norm_weight", type=float, default=0.1,
-                        help="learning rate")
-    parser.add_argument("--grad-norm", type=float, default=1.0,
-                        help="norm to clip gradient to")
-
-    # configuration for evaluating
-    parser.add_argument("--evaluate-every", type=int, default=20,
-                        help="perform evaluation every n epochs")
-
-    # configuration for decoder
-    parser.add_argument("--decoder", type=str, default="convtranse",
-                        help="method of decoder")
-    parser.add_argument("--input-dropout", type=float, default=0.2,
-                        help="input dropout for decoder ")
-    parser.add_argument("--hidden-dropout", type=float, default=0.2,
-                        help="hidden dropout for decoder")
-    parser.add_argument("--feat-dropout", type=float, default=0.2,
-                        help="feat dropout for decoder")
-
-    # configuration for sequences stat
-    parser.add_argument("--train-history-len", type=int, default=10,
-                        help="history length")
-    parser.add_argument("--test-history-len", type=int, default=20,
-                        help="history length for test")
-    parser.add_argument("--start-history-len", type=int, default=1,
-                    help="start history length")
-    parser.add_argument("--dilate-len", type=int, default=1,
-                        help="dilate history graph")
-
-    # configuration for optimal parameters
-    parser.add_argument("--grid-search", action='store_true', default=False,
-                        help="perform grid search for best configuration")
-    parser.add_argument("-tune", "--tune", type=str, default="n_hidden,n_layers,dropout,n_bases",
-                        help="stat to use")
-    parser.add_argument("--num-k", type=int, default=500,
-                        help="number of triples generated")
-
-
-    args = parser.parse_args()
-    # TODO: add the code for hyperparameter tuning here
-    
-    run_experiment(args)
-    sys.exit()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def get_args():
