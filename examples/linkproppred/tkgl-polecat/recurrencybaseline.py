@@ -217,7 +217,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
-    parser.add_argument("--num_processes", "-p", default=1, type=int)
+    parser.add_argument("--num_processes", "-p", default=10, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
     parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha
