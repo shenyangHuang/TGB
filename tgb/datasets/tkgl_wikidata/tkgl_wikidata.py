@@ -16,18 +16,30 @@ import argparse
 import numpy as np
 import csv
 
-def write2csv(outname, out_dict):
+def timeEdgeWrite2csv(outname, out_dict):
     with open(outname, 'w') as f:
         writer = csv.writer(f, delimiter =',')
-        writer.writerow(['timestamp', 'head', 'tail', 'relation_type'])
+        writer.writerow(['timestamp', 'head', 'tail', 'relation_type', 'time_rel_type'])
         for edge in out_dict.keys():
             ts = edge[0]
             src = edge[1]
             dst = edge[2]
             rel_type = edge[3]
+            time_rel_type = edge[4]
             row = [ts, src, dst, rel_type]
             writer.writerow(row)
 
+
+def EdgeWrite2csv(outname, out_dict):
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['head', 'tail', 'relation_type'])
+        for edge in out_dict.keys():
+            src = edge[1]
+            dst = edge[2]
+            rel_type = edge[3]
+            row = [src, dst, rel_type]
+            writer.writerow(row)
 
 
 def main():
@@ -67,35 +79,42 @@ def main():
 
 
     start_idx = 0
-    end_idx = 1000000 #10000000 #1000
+    end_idx = 10000000 #10000000 #1000
     print('Start: ', start_idx)
     print('End: ', end_idx)
 
-    edge_dict = {} #{()}
     dummy_rel_set = set([])
+
+
+    """
+    # head = entity_dict['id']
+    # type = entity_dict['type']
+    # labels = entity_dict['labels']
+    # descriptions = entity_dict['descriptions']
+    # aliases = entity_dict['aliases']
+    # if ('claims' in entity_dict):
+    #     claims = entity_dict['claims']
+    #     for key in claims.keys():
+    #         print (key)
+    #         print (claims[key])
+    # sitelinks = entity_dict['sitelinks']
+
+    # print (head)
+    # # print (type)  #always item
+    # print (labels['en'])
+    # print (descriptions['en'])
+    # print (aliases.keys())
+    # print (sitelinks)
+    """
+
+    time_edge_dict = {} #{()}
+    time_rel_dict = {}
+    static_edge_dict = {}
+
+    #? output format is (timestamp, head, tail, relation_type, time_rel_type)
 
     for i, entity_dict in enumerate(tqdm(wjd, total=(end_idx-start_idx))):
         #! entity_dict keys(['type', 'id', 'labels', 'descriptions', 'aliases', 'claims', 'sitelinks', 'pageid', 'ns', 'title', 'lastrevid', 'modified'])
-        # head = entity_dict['id']
-        # type = entity_dict['type']
-        # labels = entity_dict['labels']
-        # descriptions = entity_dict['descriptions']
-        # aliases = entity_dict['aliases']
-        # if ('claims' in entity_dict):
-        #     claims = entity_dict['claims']
-        #     for key in claims.keys():
-        #         print (key)
-        #         print (claims[key])
-        # sitelinks = entity_dict['sitelinks']
-
-        # print (head)
-        # # print (type)  #always item
-        # print (labels['en'])
-        # print (descriptions['en'])
-        # print (aliases.keys())
-        # print (sitelinks)
-
-
         if i > end_idx:
             break
 
@@ -112,30 +131,105 @@ def main():
                 rel_list = list(claim_dict.keys())
                 for rel in rel_list:
                     tail_list = claim_dict[rel]
-                    if rel[0] == 'P':
-                        timestr = None
-                        #! continue debug here
-                        for tail in tail_list:
+                    for tail in tail_list:
+                        tail_id = None
+                        #* first check if there is a valid tail
+                        if (tail['mainsnak']['datatype'] == 'wikibase-item'):
+                            if ('rank' in tail) and (tail['rank'] != 'deprecated') and ('datavalue' in tail['mainsnak']):
+                                if 'id' in tail['mainsnak']['datavalue']['value']:
+                                    tail_id = tail['mainsnak']['datavalue']['value']['id']
+                                else: 
+                                    tail_id = 'Q' + str(tail['mainsnak']['datavalue']['value']['numeric-id'])
+
+                        #* check if there is a qualifier and if it is a time qualifier
+                        if (tail_id is not None):
                             if ("qualifiers" in tail):
+                                time_logged = False
                                 for q in tail["qualifiers"]:
                                     for item in tail["qualifiers"][q]:
-                                        if item['datatype'] == 'time':
-                                            if 'datavalue' in item:
-                                                timestr = item['datavalue']['value']['time']
-                                            # print (item['datavalue']['value']['time'])
-                        if timestr is not None:
-                            if (tail['mainsnak']['datatype'] == 'wikibase-item'):
-                                    if 'rank' in tail and tail['rank'] != 'deprecated':
-                                        if 'datavalue' in tail['mainsnak']:
-                                            if 'id' in tail['mainsnak']['datavalue']['value']:
-                                                tail_id = tail['mainsnak']['datavalue']['value']['id']
-                                            else: 
-                                                tail_id = 'Q' + str(tail['mainsnak']['datavalue']['value']['numeric-id'])
-                                            edge_dict[(timestr, head_id, tail_id, rel)] = 1
-    
+                                        if (item['datatype'] == 'time') and ('datavalue' in item):
+                                            timestr = item['datavalue']['value']['time']
+                                            time_rel_type = q
+                                            time_edge_dict[(timestr, head_id, tail_id, rel, time_rel_type)] = 1
+                                            time_logged = True
+                                if not time_logged:
+                                    static_edge_dict[(head_id, tail_id, rel)] = 1
+                            else:
+                                static_edge_dict[(head_id, tail_id, rel)] = 1
+
     #! write edges to file
-    outname = "tkgl-wikidata_sample.csv"
-    write2csv(outname, edge_dict)
+    print ("there are ", len(time_edge_dict), " temporal edges in the dataset")
+    outname = "tkgl-wikidata_time_edgelist.csv"
+    timeEdgeWrite2csv(outname, time_edge_dict)
+
+
+    print ("there are ", len(static_edge_dict), " static edges in the dataset")
+    outname = "tkgl-wikidata_static_edgelist.csv"
+    EdgeWrite2csv(outname, static_edge_dict)
+    
+
+
+
+                
+                    
+
+                                            
+        
+    # print (time_rel_dict)
+    # print (dict(sorted(time_rel_dict.items(), key=lambda item: item[1])))
+
+                    
+                    
+                    # if rel[0] == 'P':
+                    #     timestr = None
+                    #     #! continue debug here
+                    #     for tail in tail_list:
+                    #         if ("qualifiers" in tail):
+                    #             for q in tail["qualifiers"]:
+                    #                 for item in tail["qualifiers"][q]:
+                    #                     if item['datatype'] == 'time':
+                    #                         if 'datavalue' in item:
+                    #                             timestr = item['datavalue']['value']['time']
+                    #                         # print (item['datavalue']['value']['time'])
+                    #     if timestr is not None:
+                    #         if (tail['mainsnak']['datatype'] == 'wikibase-item'):
+                    #                 if 'rank' in tail and tail['rank'] != 'deprecated':
+                    #                     if 'datavalue' in tail['mainsnak']:
+                    #                         if 'id' in tail['mainsnak']['datavalue']['value']:
+                    #                             tail_id = tail['mainsnak']['datavalue']['value']['id']
+                    #                         else: 
+                    #                             tail_id = 'Q' + str(tail['mainsnak']['datavalue']['value']['numeric-id'])
+                    #                         edge_dict[(timestr, head_id, tail_id, rel)] = 1
+
+        # # head needs to start from 'Q'
+        # if head[0] == 'Q':
+        #     head_id = head
+        #     if 'claims' in entity_dict:
+        #         claim_dict = entity_dict['claims']
+        #         rel_list = list(claim_dict.keys())
+        #         for rel in rel_list:
+        #             tail_list = claim_dict[rel]
+        #             if rel[0] == 'P':
+        #                 timestr = None
+        #                 #! continue debug here
+        #                 for tail in tail_list:
+        #                     if ("qualifiers" in tail):
+        #                         for q in tail["qualifiers"]:
+        #                             for item in tail["qualifiers"][q]:
+        #                                 if item['datatype'] == 'time':
+        #                                     if 'datavalue' in item:
+        #                                         timestr = item['datavalue']['value']['time']
+        #                                     # print (item['datavalue']['value']['time'])
+        #                 if timestr is not None:
+        #                     if (tail['mainsnak']['datatype'] == 'wikibase-item'):
+        #                             if 'rank' in tail and tail['rank'] != 'deprecated':
+        #                                 if 'datavalue' in tail['mainsnak']:
+        #                                     if 'id' in tail['mainsnak']['datavalue']['value']:
+        #                                         tail_id = tail['mainsnak']['datavalue']['value']['id']
+        #                                     else: 
+        #                                         tail_id = 'Q' + str(tail['mainsnak']['datavalue']['value']['numeric-id'])
+        #                                     edge_dict[(timestr, head_id, tail_id, rel)] = 1
+
 
                                     
                       
