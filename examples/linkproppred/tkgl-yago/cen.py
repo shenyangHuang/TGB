@@ -70,7 +70,7 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
     model.eval()
     # do not have inverse relation in test input
     input_list = [snap for snap in history_list[-history_len:]] #TODO: how do we deal with this!  #TODO: where are my inverse relations?!
-
+    perf_list_all = []
     for time_idx, test_snap in enumerate(test_list):
         tc = start_time + time_idx
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]
@@ -87,16 +87,19 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
                                 timesteps_batch, edge_type=test_triples_input[:,1], split_mode=split_mode)
         pos_samples_batch = test_triples_input[:,2]
 
-        final_score = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch) #TODO modify
+        _, perf_list = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
+                                    evaluator, METRIC) #TODO modify
         # used to global statistic
         mrr  = 0 # TODO
+        perf_list_all.extend(perf_list)
 
         # reconstruct history graph list
         input_list.pop(0)
         input_list.append(test_snap)
         idx += 1
     
-    mrr = [] # TODO
+    
+    mrr = np.mea(perf_list_all) # TODO
     return mrr
 
 
@@ -523,7 +526,7 @@ valid_list = split_by_time(val_data)
 test_list = split_by_time(test_data)
 
 # evaluation metric
-metric = dataset.eval_metric
+METRIC = dataset.eval_metric
 evaluator = Evaluator(name=DATA)
 neg_sampler = dataset.negative_sampler
 #load the ns samples 

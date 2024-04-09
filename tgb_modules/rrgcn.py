@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from tgb_modules.rgcn_layers import UnionRGCNLayer, RGCNBlockLayer
 from tgb_modules.rgcn_model import BaseRGCN
 from tgb_modules.decoder import ConvTransE
-
+import numpy as np
 class RGCNCell(BaseRGCN):
     def build_hidden_layer(self, idx):
         act = F.rrelu
@@ -104,7 +104,8 @@ class RecurrentRGCN(nn.Module):
             evolve_embs.append(self.h)
         return evolve_embs, self.emb_rel
 
-    def predict(self, test_graph, test_triplets, use_cuda, neg_samples_batch=None, pos_samples_batch=None):
+    def predict(self, test_graph, test_triplets, use_cuda, neg_samples_batch=None, pos_samples_batch=None, 
+                evaluator=None, metric=None):
         with torch.no_grad():
             scores = torch.zeros(len(test_triplets), self.num_ents).cuda()
             evolve_embeddings = []
@@ -116,18 +117,40 @@ class RecurrentRGCN(nn.Module):
 
             # if neg_samples_batch != None:
             #     partial_embedding = []
+            if neg_samples_batch != None:
+            #     perf_list = []
+            #     import numpy as np
+            #     metric= 'mrr'
+                perf_list = []
+                for query_id, query in enumerate(neg_samples_batch):
+                    pos = pos_samples_batch[query_id]
+                    neg = torch.tensor(query).to(pos.device)
+                    all =torch.cat((pos.unsqueeze(0), neg), dim=0)
+                    score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets[query_id].unsqueeze(0),
+                                mode="test", 
+                                neg_samples_embd= [evolve_embeddings[i][all] for i in range(len(evolve_embeddings))])
+                    score_list = [_.unsqueeze(2) for _ in score_list]
+                    scores_b = torch.cat(score_list, dim=2)
+                    scores_b = torch.softmax(scores_b, dim=1)
+                                # compute MRR
+                    input_dict = {
+                        "y_pred_pos": np.array([scores_b[0, :].squeeze(dim=-1).cpu()]),
+                        "y_pred_neg": np.array(scores_b[1:, :].squeeze(dim=-1).cpu()),
+                        "eval_metric": [metric],
+                    }
+                    perf_list.append(evaluator.eval(input_dict)[metric])
 
-            score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets, mode="test", 
-                                                 neg_samples=neg_samples_batch, pos_samples=pos_samples_batch)
+            else:
+                score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets, mode="test")
 
-            score_list = [_.unsqueeze(2) for _ in score_list]
-            scores = torch.cat(score_list, dim=2)
-            scores = torch.softmax(scores, dim=1)
-            # scores = torch.max(scores, dim=2)[0]
+                score_list = [_.unsqueeze(2) for _ in score_list]
+                scores = torch.cat(score_list, dim=2)
+                scores = torch.softmax(scores, dim=1)
+                # scores = torch.max(scores, dim=2)[0]
 
-            scores = torch.sum(scores, dim=-1)
-            score_rel = torch.zeros_like(scores)
-            return scores, score_rel
+                scores = torch.sum(scores, dim=-1)
+                score_rel = torch.zeros_like(scores)
+            return scores, perf_list
 
     def get_ft_loss(self, glist, triple_list,  use_cuda):
         #"""
