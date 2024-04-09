@@ -35,9 +35,9 @@ def EdgeWrite2csv(outname, out_dict):
         writer = csv.writer(f, delimiter =',')
         writer.writerow(['head', 'tail', 'relation_type'])
         for edge in out_dict.keys():
-            src = edge[1]
-            dst = edge[2]
-            rel_type = edge[3]
+            src = edge[0]
+            dst = edge[1]
+            rel_type = edge[2]
             row = [src, dst, rel_type]
             writer.writerow(row)
 
@@ -77,9 +77,12 @@ def main():
     # start_idx = tmp[args.chunk]
     # end_idx = tmp[args.chunk + 1]
 
+    #! should break down to chunks of 2000000
+
+
 
     start_idx = 0
-    end_idx = 10000000 #10000000 #1000
+    end_idx = 2000000 #10000000 #10000000 #1000
     print('Start: ', start_idx)
     print('End: ', end_idx)
 
