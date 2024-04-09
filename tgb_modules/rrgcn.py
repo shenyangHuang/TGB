@@ -104,7 +104,7 @@ class RecurrentRGCN(nn.Module):
             evolve_embs.append(self.h)
         return evolve_embs, self.emb_rel
 
-    def predict(self, test_graph, test_triplets, use_cuda):
+    def predict(self, test_graph, test_triplets, use_cuda, neg_samples_batch=None, pos_samples_batch=None):
         with torch.no_grad():
             scores = torch.zeros(len(test_triplets), self.num_ents).cuda()
             evolve_embeddings = []
@@ -114,7 +114,11 @@ class RecurrentRGCN(nn.Module):
                 evolve_embeddings.append(evolve_embs[-1])
             evolve_embeddings.reverse()
 
-            score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets, mode="test")
+            # if neg_samples_batch != None:
+            #     partial_embedding = []
+
+            score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets, mode="test", 
+                                                 neg_samples=neg_samples_batch, pos_samples=pos_samples_batch)
 
             score_list = [_.unsqueeze(2) for _ in score_list]
             scores = torch.cat(score_list, dim=2)

@@ -5,7 +5,8 @@ Reference:
 Zixuan Li, Saiping Guan, Xiaolong Jin, Weihua Peng, Yajuan Lyu , Yong Zhu, Long Bai, Wei Li, Jiafeng Guo, Xueqi Cheng. 
 Complex Evolutional Pattern Learning for Temporal Knowledge Graph Reasoning. ACL 2022.
 """
-
+import sys
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
 
 import timeit
 import argparse
@@ -14,7 +15,7 @@ import sys
 import os.path as osp
 import numpy as np
 import torch
-
+import random
 
 
 # internal imports
@@ -49,8 +50,10 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
     """
     if mode =='test':
         split_mode = 'test'
+        timesteps_to_eval = test_timestamps_orig
     else:
         split_mode = 'val'
+        timesteps_to_eval = val_timestamps_orig
 
     idx = 0
     start_time = len(history_list)
@@ -66,18 +69,22 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
 
     model.eval()
     # do not have inverse relation in test input
-    input_list = [snap for snap in history_list[-history_len:]] #TODO: how do we deal with this! 
+    input_list = [snap for snap in history_list[-history_len:]] #TODO: how do we deal with this!  #TODO: where are my inverse relations?!
 
     for time_idx, test_snap in enumerate(test_list):
         tc = start_time + time_idx
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]
     
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
+        if use_cuda:
+            timesteps_batch = timesteps_to_eval[time_idx]*torch.ones(len(test_triples_input[:,0])).cuda() 
+        else:
+            timesteps_batch =timesteps_to_eval[time_idx]*torch.ones(len(test_triples_input[:,0]))
         
 
 
         neg_samples_batch = neg_sampler.query_batch(test_triples_input[:,0], test_triples_input[:,2], 
-                                test_triples_input[:,3], edge_type=test_triples_input[:,1], split_model=split_mode)
+                                timesteps_batch, edge_type=test_triples_input[:,1], split_mode=split_mode)
         pos_samples_batch = test_triples_input[:,2]
 
         final_score = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch) #TODO modify
@@ -177,7 +184,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                         num_rels, 
                         num_nodes, 
                         use_cuda, 
-                        test_state_file,  neg_samples,
+                        test_state_file,  
                         "test")
 
     elif trainvalidtest_id == -1:
@@ -230,7 +237,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                                 num_rels, 
                                 num_nodes, 
                                 use_cuda, 
-                                model_state_file, neg_samples_valid,
+                                model_state_file, 
                                 mode="train")
                 
 
@@ -248,7 +255,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                         num_rels, 
                         num_nodes, 
                         use_cuda, 
-                        model_state_file, neg_samples,
+                        model_state_file, 
                         mode="test")
         
     elif trainvalidtest_id == 0: #curriculum training
@@ -330,7 +337,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                                 num_rels, 
                                 num_nodes, 
                                 use_cuda, 
-                                model_state_file,  neg_samples_valid,
+                                model_state_file,  
                                 mode="train")
                     
                 
@@ -347,7 +354,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                         num_rels, 
                         num_nodes, 
                         use_cuda, 
-                        model_state_file,  neg_samples,
+                        model_state_file,  
                         mode="test")
             ks_idx += 1
             if mrr.item() < max(best_mrr_list):
@@ -362,7 +369,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     num_rels, 
                     num_nodes, 
                     use_cuda, 
-                    prev_state_file,  neg_samples,
+                    prev_state_file,  
                     mode="test")
     return mrr
 
@@ -370,7 +377,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 def get_args():
     parser = argparse.ArgumentParser(description='CEN')
 
-    parser.add_argument("--gpu", type=int, default=-1,
+    parser.add_argument("--gpu", type=int, default=1,
                         help="gpu")
     parser.add_argument("--batch-size", type=int, default=1,
                         help="batch-size")
@@ -414,11 +421,11 @@ def get_args():
                         help="number of propagation rounds")
     parser.add_argument("--self-loop", action='store_true', default=True,
                         help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--layer-norm", action='store_true', default=False,
+    parser.add_argument("--layer-norm", action='store_true', default=True,
                         help="perform layer normalization in every layer of gcn ")
     parser.add_argument("--relation-prediction", action='store_true', default=False,
                         help="add relation prediction loss")
-    parser.add_argument("--entity-prediction", action='store_true', default=False,
+    parser.add_argument("--entity-prediction", action='store_true', default=True,
                         help="add entity prediction loss")
 
 
@@ -507,6 +514,9 @@ all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
 train_data = all_quads[dataset.train_mask]
 val_data = all_quads[dataset.val_mask]
 test_data = all_quads[dataset.test_mask]
+# train_timestamps_orig = set(timestamps[dataset.train_mask]) 
+val_timestamps_orig = list(set(timestamps[dataset.val_mask])) # needed for getting the negative samples
+test_timestamps_orig = list(set(timestamps[dataset.test_mask])) # needed for getting the negative samples
 
 train_list = split_by_time(train_data)
 valid_list = split_by_time(val_data)
@@ -516,6 +526,9 @@ test_list = split_by_time(test_data)
 metric = dataset.eval_metric
 evaluator = Evaluator(name=DATA)
 neg_sampler = dataset.negative_sampler
+#load the ns samples 
+dataset.load_val_ns()
+dataset.load_test_ns()
 
 if args.grid_search:
     print("TODO: implement hyperparameter search")

@@ -6,7 +6,7 @@ Decoder modules for dynamic link prediction
 import torch
 from torch.nn import Linear
 import torch.nn.functional as F
-import match
+import math
 
 class LinkPredictor(torch.nn.Module):
     """
@@ -48,13 +48,9 @@ class ConvTransE(torch.nn.Module):
     def __init__(self, num_entities, embedding_dim, input_dropout=0, hidden_dropout=0, feature_map_dropout=0, channels=50, kernel_size=3, sequence_len = 10, use_bias=True):
 
         super(ConvTransE, self).__init__()
-        # 初始化relation embeddings
-        # self.emb_rel = torch.nn.Embedding(num_relations, embedding_dim, padding_idx=0)
-
         self.inp_drop = torch.nn.Dropout(input_dropout)
         self.hidden_drop = torch.nn.Dropout(hidden_dropout)
         self.feature_map_drop = torch.nn.Dropout(feature_map_dropout)
-        # self.loss = torch.nn.BCELoss()
         self.embedding_dim = embedding_dim
         self.conv_list = torch.nn.ModuleList()
         self.bn0_list = torch.nn.ModuleList()
@@ -68,7 +64,8 @@ class ConvTransE(torch.nn.Module):
 
         self.fc = torch.nn.Linear(embedding_dim * channels, embedding_dim)
 
-    def forward(self, embedding, emb_rel, triplets, nodes_id=None, mode="train", negative_rate=0, partial_embeding=None):
+    def forward(self, embedding, emb_rel, triplets, nodes_id=None, mode="train", negative_rate=0, partial_embeding=None,
+                neg_samples=None, pos_samples=None):
         score_list = []
         batch_size = len(triplets)
         for idx in range(len(embedding)):
@@ -88,9 +85,15 @@ class ConvTransE(torch.nn.Module):
             if batch_size > 1:
                 x = self.bn2_list[idx](x)
             x = F.relu(x)
+            if partial_embeding !=None:
+                x = torch.mm(x, partial_embeding.transpose(1, 0))
+            elif neg_samples !=None:
+                pos = pos_samples[idx]
+                neg = neg_samples[idx]
+                x = torch.mm(x, partial_embeding.transpose(1, 0))
             if partial_embeding is None:
                 x = torch.mm(x, e1_embedded_all.transpose(1, 0))
             else:
-                x = torch.mm(x, partial_embeding.transpose(1, 0))
+                
             score_list.append(x)
         return score_list
