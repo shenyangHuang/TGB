@@ -21,7 +21,8 @@ class RGCNCell(BaseRGCN):
             sc = False
         if self.encoder_name == "uvrgcn":
             return UnionRGCNLayer(self.h_dim, self.h_dim, self.num_rels, self.num_bases,
-                             activation=act, dropout=self.dropout, self_loop=self.self_loop, skip_connect=sc, rel_emb=self.rel_emb)
+                             activation=act, dropout=self.dropout, self_loop=self.self_loop, skip_connect=sc, 
+                             rel_emb=self.rel_emb)
         else:
             raise NotImplementedError
 
@@ -86,7 +87,8 @@ class RecurrentRGCN(nn.Module):
         
       
         if decoder_name == "convtranse":
-            self.decoder_ob = ConvTransE(num_ents, h_dim, input_dropout, hidden_dropout, feat_dropout, sequence_len=self.sequence_len)
+            self.decoder_ob = ConvTransE(num_ents, h_dim, input_dropout, hidden_dropout, feat_dropout, 
+                                         sequence_len=self.sequence_len)
         else:
             raise NotImplementedError 
 
@@ -110,32 +112,26 @@ class RecurrentRGCN(nn.Module):
             scores = torch.zeros(len(test_triplets), self.num_ents).cuda()
             evolve_embeddings = []
             for idx in range(len(test_graph)):
-                # model_idx = len(test_graph) - idx - 1 
                 evolve_embs, r_emb = self.forward(test_graph[idx:], use_cuda)
                 evolve_embeddings.append(evolve_embs[-1])
             evolve_embeddings.reverse()
 
-            # if neg_samples_batch != None:
-            #     partial_embedding = []
-            if neg_samples_batch != None:
-            #     perf_list = []
-            #     import numpy as np
-            #     metric= 'mrr'
+            if neg_samples_batch != None: # added by tgb team
                 perf_list = []
-                for query_id, query in enumerate(neg_samples_batch):
+                for query_id, query in enumerate(neg_samples_batch): # for each sample separately
                     pos = pos_samples_batch[query_id]
                     neg = torch.tensor(query).to(pos.device)
                     all =torch.cat((pos.unsqueeze(0), neg), dim=0)
                     score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets[query_id].unsqueeze(0),
-                                mode="test", 
-                                neg_samples_embd= [evolve_embeddings[i][all] for i in range(len(evolve_embeddings))])
+                            samples_of_interest_emb= [evolve_embeddings[i][all] for i in range(len(evolve_embeddings))])
                     score_list = [_.unsqueeze(2) for _ in score_list]
                     scores_b = torch.cat(score_list, dim=2)
                     scores_b = torch.softmax(scores_b, dim=1)
-                                # compute MRR
+                    scores_b = torch.sum(scores_b, dim=-1)
+                    # compute MRR
                     input_dict = {
-                        "y_pred_pos": np.array([scores_b[0, :].squeeze(dim=-1).cpu()]),
-                        "y_pred_neg": np.array(scores_b[1:, :].squeeze(dim=-1).cpu()),
+                        "y_pred_pos": np.array([scores_b[0,0].cpu()]),
+                        "y_pred_neg": np.array(scores_b[0,1:].cpu()),
                         "eval_metric": [metric],
                     }
                     perf_list.append(evaluator.eval(input_dict)[metric])
@@ -146,8 +142,6 @@ class RecurrentRGCN(nn.Module):
                 score_list = [_.unsqueeze(2) for _ in score_list]
                 scores = torch.cat(score_list, dim=2)
                 scores = torch.softmax(scores, dim=1)
-                # scores = torch.max(scores, dim=2)[0]
-
                 scores = torch.sum(scores, dim=-1)
                 score_rel = torch.zeros_like(scores)
             return scores, perf_list

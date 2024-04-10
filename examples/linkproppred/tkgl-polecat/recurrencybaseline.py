@@ -17,12 +17,9 @@ import ray
 
 #internal imports 
 from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
-from tgb_modules.recurrencybaseline_utils import create_basis_dict, group_by, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import set_random_seed
-from tgb.utils.utils import save_results 
-
+from tgb.utils.utils import set_random_seed,  save_results, create_basis_dict, group_by, reformat_ts
 
 def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, all_data_c_rel, alpha, lmbda_psi,
             perf_list_all, hits_list_all, window):

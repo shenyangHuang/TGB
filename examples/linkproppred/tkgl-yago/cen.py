@@ -13,30 +13,26 @@ import argparse
 import os
 import sys
 import os.path as osp
+from pathlib import Path
 import numpy as np
 import torch
 import random
-
-
+from tqdm import tqdm
 # internal imports
 from tgb_modules.rrgcn import RecurrentRGCN
-from tgb.utils.utils import set_random_seed
-from tgb_modules.recurrencybaseline_utils import reformat_ts
-from tgb_modules.cen_utils import split_by_time, build_sub_graph
+from tgb.utils.utils import set_random_seed, get_args_cen, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
+
 
 # from src.hyperparameter_range import hp_range
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 #TODOs:
-# implement data loading and make sure its in the correct format
-# integrate test()
-# store and load models at correct location
-# 
+# hyperparameter selsection
 
-def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode):
+def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode, split_mode):
     """
     :param model: model used to test
     :param history_list:    all input history snap shot list, not include output label train list or valid list
@@ -45,67 +41,64 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
     :param num_nodes:   number of nodes
     :param use_cuda:
     :param model_name:
-    :param mode
+    :param mode:
+    :param split_mode: 'test' or 'val' to state which negative samples to load
     :return mrr
     """
-    if mode =='test':
-        split_mode = 'test'
+    print("Testing for mode: ", split_mode)
+    if split_mode == 'test':
         timesteps_to_eval = test_timestamps_orig
     else:
-        split_mode = 'val'
         timesteps_to_eval = val_timestamps_orig
 
     idx = 0
-    start_time = len(history_list)
+
     if mode == "test":
-        # test mode: load parameter form file
+        # test mode: load parameter form file 
         if use_cuda:
             checkpoint = torch.load(model_name, map_location=torch.device(args.gpu))
         else:
-            checkpoint = torch.load(model_name, map_location=torch.device('cpu'))
-        print("Load Model name: {}. Using best epoch : {}".format(model_name, checkpoint['epoch']))  # use best stat checkpoint
+            checkpoint = torch.load(model_name, map_location=torch.device('cpu'))        
+        # use best stat checkpoint:
+        print("Load Model name: {}. Using best epoch : {}".format(model_name, checkpoint['epoch']))  
         print("\n"+"-"*10+"start testing"+"-"*10+"\n")
         model.load_state_dict(checkpoint['state_dict'])
 
     model.eval()
-    # do not have inverse relation in test input
-    input_list = [snap for snap in history_list[-history_len:]] #TODO: how do we deal with this!  #TODO: where are my inverse relations?!
+
+    input_list = [snap for snap in history_list[-history_len:]] 
     perf_list_all = []
-    for time_idx, test_snap in enumerate(test_list):
-        tc = start_time + time_idx
-        history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]
-    
+    for time_idx, test_snap in enumerate(tqdm(test_list)):
+        history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]    
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
         if use_cuda:
             timesteps_batch = timesteps_to_eval[time_idx]*torch.ones(len(test_triples_input[:,0])).cuda() 
         else:
             timesteps_batch =timesteps_to_eval[time_idx]*torch.ones(len(test_triples_input[:,0]))
-        
-
 
         neg_samples_batch = neg_sampler.query_batch(test_triples_input[:,0], test_triples_input[:,2], 
                                 timesteps_batch, edge_type=test_triples_input[:,1], split_mode=split_mode)
         pos_samples_batch = test_triples_input[:,2]
 
         _, perf_list = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
-                                    evaluator, METRIC) #TODO modify
-        # used to global statistic
-        mrr  = 0 # TODO
-        perf_list_all.extend(perf_list)
+                                    evaluator, METRIC) 
 
+        perf_list_all.extend(perf_list)
         # reconstruct history graph list
         input_list.pop(0)
         input_list.append(test_snap)
         idx += 1
     
-    
-    mrr = np.mea(perf_list_all) # TODO
+    mrr = np.mean(perf_list_all) 
     return mrr
 
 
 
 def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, dropout=None, n_bases=None):
-    # load configuration for grid search the best configuration
+    '''
+    trainvalidtest_id: -1: pretrainig, 0: curriculum training (to find best test history len), 1: test on valid set, 2: test on test set
+    '''
+    # 1) load configuration for grid search the best configuration
     if n_hidden:
         args.n_hidden = n_hidden
     if n_layers:
@@ -114,27 +107,12 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         args.dropout = dropout
     if n_bases:
         args.n_bases = n_bases
-
-    neg_samples = 0
-    neg_samples_valid =  0
-
-    # 1) TODO: load graph data
-    # data = utils.load_data(args.dataset)
-    # train_list = utils.split_by_time(data.train)
-    # valid_list = utils.split_by_time(data.valid)
-    # test_list = utils.split_by_time(data.test)
-    # total_data = np.concatenate((data.train, data.valid, data.test), axis=0)
-    # print("total data length ", len(total_data))
-    # num_nodes = data.num_nodes
-    # num_rels = data.num_rels
-
-
-    # train_list = add_inverse(train_list, num_rels)
-    # valid_list = add_inverse(valid_list, num_rels)
-    # test_list = add_inverse(test_list, num_rels)
-
+    test_history_len = args.test_history_len
     # 2) set save model path
     save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
+    if not osp.exists(save_model_dir):
+        os.mkdir(save_model_dir)
+        print('INFO: Create directory {}'.format(save_model_dir))
     test_model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.test_history_len}'
     test_state_file = save_model_dir+test_model_name
 
@@ -171,36 +149,29 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
     
     if trainvalidtest_id == 1:  # normal test on validation set  Note that mode=test
         if os.path.exists(test_state_file):
-            mrr = test(model, args.test_history_len, 
-                        train_list, 
-                        valid_list, 
-                        num_rels, 
-                        num_nodes, 
-                        use_cuda, 
-                        test_state_file, 
-                        "test")                                 
+            mrr = test(model, args.test_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                        test_state_file, "test", split_mode="val")      
+        else:
+            print('Cannot do testing because model does not exist: ', test_state_file)
+            mrr = 0
     elif trainvalidtest_id == 2: # normal test on test set
         if os.path.exists(test_state_file):
-            mrr = test(model, args.test_history_len, 
-                        train_list+valid_list, 
-                        test_list, 
-                        num_rels, 
-                        num_nodes, 
-                        use_cuda, 
-                        test_state_file,  
-                        "test")
-
+            mrr = test(model, args.test_history_len, train_list+valid_list, test_list, num_rels, num_nodes, use_cuda, 
+                        test_state_file, "test", split_mode="test")
+        else:
+            print('Cannot do testing because model does not exist: ', test_state_file)
+            mrr = 0
     elif trainvalidtest_id == -1:
         print("-------------start pre training model with history length {}----------\n".format(args.start_history_len))
         model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.start_history_len}'
-        # if not os.path.exists('../models/{}/'.format(args.dataset)):
-        #     os.makedirs('../models/{}/'.format(args.dataset))
         model_state_file = save_model_dir + model_name
         print("Sanity Check: stat name : {}".format(model_state_file))
         print("Sanity Check: Is cuda available ? {}".format(torch.cuda.is_available()))
             
         best_mrr = 0
         best_epoch = 0
+
+        ## training loop
         for epoch in range(args.n_epochs):
             model.train()
             losses = []
@@ -233,16 +204,8 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
             # validation        
             if epoch % args.evaluate_every == 0:
-                mrr = test(model,
-                                args.start_history_len, 
-                                train_list, 
-                                valid_list, 
-                                num_rels, 
-                                num_nodes, 
-                                use_cuda, 
-                                model_state_file, 
-                                mode="train")
-                
+                mrr = test(model, args.start_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                                model_state_file, mode="train", split_mode= "val")
 
                 if mrr< best_mrr:
                     if epoch >= args.n_epochs or epoch - best_epoch > 5:
@@ -252,32 +215,34 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     best_epoch = epoch
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
-        mrr = test(model, args.start_history_len, 
-                        train_list+valid_list,
-                        test_list, 
-                        num_rels, 
-                        num_nodes, 
-                        use_cuda, 
-                        model_state_file, 
-                        mode="test")
+        # mrr = test(model, args.start_history_len, 
+        #                 train_list+valid_list,
+        #                 test_list, 
+        #                 num_rels, 
+        #                 num_nodes, 
+        #                 use_cuda, 
+        #                 model_state_file, 
+        #                 mode="test", split_mode= "test")
         
     elif trainvalidtest_id == 0: #curriculum training
-        # load best model with start history length
-        init_state_file = '../models/{}/'.format(args.dataset) + "{}-{}-ly{}-dilate{}-his{}-dp{}-gpu{}".format(args.encoder, args.decoder, args.n_layers, args.dilate_len, args.start_history_len, args.dropout, args.gpu)
+        model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.start_history_len}'
+        init_state_file = save_model_dir + model_name
         init_checkpoint = torch.load(init_state_file, map_location=torch.device(args.gpu))
-        print("Load Previous Model name: {}. Using best epoch : {}".format(init_state_file, init_checkpoint['epoch']))  # use best stat checkpoint
+        # use best stat checkpoint:
+        print("Load Previous Model name: {}. Using best epoch : {}".format(init_state_file, init_checkpoint['epoch']))  
         print("\n"+"-"*10+"Load model with history length {}".format(args.start_history_len)+"-"*10+"\n")
         model.load_state_dict(init_checkpoint['state_dict'])
         test_history_len = args.start_history_len
+
         mrr = test(model, 
                     args.start_history_len,
-                    train_list+valid_list,
-                    test_list, 
+                    train_list,
+                    valid_list, 
                     num_rels, 
                     num_nodes, 
                     use_cuda, 
-                    init_state_file,  neg_samples,
-                    mode="test")
+                    init_state_file,  
+                    mode="test", split_mode= "val") 
         best_mrr_list = [mrr.item()]                                                   
         # start knowledge distillation
         ks_idx = 0
@@ -287,15 +252,15 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             # lr = 0.1*args.lr - 0.002*args.lr*ks_idx
             optimizer = torch.optim.Adam(model.parameters(), lr=0.1*args.lr, weight_decay=0.00001)
             model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{history_len}'
-            # model_name = "{}-{}-ly{}-dilate{}-his{}-dp{}-gpu{}".format(args.encoder, args.decoder, args.n_layers, args.dilate_len, history_len, args.dropout, args.gpu)
-            # model_state_file = '../models/{}/'.format(args.dataset) + model_name # TODO
-            # print("Sanity Check: stat name : {}".format(model_state_file))# TODO
+            model_state_file = save_model_dir + model_name
+
+            print("Sanity Check: stat name : {}".format(model_state_file))
 
             # load model with the least history length
             prev_model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{history_len-1}'
             prev_state_file = save_model_dir + prev_model_name
             checkpoint = torch.load(prev_state_file, map_location=torch.device(args.gpu)) 
-            model.load_state_dict(checkpoint['state_dict']) # TODO
+            model.load_state_dict(checkpoint['state_dict']) 
             print("\n"+"-"*10+"start knowledge distillation for history length at "+ str(history_len)+"-"*10+"\n")
  
             best_mrr = 0
@@ -333,17 +298,9 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
                 # validation
                 if epoch % args.evaluate_every == 0:
-                    mrr = test(model,
-                                history_len,
-                                train_list, 
-                                valid_list, 
-                                num_rels, 
-                                num_nodes, 
-                                use_cuda, 
-                                model_state_file,  
-                                mode="train")
+                    mrr = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                                model_state_file, mode="train", split_mode= "val")
                     
-                
                     if mrr< best_mrr:
                         if epoch >= args.n_epochs or epoch-best_epoch>2:
                             break
@@ -351,14 +308,8 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                         best_mrr = mrr
                         best_epoch = epoch
                         torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)  
-            mrr = test(model, history_len,
-                        train_list,
-                        valid_list, 
-                        num_rels, 
-                        num_nodes, 
-                        use_cuda, 
-                        model_state_file,  
-                        mode="test")
+            mrr = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                        model_state_file, mode="test", split_mode= "val")
             ks_idx += 1
             if mrr.item() < max(best_mrr_list):
                 test_history_len = history_len-1
@@ -366,126 +317,17 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             else:
                 best_mrr_list.append(mrr.item())
 
-        mrr = test(model, test_history_len, 
-                   train_list+valid_list,
-                    test_list, 
-                    num_rels, 
-                    num_nodes, 
-                    use_cuda, 
-                    prev_state_file,  
-                    mode="test")
-    return mrr
+        # mrr = test(model, test_history_len, 
+        #            train_list+valid_list,
+        #             test_list, 
+        #             num_rels, 
+        #             num_nodes, 
+        #             use_cuda, 
+        #             prev_state_file,  
+        #             mode="test", split_mode= "test")
+    return mrr, test_history_len
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description='CEN')
-
-    parser.add_argument("--gpu", type=int, default=1,
-                        help="gpu")
-    parser.add_argument("--batch-size", type=int, default=1,
-                        help="batch-size")
-    parser.add_argument("-d", "--dataset", type=str, default='tkgl-yago',
-                        help="dataset to use")
-    parser.add_argument("--test", type=int, default=0,
-                        help="1: formal test 2: continual test")
-  
-    parser.add_argument("--run-statistic", action='store_true', default=False,
-                        help="statistic the result")
-
-    parser.add_argument("--relation-evaluation", action='store_true', default=False,
-                        help="save model accordding to the relation evalution")
-
-    
-    # configuration for encoder RGCN stat
-    parser.add_argument("--weight", type=float, default=1,
-                        help="weight of static constraint")
-    parser.add_argument("--task-weight", type=float, default=1,
-                        help="weight of entity prediction task")
-    parser.add_argument("--kl-weight", type=float, default=0.7,
-                        help="weight of entity prediction task")
-   
-    parser.add_argument("--encoder", type=str, default="uvrgcn",
-                        help="method of encoder")
-
-    parser.add_argument("--dropout", type=float, default=0.2,
-                        help="dropout probability")
-    parser.add_argument("--skip-connect", action='store_true', default=False,
-                        help="whether to use skip connect in a RGCN Unit")
-    parser.add_argument("--n-hidden", type=int, default=200,
-                        help="number of hidden units")
-    parser.add_argument("--opn", type=str, default="sub",
-                        help="opn of compgcn")
-
-    parser.add_argument("--n-bases", type=int, default=100,
-                        help="number of weight blocks for each relation")
-    parser.add_argument("--n-basis", type=int, default=100,
-                        help="number of basis vector for compgcn")
-    parser.add_argument("--n-layers", type=int, default=2,
-                        help="number of propagation rounds")
-    parser.add_argument("--self-loop", action='store_true', default=True,
-                        help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--layer-norm", action='store_true', default=True,
-                        help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--relation-prediction", action='store_true', default=False,
-                        help="add relation prediction loss")
-    parser.add_argument("--entity-prediction", action='store_true', default=True,
-                        help="add entity prediction loss")
-
-
-    # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=500,
-                        help="number of minimum training epochs on each time step")
-    parser.add_argument("--lr", type=float, default=0.001,
-                        help="learning rate")
-    parser.add_argument("--ft_epochs", type=int, default=30,
-                        help="number of minimum fine-tuning epoch")
-    parser.add_argument("--ft_lr", type=float, default=0.001,
-                        help="learning rate")
-    parser.add_argument("--norm_weight", type=float, default=0.1,
-                        help="learning rate")
-    parser.add_argument("--grad-norm", type=float, default=1.0,
-                        help="norm to clip gradient to")
-
-    # configuration for evaluating
-    parser.add_argument("--evaluate-every", type=int, default=20,
-                        help="perform evaluation every n epochs")
-
-    # configuration for decoder
-    parser.add_argument("--decoder", type=str, default="convtranse",
-                        help="method of decoder")
-    parser.add_argument("--input-dropout", type=float, default=0.2,
-                        help="input dropout for decoder ")
-    parser.add_argument("--hidden-dropout", type=float, default=0.2,
-                        help="hidden dropout for decoder")
-    parser.add_argument("--feat-dropout", type=float, default=0.2,
-                        help="feat dropout for decoder")
-
-    # configuration for sequences stat
-    parser.add_argument("--train-history-len", type=int, default=10,
-                        help="history length")
-    parser.add_argument("--test-history-len", type=int, default=20,
-                        help="history length for test")
-    parser.add_argument("--start-history-len", type=int, default=1,
-                    help="start history length")
-    parser.add_argument("--dilate-len", type=int, default=1,
-                        help="dilate history graph")
-
-    # configuration for optimal parameters
-    parser.add_argument("--grid-search", action='store_true', default=False,
-                        help="perform grid search for best configuration")
-    parser.add_argument("-tune", "--tune", type=str, default="n_hidden,n_layers,dropout,n_bases",
-                        help="stat to use")
-    parser.add_argument("--num-k", type=int, default=500,
-                        help="number of triples generated")
-    parser.add_argument('--seed', type=int, help='Random seed', default=1)
-    parser.add_argument('--run-nr', type=int, help='Run Number', default=1)
-
-    try:
-        args = parser.parse_args()
-    except:
-        parser.print_help()
-        sys.exit(0)
-    return args, sys.argv 
 
 # ==================
 # ==================
@@ -494,7 +336,7 @@ def get_args():
 start_overall = timeit.default_timer()
 
 # set hyperparameters
-args, _ = get_args()
+args, _ = get_args_cen()
 SEED = args.seed  # set the random seed for consistency
 set_random_seed(SEED)
 
@@ -517,7 +359,7 @@ all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
 train_data = all_quads[dataset.train_mask]
 val_data = all_quads[dataset.val_mask]
 test_data = all_quads[dataset.test_mask]
-# train_timestamps_orig = set(timestamps[dataset.train_mask]) 
+
 val_timestamps_orig = list(set(timestamps[dataset.val_mask])) # needed for getting the negative samples
 test_timestamps_orig = list(set(timestamps[dataset.test_mask])) # needed for getting the negative samples
 
@@ -534,15 +376,55 @@ dataset.load_val_ns()
 dataset.load_test_ns()
 
 if args.grid_search:
-    print("TODO: implement hyperparameter search")
+    print("TODO: implement hyperparameter grid search")
 # single run
 else:
-    # pretrain
-    mrr = run_experiment(args, trainvalidtest_id=-1)
-    # train
-    mrr = run_experiment(args, trainvalidtest_id=0)
-    # valid # only needed if hyperparameter tuning
-    mrr = run_experiment(args, trainvalidtest_id=1)
-    # test
-    mrr = run_experiment(args, trainvalidtest_id=2)
+    train_flag = True
+    start_train = timeit.default_timer()
+    if train_flag:
+        # pretrain
+        mrr, _ = run_experiment(args, trainvalidtest_id=-1)
+        # train
+        mrr, args.test_history_len = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
+        # the best history len (for valid mrr)
+    else:
+        if args.test_history_len_2 != args.test_history_len:
+            args.test_history_len = args.test_history_len_2 # hyperparameter value as given in original paper 
+
+    print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
+    # test on val set
+    val_mrr, _ = run_experiment(args, trainvalidtest_id=1)
+
+    # test on test set
+    start_test = timeit.default_timer()
+    test_mrr, _ = run_experiment(args, trainvalidtest_id=2)
+
+test_time = timeit.default_timer() - start_test
+all_time = timeit.default_timer() - start_train
+print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
+print(f"\Train and Test: Elapsed Time (s): {all_time: .4f}")
+
+print(f"\tTest: {METRIC}: {test_mrr: .4f}")
+print(f"\tValid: {METRIC}: {val_mrr: .4f}")
+
+# saving the results...
+results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
+if not osp.exists(results_path):
+    os.mkdir(results_path)
+    print('INFO: Create directory {}'.format(results_path))
+Path(results_path).mkdir(parents=True, exist_ok=True)
+results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results.json'
+
+save_results({'model': MODEL_NAME,
+              'data': DATA,
+              'run': args.run_nr,
+              'seed': SEED,
+              'test_history_len': args.test_history_len,
+              f'val {METRIC}': float(val_mrr),
+              f'test {METRIC}': float(test_mrr),
+              'test_time': test_time,
+              'tot_train_val_time': all_time
+              }, 
+    results_filename)
+
 sys.exit()

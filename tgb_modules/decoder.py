@@ -64,8 +64,7 @@ class ConvTransE(torch.nn.Module):
 
         self.fc = torch.nn.Linear(embedding_dim * channels, embedding_dim)
 
-    def forward(self, embedding, emb_rel, triplets, nodes_id=None, mode="train", negative_rate=0, partial_embeding=None,
-                neg_samples_embd=None, pos_samples=None):
+    def forward(self, embedding, emb_rel, triplets, partial_embeding=None, samples_of_interest_emb=None):
         score_list = []
         batch_size = len(triplets)
         # if neg_samples != None:
@@ -89,20 +88,8 @@ class ConvTransE(torch.nn.Module):
             x = F.relu(x)
             if partial_embeding !=None:
                 x = torch.mm(x, partial_embeding.transpose(1, 0))
-            elif neg_samples_embd !=None:
-                x = torch.mm(x, neg_samples_embd[idx].transpose(1, 0))
-            # elif neg_samples !=None:
-            #     perf_list = []
-            #     import numpy as np
-            #     metric= 'mrr'
-            #     for query_id, query in enumerate(neg_samples):
-            #         pos = pos_samples[query_id]
-            #         neg = torch.tensor(query).to(pos.device)
-            #         all =torch.cat((pos.unsqueeze(0), neg), dim=0)
-            #         p_query = e1_embedded_all[all]
-            #         y_pred = torch.mm(x[query_id].unsqueeze(0), p_query.transpose(1, 0))
-
-
+            elif samples_of_interest_emb !=None: # added tgb team: predict only for nodes of interest
+                x = torch.mm(x, F.tanh(samples_of_interest_emb[idx]).transpose(1, 0)) #TODO: do I need tanh?
             else: #predict for all nodes
                 x = torch.mm(x, e1_embedded_all.transpose(1, 0))
             # else:

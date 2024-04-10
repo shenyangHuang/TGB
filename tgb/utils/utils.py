@@ -9,7 +9,10 @@ from typing import Any
 import numpy as np
 from torch_geometric.data import TemporalData
 import pandas as pd
-
+import dgl
+import torch
+from itertools import groupby
+from operator import itemgetter
 
 def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
     r"""
@@ -139,6 +142,117 @@ def get_args():
         sys.exit(0)
     return args, sys.argv
 
+def get_args_cen():
+    parser = argparse.ArgumentParser(description='CEN')
+    parser.add_argument("--gpu", type=int, default=1,
+                        help="gpu")
+    parser.add_argument("--batch-size", type=int, default=1,
+                        help="batch-size")
+    parser.add_argument("-d", "--dataset", type=str, default='tkgl-yago',
+                        help="dataset to use")
+    parser.add_argument("--test", type=int, default=0,
+                        help="1: formal test 2: continual test")
+  
+    parser.add_argument("--run-statistic", action='store_true', default=False,
+                        help="statistic the result")
+
+    parser.add_argument("--relation-evaluation", action='store_true', default=False,
+                        help="save model accordding to the relation evalution")
+
+    
+    # configuration for encoder RGCN stat
+    parser.add_argument("--weight", type=float, default=1,
+                        help="weight of static constraint")
+    parser.add_argument("--task-weight", type=float, default=1,
+                        help="weight of entity prediction task")
+    parser.add_argument("--kl-weight", type=float, default=0.7,
+                        help="weight of entity prediction task")
+   
+    parser.add_argument("--encoder", type=str, default="uvrgcn",
+                        help="method of encoder")
+
+    parser.add_argument("--dropout", type=float, default=0.2,
+                        help="dropout probability")
+    parser.add_argument("--skip-connect", action='store_true', default=False,
+                        help="whether to use skip connect in a RGCN Unit")
+    parser.add_argument("--n-hidden", type=int, default=200,
+                        help="number of hidden units")
+    parser.add_argument("--opn", type=str, default="sub",
+                        help="opn of compgcn")
+
+    parser.add_argument("--n-bases", type=int, default=100,
+                        help="number of weight blocks for each relation")
+    parser.add_argument("--n-basis", type=int, default=100,
+                        help="number of basis vector for compgcn")
+    parser.add_argument("--n-layers", type=int, default=2,
+                        help="number of propagation rounds")
+    parser.add_argument("--self-loop", action='store_true', default=True,
+                        help="perform layer normalization in every layer of gcn ")
+    parser.add_argument("--layer-norm", action='store_true', default=True,
+                        help="perform layer normalization in every layer of gcn ")
+    parser.add_argument("--relation-prediction", action='store_true', default=False,
+                        help="add relation prediction loss")
+    parser.add_argument("--entity-prediction", action='store_true', default=True,
+                        help="add entity prediction loss")
+
+
+    # configuration for stat training
+    parser.add_argument("--n-epochs", type=int, default=30,
+                        help="number of minimum training epochs on each time step")
+    parser.add_argument("--lr", type=float, default=0.001,
+                        help="learning rate")
+    parser.add_argument("--ft_epochs", type=int, default=30,
+                        help="number of minimum fine-tuning epoch")
+    parser.add_argument("--ft_lr", type=float, default=0.001,
+                        help="learning rate")
+    parser.add_argument("--norm_weight", type=float, default=1,
+                        help="learning rate")
+    parser.add_argument("--grad-norm", type=float, default=1.0,
+                        help="norm to clip gradient to")
+
+    # configuration for evaluating
+    parser.add_argument("--evaluate-every", type=int, default=1,
+                        help="perform evaluation every n epochs")
+
+    # configuration for decoder
+    parser.add_argument("--decoder", type=str, default="convtranse",
+                        help="method of decoder")
+    parser.add_argument("--input-dropout", type=float, default=0.2,
+                        help="input dropout for decoder ")
+    parser.add_argument("--hidden-dropout", type=float, default=0.2,
+                        help="hidden dropout for decoder")
+    parser.add_argument("--feat-dropout", type=float, default=0.2,
+                        help="feat dropout for decoder")
+
+    # configuration for sequences stat
+    parser.add_argument("--train-history-len", type=int, default=10,
+                        help="history length")
+    parser.add_argument("--test-history-len", type=int, default=10,
+                        help="history length for test")
+    parser.add_argument("--test-history-len-2", type=int, default=3,
+                        help="history length for test")
+    parser.add_argument("--start-history-len", type=int, default=3,
+                    help="start history length")
+    parser.add_argument("--dilate-len", type=int, default=1,
+                        help="dilate history graph")
+
+    # configuration for optimal parameters
+    parser.add_argument("--grid-search", action='store_true', default=False,
+                        help="perform grid search for best configuration")
+    parser.add_argument("-tune", "--tune", type=str, default="n_hidden,n_layers,dropout,n_bases",
+                        help="stat to use")
+    parser.add_argument("--num-k", type=int, default=500,
+                        help="number of triples generated")
+    parser.add_argument('--seed', type=int, help='Random seed', default=1)
+    parser.add_argument('--run-nr', type=int, help='Run Number', default=1)
+
+    try:
+        args = parser.parse_args()
+    except:
+        parser.print_help()
+        sys.exit(0)
+    return args, sys.argv 
+
 
 def save_results(new_results: dict, filename: str):
     r"""
@@ -160,3 +274,102 @@ def save_results(new_results: dict, filename: str):
         # dump the results
         with open(filename, 'w') as json_file:
             json.dump(new_results, json_file, indent=4)
+
+
+def split_by_time(data):
+    """
+    https://github.com/Lee-zix/CEN/blob/main/rgcn/utils.py
+    create list where each entry has an entry with all triples for this timestep
+    """
+    timesteps = list(set(data[:,3]))
+    snapshot_list = [None] * len(timesteps)
+
+    for index, ts in enumerate(timesteps):
+        mask = np.where(data[:, 3] == ts)[0]
+        snapshot_list[index] = data[mask,:3]
+
+    return snapshot_list
+
+
+def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
+    """
+    https://github.com/Lee-zix/CEN/blob/main/rgcn/utils.py
+    :param node_id: node id in the large graph
+    :param num_rels: number of relation
+    :param src: relabeled src id
+    :param rel: original rel id
+    :param dst: relabeled dst id
+    :param use_cuda:
+    :return:
+    """
+    def comp_deg_norm(g):
+        in_deg = g.in_degrees(range(g.number_of_nodes())).float()
+        in_deg[torch.nonzero(in_deg == 0).view(-1)] = 1
+        norm = 1.0 / in_deg
+        return norm
+
+    src, rel, dst = triples.transpose()
+    g = dgl.DGLGraph()
+    g.add_nodes(num_nodes)
+    g.add_edges(src, dst)
+    norm = comp_deg_norm(g)
+    node_id = torch.arange(0, num_nodes, dtype=torch.long).view(-1, 1)
+    g.ndata.update({'id': node_id, 'norm': norm.view(-1, 1)})
+    g.apply_edges(lambda edges: {'norm': edges.dst['norm'] * edges.src['norm']})
+    g.edata['type'] = torch.LongTensor(rel)
+
+    if use_cuda:
+        g = g.to(gpu)
+    return g
+
+
+
+def group_by(data: np.array, key_idx: int) -> dict:
+    """
+    group data in an np array to dict; where key is specified by key_idx. for example groups elements of array by relations
+    :param data: [np.array] data to be grouped
+    :param key_idx: [int] index for element of interest
+    returns data_dict: dict with key: values of element at index key_idx, values: all elements in data that have that value
+    """
+    data_dict = {}
+    data_sorted = sorted(data, key=itemgetter(key_idx))
+    for key, group in groupby(data_sorted, key=itemgetter(key_idx)):
+        data_dict[key] = np.array(list(group))
+    return data_dict
+
+
+def reformat_ts(timestamps):
+    """ reformat timestamps s.t. they start with 0, and have stepsize 1.
+    :param timestamps: np.array() with timestamps
+    returns: np.array(ts_new)
+    """
+    all_ts = list(set(timestamps))
+    all_ts.sort()
+    ts_min = np.min(all_ts)
+    ts_dist = all_ts[1] - all_ts[0]
+
+    ts_new = []
+    timestamps2 = timestamps - ts_min
+    for timestamp in timestamps2:
+        timestamp = int(timestamp/ts_dist)
+        ts_new.append(timestamp)
+    return np.array(ts_new)
+
+## preprocess: define rules
+def create_basis_dict(data):
+    ""
+    """
+    data: concatenated train and vali data, INCLUDING INVERSE QUADRUPLES. we need it for the relation ids.
+    """
+    rels = list(set(data[:,1]))
+    basis_dict = {}
+    for rel in rels:
+        basis_id_new = []
+        rule_dict = {}
+        rule_dict["head_rel"] = int(rel)
+        rule_dict["body_rels"] = [int(rel)] #same body and head relation -> what happened before happens again
+        rule_dict["conf"] = 1 #same confidence for every rule
+        rule_new = rule_dict
+        basis_id_new.append(rule_new)
+        basis_dict[str(rel)] = basis_id_new
+    return basis_dict
