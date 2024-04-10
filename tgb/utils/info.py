@@ -34,7 +34,8 @@ DATA_URL_DICT = {
     "tgbn-token": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbn-token.zip",
     "tkgl-polecat": "https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-polecat.zip",
     "tkgl-yago":"https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-yago.zip",
-    "tkgl-wikidata": "https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-wikidata.zip"
+    "tkgl-wikidata": "https://object-arbutus.cloud.computecanada.ca/tgb/tkgl-wikidata.zip",
+    "thgl-myket": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-myket.zip",
 }
 
 
@@ -51,7 +52,8 @@ DATA_VERSION_DICT = {
     "tgbn-token": 1,
     "tkgl-polecat": 1,
     "tkgl-yago": 1,
-    "tkgl-wikidata": 1
+    "tkgl-wikidata": 1,
+    "thgl-myket": 1,
 }
 
 
@@ -64,6 +66,7 @@ DATA_EVAL_METRIC_DICT = {
     "tkgl-polecat": "mrr",
     "tkgl-yago": "mrr",
     "tkgl-wikidata": "mrr",
+    "thgl-myket": "mrr",
     "tgbn-trade": "ndcg",
     "tgbn-genre": "ndcg",
     "tgbn-reddit": "ndcg",

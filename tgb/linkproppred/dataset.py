@@ -22,6 +22,7 @@ from tgb.utils.pre_process import (
     csv_to_pd_data_rc,
     load_edgelist_wiki,
     csv_to_tkg_data,
+    csv_to_thg_data,
 )
 from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.utils import add_inverse_quadruples
@@ -233,6 +234,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-yago":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            elif self.name == "thgl-myket":
+                df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             else:
                 raise ValueError(f"Dataset {self.name} not found.")
 
@@ -277,7 +280,7 @@ class LinkPropPredDataset(object):
             "edge_label": edge_label,
         }
 
-        #* for tkg
+        #* for tkg and thg
         if ("edge_type" in df):
             edge_type = np.array(df["edge_type"]).astype(int)
             self._edge_type = edge_type
