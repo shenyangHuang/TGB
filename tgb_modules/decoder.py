@@ -45,7 +45,8 @@ class ConvTransE(torch.nn.Module):
     """
     https://github.com/Lee-zix/CEN/blob/main/src/decoder.py
     """
-    def __init__(self, num_entities, embedding_dim, input_dropout=0, hidden_dropout=0, feature_map_dropout=0, channels=50, kernel_size=3, sequence_len = 10, use_bias=True):
+    def __init__(self, num_entities, embedding_dim, input_dropout=0, hidden_dropout=0, 
+    feature_map_dropout=0, channels=50, kernel_size=3, sequence_len = 10, use_bias=True):
 
         super(ConvTransE, self).__init__()
         self.inp_drop = torch.nn.Dropout(input_dropout)
@@ -57,7 +58,8 @@ class ConvTransE(torch.nn.Module):
         self.bn1_list = torch.nn.ModuleList()
         self.bn2_list = torch.nn.ModuleList()
         for _ in range(sequence_len):
-            self.conv_list.append(torch.nn.Conv1d(2, channels, kernel_size, stride=1, padding=int(math.floor(kernel_size / 2)))  ) # kernel size is odd, then padding = math.floor(kernel_size/2))
+            self.conv_list.append(torch.nn.Conv1d(2, channels, kernel_size, stride=1, 
+            padding=int(math.floor(kernel_size / 2)))  ) # kernel size is odd, then padding = math.floor(kernel_size/2))
             self.bn0_list.append(torch.nn.BatchNorm1d(2))
             self.bn1_list.append( torch.nn.BatchNorm1d(channels))
             self.bn2_list.append(torch.nn.BatchNorm1d(embedding_dim)) 
@@ -67,8 +69,7 @@ class ConvTransE(torch.nn.Module):
     def forward(self, embedding, emb_rel, triplets, partial_embeding=None, samples_of_interest_emb=None):
         score_list = []
         batch_size = len(triplets)
-        # if neg_samples != None:
-        #     x_ns = 
+
         for idx in range(len(embedding)): # leng of test_graph
             e1_embedded_all = F.tanh(embedding[idx])
             e1_embedded = e1_embedded_all[triplets[:, 0]].unsqueeze(1)
@@ -89,10 +90,9 @@ class ConvTransE(torch.nn.Module):
             if partial_embeding !=None:
                 x = torch.mm(x, partial_embeding.transpose(1, 0))
             elif samples_of_interest_emb !=None: # added tgb team: predict only for nodes of interest
-                x = torch.mm(x, F.tanh(samples_of_interest_emb[idx]).transpose(1, 0)) #TODO: do I need tanh?
+                x = torch.mm(x, F.tanh(samples_of_interest_emb[idx]).transpose(1, 0)) 
             else: #predict for all nodes
                 x = torch.mm(x, e1_embedded_all.transpose(1, 0))
-            # else:
-                
+               
             score_list.append(x)
         return score_list

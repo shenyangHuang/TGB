@@ -282,6 +282,7 @@ def split_by_time(data):
     create list where each entry has an entry with all triples for this timestep
     """
     timesteps = list(set(data[:,3]))
+    timesteps.sort()
     snapshot_list = [None] * len(timesteps)
 
     for index, ts in enumerate(timesteps):
