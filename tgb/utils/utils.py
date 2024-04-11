@@ -13,6 +13,7 @@ import dgl
 import torch
 from itertools import groupby
 from operator import itemgetter
+from collections import defaultdict
 
 def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
     r"""
@@ -256,11 +257,11 @@ def get_args_cen():
 def get_args_regcn():
     parser = argparse.ArgumentParser(description='REGCN')
 
-    parser.add_argument("--gpu", type=int, default=-1,
+    parser.add_argument("--gpu", type=int, default=1,
                         help="gpu")
     parser.add_argument("--batch-size", type=int, default=1,
                         help="batch-size")
-    parser.add_argument("-d", "--dataset", type=str, required=True,
+    parser.add_argument("-d", "--dataset", type=str, default='tkgl-yago',
                         help="dataset to use")
     parser.add_argument("--test", action='store_true', default=False,
                         help="load stat from dir and directly test")
@@ -280,7 +281,7 @@ def get_args_regcn():
                         help="save model accordding to the relation evalution")
 
     # configuration for encoder RGCN stat
-    parser.add_argument("--weight", type=float, default=1,
+    parser.add_argument("--weight", type=float, default=0.5,
                         help="weight of static constraint")
     parser.add_argument("--task-weight", type=float, default=0.7,
                         help="weight of entity prediction task")
@@ -306,21 +307,21 @@ def get_args_regcn():
                         help="number of weight blocks for each relation")
     parser.add_argument("--n-basis", type=int, default=100,
                         help="number of basis vector for compgcn")
-    parser.add_argument("--n-layers", type=int, default=2,
+    parser.add_argument("--n-layers", type=int, default=1,
                         help="number of propagation rounds")
     parser.add_argument("--self-loop", action='store_true', default=True,
                         help="perform layer normalization in every layer of gcn ")
-    parser.add_argument("--layer-norm", action='store_true', default=False,
+    parser.add_argument("--layer-norm", action='store_true', default=True,
                         help="perform layer normalization in every layer of gcn ")
     parser.add_argument("--relation-prediction", action='store_true', default=False,
                         help="add relation prediction loss")
-    parser.add_argument("--entity-prediction", action='store_true', default=False,
+    parser.add_argument("--entity-prediction", action='store_true', default=True,
                         help="add entity prediction loss")
     parser.add_argument("--split_by_relation", action='store_true', default=False,
                         help="do relation prediction")
 
     # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=500,
+    parser.add_argument("--n-epochs", type=int, default=100,
                         help="number of minimum training epochs on each time step")
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
@@ -328,7 +329,7 @@ def get_args_regcn():
                         help="norm to clip gradient to")
 
     # configuration for evaluating
-    parser.add_argument("--evaluate-every", type=int, default=20,
+    parser.add_argument("--evaluate-every", type=int, default=1,
                         help="perform evaluation every n epochs")
 
     # configuration for decoder
@@ -342,9 +343,9 @@ def get_args_regcn():
                         help="feat dropout for decoder")
 
     # configuration for sequences stat
-    parser.add_argument("--train-history-len", type=int, default=10,
+    parser.add_argument("--train-history-len", type=int, default=1,
                         help="history length")
-    parser.add_argument("--test-history-len", type=int, default=20,
+    parser.add_argument("--test-history-len", type=int, default=1,
                         help="history length for test")
     parser.add_argument("--dilate-len", type=int, default=1,
                         help="dilate history graph")
@@ -403,6 +404,27 @@ def split_by_time(data):
     return snapshot_list
 
 
+def r2e(triplets, num_rels):
+    src, rel, dst = triplets.transpose()
+    # get all relations
+    uniq_r = np.unique(rel)
+    # uniq_r = np.concatenate((uniq_r, uniq_r+num_rels)) #we already have the inverse triples
+    # generate r2e
+    r_to_e = defaultdict(set)
+    for j, (src, rel, dst) in enumerate(triplets):
+        r_to_e[rel].add(src)
+        r_to_e[rel].add(dst)
+        r_to_e[rel+num_rels].add(src)
+        r_to_e[rel+num_rels].add(dst)
+    r_len = []
+    e_idx = []
+    idx = 0
+    for r in uniq_r:
+        r_len.append((idx,idx+len(r_to_e[r])))
+        e_idx.extend(list(r_to_e[r]))
+        idx += len(r_to_e[r])
+    return uniq_r, r_len, e_idx
+
 def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
     """
     https://github.com/Lee-zix/CEN/blob/main/rgcn/utils.py
@@ -430,8 +452,15 @@ def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
     g.apply_edges(lambda edges: {'norm': edges.dst['norm'] * edges.src['norm']})
     g.edata['type'] = torch.LongTensor(rel)
 
+
+    uniq_r, r_len, r_to_e = r2e(triples, num_rels)
+    g.uniq_r = uniq_r
+    g.r_to_e = r_to_e
+    g.r_len = r_len
+
     if use_cuda:
         g = g.to(gpu)
+        g.r_to_e = torch.from_numpy(np.array(r_to_e))
     return g
 
 

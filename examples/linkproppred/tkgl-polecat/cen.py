@@ -19,7 +19,7 @@ import torch
 import random
 from tqdm import tqdm
 # internal imports
-from tgb_modules.rrgcn import RecurrentRGCN
+from tgb_modules.rrgcn import RecurrentRGCNCEN
 from tgb.utils.utils import set_random_seed, get_args_cen, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
@@ -115,7 +115,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
     # create stat
-    model = RecurrentRGCN(args.decoder,
+    model = RecurrentRGCNCEN(args.decoder,
                           args.encoder,
                             num_nodes,
                             num_rels,
