@@ -77,7 +77,10 @@ class ConvTransE(torch.nn.Module):
         batch_size = len(triplets)
         if self.model_name == 'CEN': #CEN
             for idx in range(len(embedding)): # leng of test_graph
-                x= self.forward_inner(embedding[idx], emb_rel, triplets, idx, partial_embeding, samples_of_interest_emb[idx])               
+                if samples_of_interest_emb != None:
+                    x= self.forward_inner(embedding[idx], emb_rel, triplets, idx, partial_embeding, samples_of_interest_emb[idx])     
+                else:
+                    x= self.forward_inner(embedding[idx], emb_rel, triplets, idx, partial_embeding, samples_of_interest_emb)
                 score_list.append(x)
             return score_list
         else: #RE-GCN

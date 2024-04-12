@@ -6,8 +6,7 @@ Zixuan Li, Xiaolong Jin, Wei Li, Saiping Guan, Jiafeng Guo, Huawei Shen, Yuanzhu
 Knowledge Graph Reasoning Based on Evolutional Representation Learning. SIGIR 2021.
 """
 import sys
-sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
-
+sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 import timeit
 import argparse
 import os

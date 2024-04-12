@@ -145,7 +145,7 @@ def get_args():
 
 def get_args_cen():
     parser = argparse.ArgumentParser(description='CEN')
-    parser.add_argument("--gpu", type=int, default=1,
+    parser.add_argument("--gpu", type=int, default=0,
                         help="gpu")
     parser.add_argument("--batch-size", type=int, default=1,
                         help="batch-size")
@@ -257,7 +257,7 @@ def get_args_cen():
 def get_args_regcn():
     parser = argparse.ArgumentParser(description='REGCN')
 
-    parser.add_argument("--gpu", type=int, default=1,
+    parser.add_argument("--gpu", type=int, default=0,
                         help="gpu")
     parser.add_argument("--batch-size", type=int, default=1,
                         help="batch-size")

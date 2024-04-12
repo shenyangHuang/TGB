@@ -6,7 +6,7 @@ Zixuan Li, Saiping Guan, Xiaolong Jin, Weihua Peng, Yajuan Lyu , Yong Zhu, Long 
 Complex Evolutional Pattern Learning for Temporal Knowledge Graph Reasoning. ACL 2022.
 """
 import sys
-sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 
 import timeit
 import argparse
