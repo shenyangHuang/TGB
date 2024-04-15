@@ -15,6 +15,7 @@ from itertools import groupby
 from operator import itemgetter
 from collections import defaultdict
 
+
 def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     adds the inverse relations required for the model to the dataframe
@@ -514,3 +515,36 @@ def create_basis_dict(data):
         basis_id_new.append(rule_new)
         basis_dict[str(rel)] = basis_id_new
     return basis_dict
+
+
+def get_inv_relation_id(num_rels):
+    """
+    Get inverse relation id.
+    parameters:
+        num_rels (int): number of relations
+    returns:
+        inv_relation_id (dict): mapping of relation to inverse relation
+    """
+    inv_relation_id = dict()
+    for i in range(int(num_rels / 2)):
+        inv_relation_id[i] = i + int(num_rels / 2)
+    for i in range(int(num_rels / 2), num_rels):
+        inv_relation_id[i] = i % int(num_rels / 2)
+    return inv_relation_id
+
+
+def create_scores_array(predictions_dict, num_nodes):
+    # predictions_dict is a dictionary mapping indices to values
+    # num_nodes is the size of the array
+
+    # Convert keys and values of the predictions_dict into NumPy arrays
+    keys_array = np.array(list(predictions_dict.keys()))
+    values_array = np.array(list(predictions_dict.values()))
+
+    # Create an array of zeros with the desired shape
+    predictions = np.zeros(num_nodes)
+
+    # Use advanced indexing to scatter values into predictions array
+    predictions[keys_array.astype(int)] = values_array.astype(float)
+    return predictions
+

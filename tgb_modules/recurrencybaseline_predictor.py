@@ -5,6 +5,7 @@ import time
 import torch
 import ray
 from operator import itemgetter
+from tgb.utils.utils import create_scores_array
 
 @ray.remote
 def apply_baselines_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
@@ -454,29 +455,29 @@ def update_delta_t(min_ts, max_ts, cur_ts, lmbda):
 
 
 
-def create_scores_tensor(predictions_dict, num_nodes, device=None):
-    """ for given dict with key: node id, and value: score -> create a tensor with num_nodes entries, where the score 
-    from dict is enetered at respective place, and all others are zeros.
+# def create_scores_tensor(predictions_dict, num_nodes, device=None):
+#     """ for given dict with key: node id, and value: score -> create a tensor with num_nodes entries, where the score 
+#     from dict is enetered at respective place, and all others are zeros.
 
-    :returns: predictions  tensor with predicted scores, one per node; e.g. tensor([ 5.3042,  6....='cuda:0') torch.Size([23033])
-    """
-    predictions = torch.zeros(num_nodes, device=device)
-    predictions.scatter_(0, torch.tensor(list(predictions_dict.keys())).long(), torch.tensor(list(predictions_dict.values())).float())
-    return predictions
+#     :returns: predictions  tensor with predicted scores, one per node; e.g. tensor([ 5.3042,  6....='cuda:0') torch.Size([23033])
+#     """
+#     predictions = torch.zeros(num_nodes, device=device)
+#     predictions.scatter_(0, torch.tensor(list(predictions_dict.keys())).long(), torch.tensor(list(predictions_dict.values())).float())
+#     return predictions
 
 
-def create_scores_array(predictions_dict, num_nodes):
-    # predictions_dict is a dictionary mapping indices to values
-    # num_nodes is the size of the array
+# def create_scores_array(predictions_dict, num_nodes):
+#     # predictions_dict is a dictionary mapping indices to values
+#     # num_nodes is the size of the array
 
-    # Convert keys and values of the predictions_dict into NumPy arrays
-    keys_array = np.array(list(predictions_dict.keys()))
-    values_array = np.array(list(predictions_dict.values()))
+#     # Convert keys and values of the predictions_dict into NumPy arrays
+#     keys_array = np.array(list(predictions_dict.keys()))
+#     values_array = np.array(list(predictions_dict.values()))
 
-    # Create an array of zeros with the desired shape
-    predictions = np.zeros(num_nodes)
+#     # Create an array of zeros with the desired shape
+#     predictions = np.zeros(num_nodes)
 
-    # Use advanced indexing to scatter values into predictions array
-    predictions[keys_array.astype(int)] = values_array.astype(float)
-    return predictions
+#     # Use advanced indexing to scatter values into predictions array
+#     predictions[keys_array.astype(int)] = values_array.astype(float)
+#     return predictions
 
