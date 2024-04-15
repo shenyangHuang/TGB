@@ -6,8 +6,7 @@ Zixuan Li, Xiaolong Jin, Wei Li, Saiping Guan, Jiafeng Guo, Huawei Shen, Yuanzhu
 Knowledge Graph Reasoning Based on Evolutional Representation Learning. SIGIR 2021.
 """
 import sys
-sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
-
+sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 import timeit
 import argparse
 import os
@@ -227,16 +226,6 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                 else:
                     best_mrr = mrr
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
-
-        # mrr = test(model, 
-        #         train_list+valid_list,
-        #         test_list, 
-        #         num_rels, 
-        #         num_nodes, 
-        #         use_cuda,
-        #         model_state_file, 
-        #         static_graph, 
-        #         mode="test", split_mode='test')
 
         return best_mrr
 # ==================
