@@ -219,7 +219,7 @@ def apply_rules(i, num_queries):
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) 
+    parser.add_argument("--dataset", "-d", default="tkgl-yago", type=str) 
     parser.add_argument("--rule_lengths", "-l", default="1 2 3", type=int, nargs="+")
     parser.add_argument("--num_walks", "-n", default="100", type=int)
     parser.add_argument("--transition_distr", default="exp", type=str)
