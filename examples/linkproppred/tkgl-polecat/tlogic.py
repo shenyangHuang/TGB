@@ -102,20 +102,28 @@ def apply_rules(i, num_queries):
     edges = ra.get_window_edges(all_quads[:,0:4], cur_ts, learn_edges, window)
 
     sample_start = time.time()
-    neg_samples_batch = neg_sampler.query_batch(np.array(test_data[test_queries_idx,0]), 
-                                                np.array(test_data[test_queries_idx,2]), 
-                                                np.array(test_data[test_queries_idx,4]), 
-                                                edge_type=np.array(test_data[test_queries_idx,1]), 
-                                                split_mode='test')
-    pos_samples_batch = test_data[test_queries_idx,2]
+    # neg_samples_batch = neg_sampler.query_batch(np.array(test_data[test_queries_idx,0]), 
+    #                                             np.array(test_data[test_queries_idx,2]), 
+    #                                             np.array(test_data[test_queries_idx,4]), 
+    #                                             edge_type=np.array(test_data[test_queries_idx,1]), 
+    #                                             split_mode='test')
+    # pos_samples_batch = test_data[test_queries_idx,2]
 
     it_start = time.time()
     hits_list = [0] * num_queries #len(test_queries_idx)
     perf_list = [0] * num_queries #* len(test_queries_idx)
     for j in test_queries_idx:
-        neg_sample_el = neg_samples_batch[j]
-        pos_sample_el = pos_samples_batch[j]     
+        neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(test_data[j,0]), axis=0), 
+                                                np.expand_dims(np.array(test_data[j,2]), axis=0), 
+                                                np.expand_dims(np.array(test_data[j,4]), axis=0), 
+                                                np.expand_dims(np.array(test_data[j,1]), axis=0), 
+                                                split_mode='test')[0]
+        
+        
+        # neg_samples_batch[j]
+        pos_sample_el =  test_data[j,2]
         test_query = test_data[j]
+        assert pos_sample_el == test_query[2]
         cands_dict = [dict() for _ in range(len(args))]
 
         if test_query[3] != cur_ts:
@@ -220,10 +228,10 @@ def apply_rules(i, num_queries):
 def get_args(): 
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) 
-    parser.add_argument("--rule_lengths", "-l", default="1 2 3", type=int, nargs="+")
+    parser.add_argument("--rule_lengths", "-l", default="1", type=int, nargs="+")
     parser.add_argument("--num_walks", "-n", default="100", type=int)
     parser.add_argument("--transition_distr", default="exp", type=str)
-    parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
+    parser.add_argument("--window", "-w", default=100, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--top_k", default=20, type=int)
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
