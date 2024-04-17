@@ -11,6 +11,7 @@ import requests
 from clint.textui import progress
 
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
+from tgb.linkproppred.tkg_negative_sampler import TKGNegativeEdgeSampler
 from tgb.utils.info import (
     PROJ_DIR, 
     DATA_URL_DICT, 
@@ -25,6 +26,7 @@ from tgb.utils.pre_process import (
     csv_to_pd_data_rc,
     load_edgelist_wiki,
     csv_to_tkg_data,
+    csv_to_thg_data,
 )
 from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.utils import add_inverse_quadruples
@@ -110,10 +112,20 @@ class LinkPropPredDataset(object):
         if preprocess:
             self.pre_process()
 
-        
-        self.ns_sampler = NegativeEdgeSampler(
-            dataset_name=self.name, strategy="hist_rnd"
-        )
+        self.min_dst_idx, self.max_dst_idx = int(self._full_data["destinations"].min()), int(self._full_data["destinations"].max())
+
+        if ('tkg' not in self.name):
+            self.ns_sampler = NegativeEdgeSampler(
+                dataset_name=self.name,
+                first_dst_id=self.min_dst_idx,
+                last_dst_id=self.max_dst_idx,
+            )
+        else:
+            self.ns_sampler = TKGNegativeEdgeSampler(
+                dataset_name=self.name,
+                first_dst_id=self.min_dst_idx,
+                last_dst_id=self.max_dst_idx,
+            )
 
     def _version_check(self) -> None:
         r"""Implement Version checks for dataset files
@@ -236,6 +248,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-yago":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            elif self.name == "thgl-myket":
+                df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             else:
                 raise ValueError(f"Dataset {self.name} not found.")
 
@@ -280,7 +294,7 @@ class LinkPropPredDataset(object):
             "edge_label": edge_label,
         }
 
-        #* for tkg
+        #* for tkg and thg
         if ("edge_type" in df):
             edge_type = np.array(df["edge_type"]).astype(int)
             self._edge_type = edge_type

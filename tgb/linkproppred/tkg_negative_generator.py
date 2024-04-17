@@ -14,14 +14,14 @@ from tqdm import tqdm
 negative sample generator for tkg datasets 
 temporal filterted MRR
 """
-class NegativeEdgeGenerator(object):
+class TKGNegativeEdgeGenerator(object):
     def __init__(
         self,
         dataset_name: str,
         first_dst_id: int,
         last_dst_id: int,
+        strategy: str = "time-filtered",
         num_neg_e: int = -1,  # -1 means generate all possible negatives
-        strategy: str = "rnd",
         rnd_seed: int = 1,
         edge_data: TemporalData = None,
     ) -> None:
@@ -39,7 +39,7 @@ class NegativeEdgeGenerator(object):
             first_dst_id: identity of the first destination node
             last_dst_id: indentity of the last destination node
             num_neg_e: number of negative edges being generated per each positive edge
-            strategy: how to generate negative edges; can be 'rnd' or 'hist_rnd'
+            strategy: specifies which strategy should be used for generating the negatives
             rnd_seed: random seed for reproducibility
             edge_data: the positive edges to generate the negatives for, assuming sorted temporally
         
@@ -53,8 +53,8 @@ class NegativeEdgeGenerator(object):
         self.last_dst_id = last_dst_id      
         self.num_neg_e = num_neg_e  #-1 means generate all 
         assert strategy in [
-            "rnd",
-        ], "The supported strategies are `rnd`"
+            "time-filtered",
+        ], "The supported strategies are `time-filtered`"
         self.strategy = strategy
         self.edge_data = edge_data
 
@@ -83,12 +83,12 @@ class NegativeEdgeGenerator(object):
             + ".pkl"
         )
 
-        if self.strategy == "rnd":
-            self.generate_negative_samples_rnd(pos_edges, split_mode, filename)
+        if self.strategy == "time-filtered":
+            self.generate_negative_samples_ftr(pos_edges, split_mode, filename)
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
 
-    def generate_negative_samples_rnd(self, 
+    def generate_negative_samples_ftr(self, 
                                       data: TemporalData, 
                                       split_mode: str, 
                                       filename: str,
@@ -153,37 +153,48 @@ class NegativeEdgeGenerator(object):
                 data.t.cpu().numpy(),
                 data.edge_type.cpu().numpy(),
             )
-            # generate a list of negative destinations for each positive edge
-            pos_edge_tqdm = tqdm(
-                zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
-            )
             
-            for (
-                pos_s,
-                pos_d,
-                pos_t,
-                edge_type,
-            ) in pos_edge_tqdm:
-                
-                #! generate all negatives unless restricted
-                conflict_set = list(edge_t_dict[(pos_t, pos_s, edge_type)].keys())
-
-                # filter out positive destination
-                conflict_set = np.array(conflict_set)
-                filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
-
-                '''
-                when num_neg_e is larger than all possible destinations simple return all possible destinations
-                '''
-                if (self.num_neg_e < 0):
-                    neg_d_arr = filtered_all_dst
-                elif (self.num_neg_e > len(filtered_all_dst)):
-                    neg_d_arr = filtered_all_dst
-                else:
-                    neg_d_arr = np.random.choice(
-                    filtered_all_dst, self.num_neg_e, replace=False) #never replace negatives
-
-                evaluation_set[(pos_s, pos_d, pos_t, edge_type)] = neg_d_arr
+            conflict_dict = {}
+            for key in edge_t_dict:
+                conflict_dict[key] = np.array(list(edge_t_dict[key].keys()))
+            
+            print ("ns samples for ", len(conflict_dict), " positive edges are generated")
 
             # save the generated evaluation set to disk
-            save_pkl(evaluation_set, filename)
+            save_pkl(conflict_dict, filename)
+
+            # # generate a list of negative destinations for each positive edge
+            # pos_edge_tqdm = tqdm(
+            #     zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
+            # )
+
+            
+            # for (
+            #     pos_s,
+            #     pos_d,
+            #     pos_t,
+            #     edge_type,
+            # ) in pos_edge_tqdm:
+                
+            # #! generate all negatives unless restricted
+            # conflict_set = list(edge_t_dict[(pos_t, pos_s, edge_type)].keys())
+
+            # # filter out positive destination
+            # conflict_set = np.array(conflict_set)
+            # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+
+            # '''
+            # when num_neg_e is larger than all possible destinations simple return all possible destinations
+            # '''
+            # if (self.num_neg_e < 0):
+            #     neg_d_arr = filtered_all_dst
+            # elif (self.num_neg_e > len(filtered_all_dst)):
+            #     neg_d_arr = filtered_all_dst
+            # else:
+            #     neg_d_arr = np.random.choice(
+            #     filtered_all_dst, self.num_neg_e, replace=False) #never replace negatives
+
+            # evaluation_set[(pos_s, pos_d, pos_t, edge_type)] = neg_d_arr
+
+            # # save the generated evaluation set to disk
+            # save_pkl(evaluation_set, filename)
