@@ -118,7 +118,13 @@ class TKGNegativeEdgeSampler(object):
                 conflict_dict = self.eval_set[split_mode]
                 conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
                 all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
-                filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                #filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
+
+                # # #? alternatively
+                # mask = np.ones(len(all_dst), dtype=bool)
+                # mask[conflict_set] = False
+                # filtered_all_dst = all_dst[mask,...]
 
                 #! always using all possible destinations for evaluation
                 neg_d_arr = filtered_all_dst

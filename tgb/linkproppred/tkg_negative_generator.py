@@ -157,6 +157,8 @@ class TKGNegativeEdgeGenerator(object):
             conflict_dict = {}
             for key in edge_t_dict:
                 conflict_dict[key] = np.array(list(edge_t_dict[key].keys()))
+            
+            print ("ns samples for ", len(conflict_dict), " positive edges are generated")
 
             # save the generated evaluation set to disk
             save_pkl(conflict_dict, filename)
