@@ -112,7 +112,7 @@ def apply_rules(i, num_queries):
     it_start = time.time()
     hits_list = [0] * num_queries #len(test_queries_idx)
     perf_list = [0] * num_queries #* len(test_queries_idx)
-    for j in test_queries_idx:
+    for index, j in enumerate(test_queries_idx):
         neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(test_data[j,0]), axis=0), 
                                                 np.expand_dims(np.array(test_data[j,2]), axis=0), 
                                                 np.expand_dims(np.array(test_data[j,4]), axis=0), 
@@ -217,8 +217,8 @@ def apply_rules(i, num_queries):
         }
 
         predictions = evaluator.eval(input_dict)
-        perf_list[j] = predictions['mrr']
-        hits_list[j] = predictions['hits@10']
+        perf_list[index] = predictions['mrr']
+        hits_list[index] = predictions['hits@10']
                
 
     return perf_list, hits_list
@@ -231,7 +231,7 @@ def get_args():
     parser.add_argument("--rule_lengths", "-l", default="1", type=int, nargs="+")
     parser.add_argument("--num_walks", "-n", default="100", type=int)
     parser.add_argument("--transition_distr", default="exp", type=str)
-    parser.add_argument("--window", "-w", default=100, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
+    parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--top_k", default=20, type=int)
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
@@ -297,6 +297,7 @@ learn_rules_flag = parsed['learn_rules_flag']
 ## 1. learn rules
 start_train = time.time()
 if learn_rules_flag:
+    print("start learning rules")
     # edges (dict): edges for each relation
     # inv_relation_id (dict): mapping of relation to inverse relation
     
