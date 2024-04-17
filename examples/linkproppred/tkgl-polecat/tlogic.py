@@ -388,6 +388,8 @@ results_filename = f'{results_path}/{MODEL_NAME}_NONE_{DATA}_results.json'
 metric = dataset.eval_metric
 save_results({'model': MODEL_NAME,
               'train_flag': None,
+              'rule_len': rule_lengths,
+              'window': window,
               'data': DATA,
               'run': 1,
               'seed': SEED,
