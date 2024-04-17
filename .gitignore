@@ -24,6 +24,7 @@ software/
 *.py[cod]
 *$py.class
 saved_models/
+dump/
 
 # C extensions
 *.so
