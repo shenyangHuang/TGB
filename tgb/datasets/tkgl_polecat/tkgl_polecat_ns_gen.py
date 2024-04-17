@@ -1,5 +1,5 @@
 import time
-from tgb.linkproppred.tkg_negative_generator import NegativeEdgeGenerator
+from tgb.linkproppred.tkg_negative_generator import TKGNegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
@@ -11,7 +11,7 @@ def main():
 
     # setting the required parameters
     num_neg_e_per_pos = -1 
-    neg_sample_strategy = "rnd" #"rnd"
+    neg_sample_strategy = "time-filtered"
     rnd_seed = 42
 
 
@@ -33,7 +33,7 @@ def main():
     min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
 
-    neg_sampler = NegativeEdgeGenerator(
+    neg_sampler = TKGNegativeEdgeGenerator(
         dataset_name=name,
         first_dst_id=min_dst_idx,
         last_dst_id=max_dst_idx,

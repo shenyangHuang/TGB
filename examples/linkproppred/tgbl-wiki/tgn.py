@@ -21,7 +21,6 @@ from torch.nn import Linear
 
 from torch_geometric.datasets import JODIEDataset
 from torch_geometric.loader import TemporalDataLoader
-
 from torch_geometric.nn import TransformerConv
 
 # internal imports
