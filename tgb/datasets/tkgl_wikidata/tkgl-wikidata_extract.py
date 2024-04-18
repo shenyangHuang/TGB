@@ -76,7 +76,7 @@ def main():
 
     #1. find all files with .txt in the folder
     total_edge_file = "tkgl-wikidata_edgelist.csv"
-    for file in glob.glob("static_edgelist*"):
+    for file in glob.glob("*.csv"):
         print (file)
         edge_dict, num_lines = load_time_csv_raw(file)
         total_lines += num_lines
