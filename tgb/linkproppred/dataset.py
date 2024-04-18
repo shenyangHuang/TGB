@@ -113,19 +113,19 @@ class LinkPropPredDataset(object):
             self.pre_process()
 
         self.min_dst_idx, self.max_dst_idx = int(self._full_data["destinations"].min()), int(self._full_data["destinations"].max())
-
-        if ('tkg' not in self.name):
-            self.ns_sampler = NegativeEdgeSampler(
-                dataset_name=self.name,
-                first_dst_id=self.min_dst_idx,
-                last_dst_id=self.max_dst_idx,
-            )
-        else:
+        if 'tkg' in self.name or 'thg' in self.name:
             self.ns_sampler = TKGNegativeEdgeSampler(
                 dataset_name=self.name,
                 first_dst_id=self.min_dst_idx,
                 last_dst_id=self.max_dst_idx,
             )
+        else:
+            self.ns_sampler = NegativeEdgeSampler(
+                dataset_name=self.name,
+                first_dst_id=self.min_dst_idx,
+                last_dst_id=self.max_dst_idx,
+            )
+
 
     def _version_check(self) -> None:
         r"""Implement Version checks for dataset files
@@ -274,7 +274,8 @@ class LinkPropPredDataset(object):
         #! design choice, only stores the original edges not the inverse relations on disc
         if ("tkgl" in self.name):
             df = add_inverse_quadruples(df)
-
+        if ("myket" in self.name):
+            df = add_inverse_quadruples(df)
         sources = np.array(df["u"])
         destinations = np.array(df["i"])
         timestamps = np.array(df["ts"])
