@@ -144,6 +144,91 @@ def get_args():
         sys.exit(0)
     return args, sys.argv
 
+
+
+def get_args_timetraveler(args=None):
+    parser = argparse.ArgumentParser(
+        description='Timetraveler',
+        usage='main.py [<args>] [-h | --help]'
+    )
+    parser.add_argument('--seed', type=int, help='Random seed', default=1)
+    parser.add_argument('--cuda', action='store_true', help='whether to use GPU or not.')
+    parser.add_argument('--do_train', default=True, action='store_true', help='whether to train.')
+    parser.add_argument('--do_test', default=True, action='store_true', help='whether to test.')
+
+    # Train Params
+    parser.add_argument('--batch_size', default=512, type=int, help='training batch size.')
+    parser.add_argument('--max_epochs', default=400, type=int, help='max training epochs.')
+    parser.add_argument('--num_workers', default=8, type=int, help='workers number used for dataloader.')
+    parser.add_argument('--valid_epoch', default=30, type=int, help='validation frequency.')
+    parser.add_argument('--lr', default=0.001, type=float, help='learning rate.')
+    parser.add_argument('--save_epoch', default=30, type=int, help='model saving frequency.')
+    parser.add_argument('--clip_gradient', default=10.0, type=float, help='for gradient crop.')
+
+    # Test Params
+    parser.add_argument('--test_batch_size', default=1, type=int,
+                        help='test batch size, it needs to be set to 1 when using IM module.')
+    parser.add_argument('--beam_size', default=100, type=int, help='the beam number of the beam search.')
+    parser.add_argument('--test_inductive', action='store_true', help='whether to verify inductive inference performance.')
+    parser.add_argument('--IM', action='store_true', help='whether to use IM module.')
+    parser.add_argument('--mu', default=0.1, type=float, help='the hyperparameter of IM module.')
+
+    # Agent Params
+    parser.add_argument('--ent_dim', default=100, type=int, help='Embedding dimension of the entities')
+    parser.add_argument('--rel_dim', default=100, type=int, help='Embedding dimension of the relations')
+    parser.add_argument('--state_dim', default=100, type=int, help='dimension of the LSTM hidden state')
+    parser.add_argument('--hidden_dim', default=100, type=int, help='dimension of the MLP hidden layer')
+    parser.add_argument('--time_dim', default=20, type=int, help='Embedding dimension of the timestamps')
+    parser.add_argument('--entities_embeds_method', default='dynamic', type=str,
+                        help='representation method of the entities, dynamic or static')
+
+    # Environment Params
+    parser.add_argument('--state_actions_path', default='state_actions_space.pkl', type=str,
+                        help='the file stores preprocessed candidate action array.')
+
+    # Episode Params
+    parser.add_argument('--path_length', default=3, type=int, help='the agent search path length.')
+    parser.add_argument('--max_action_num', default=50, type=int, help='the max candidate actions number.')
+
+    # Policy Gradient Params
+    parser.add_argument('--Lambda', default=0.0, type=float, help='update rate of baseline.')
+    parser.add_argument('--Gamma', default=0.95, type=float, help='discount factor of Bellman Eq.')
+    parser.add_argument('--Ita', default=0.01, type=float, help='regular proportionality constant.')
+    parser.add_argument('--Zita', default=0.9, type=float, help='attenuation factor of entropy regular term.')
+
+    # reward shaping params
+    parser.add_argument('--reward_shaping', action='store_true', help='whether to use reward shaping.')
+    parser.add_argument('--time_span', default=24, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
+    parser.add_argument('--alphas_pkl', default='dirchlet_alphas.pkl', type=str,
+                        help='the file storing the alpha parameters of the Dirichlet distribution.')
+    parser.add_argument('--k', default=300, type=int, help='statistics recent K historical snapshots.')
+
+    return parser.parse_args(args)
+
+def get_model_config_timetraveler(args, num_ent, num_rel):
+    config = {
+        'cuda': args.cuda,  # whether to use GPU or not.
+        'batch_size': args.batch_size,  # training batch size.
+        'num_ent': num_ent,  # number of entities
+        'num_rel': num_rel,  # number of relations
+        'ent_dim': args.ent_dim,  # Embedding dimension of the entities
+        'rel_dim': args.rel_dim,  # Embedding dimension of the relations
+        'time_dim': args.time_dim,  # Embedding dimension of the timestamps
+        'state_dim': args.state_dim,  # dimension of the LSTM hidden state
+        'action_dim': args.ent_dim + args.rel_dim,  # dimension of the actions
+        'mlp_input_dim': args.ent_dim + args.rel_dim + args.state_dim,  # dimension of the input of the MLP
+        'mlp_hidden_dim': args.hidden_dim,  # dimension of the MLP hidden layer
+        'path_length': args.path_length,  # agent search path length
+        'max_action_num': args.max_action_num,  # max candidate action number
+        'lambda': args.Lambda,  # update rate of baseline
+        'gamma': args.Gamma,  # discount factor of Bellman Eq.
+        'ita': args.Ita,  # regular proportionality constant
+        'zita': args.Zita,  # attenuation factor of entropy regular term
+        'beam_size': args.beam_size,  # beam size for beam search
+        'entities_embeds_method': args.entities_embeds_method,  # default: 'dynamic', otherwise static encoder will be used
+    }
+    return config
+
 def get_args_cen():
     parser = argparse.ArgumentParser(description='CEN')
     parser.add_argument("--gpu", type=int, default=0,
