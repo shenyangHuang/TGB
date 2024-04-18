@@ -22,8 +22,8 @@ from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import set_random_seed,  save_results, create_basis_dict, group_by, reformat_ts
 
-def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, all_data_c_rel, alpha, lmbda_psi,
-            perf_list_all, hits_list_all, window):
+def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
+            perf_list_all, hits_list_all, window, neg_sampler, split_mode):
     first_ts = data_c_rel[0][3]
     ## use this if you wanna use ray:
     num_queries = len(data_c_rel) // num_processes
@@ -41,14 +41,13 @@ def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, al
                 test_queries_idx =[i * num_queries, (i + 1) * num_queries]
             else:
                 test_queries_idx = [i * num_queries, len(test_data)]
-            neg_samples_b = neg_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
-            pos_samples_b = pos_samples_batch[test_queries_idx[0]:test_queries_idx[1]]
+
             valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
 
             ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
                                 basis_dict, 
                                 num_nodes, num_rels, lmbda_psi, 
-                                alpha, neg_samples_b, pos_samples_b, evaluator,first_ts)
+                                alpha, evaluator,first_ts, neg_sampler, split_mode)
             object_references.append(ob)
 
         output = ray.get(object_references)
@@ -62,8 +61,7 @@ def predict(num_processes,  data_c_rel, neg_samples_batch, pos_samples_batch, al
         perf_list, hits_list = apply_baselines(len(data_c_rel), data_c_rel, all_data_c_rel, 
                             window, basis_dict, 
                             num_nodes, num_rels, lmbda_psi, 
-                            alpha, neg_samples_batch, 
-                            pos_samples_batch, evaluator,first_ts)                    
+                            alpha, evaluator, first_ts, neg_sampler, split_mode)                  
         perf_list_all.extend(perf_list)
         hits_list_all.extend(hits_list)
     
@@ -86,22 +84,10 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
             timesteps_test = list(set(test_data_c_rel[:,3]))
             timesteps_test.sort()
             all_data_c_rel = all_data_prel[rel]         
-            
-            ## apply baselines for this relation
-            s = np.array(test_data_c_rel[:,0])
-            r = np.array(test_data_c_rel[:,1])
-            o = np.array(test_data_c_rel[:,2])
-            t = np.array(test_data_c_rel[:,4])
-            sample_start = time.time()
-            neg_samples_batch = neg_sampler.query_batch(s, o, 
-                                    t, edge_type=r, split_mode='test')
-            pos_samples_batch = test_data_c_rel[:,2]
-            sample_end = time.time()
-            print(sample_end-sample_start, "to get neg samples")
 
-            perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel, neg_samples_batch, pos_samples_batch, 
+            perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel,
                                                    all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
-                                                   window)
+                                                   window, neg_sampler, split_mode='test')
 
         end = time.time()
         total_time = round(end - start, 6)  
@@ -161,9 +147,9 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             for lmbda_psi in lmbdas_psi:   
                 perf_list_r = []
                 hits_list_r = []
-                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, 
                                                     trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
-                                                    window)
+                                                    window, neg_sampler, split_mode='val')
                 # compute mrr
                 mrr = np.mean(perf_list_r)
                 # # is new mrr better than previous best? if yes: store lmbda
@@ -188,9 +174,9 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
                 perf_list_r = []
                 hits_list_r = []
 
-                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, neg_samples_batch, pos_samples_batch, 
+                perf_list_r, hits_list_r = predict(num_processes, val_data_c_rel, 
                                                     trainval_data_c_rel, alpha, lmbda_psi,perf_list_r, hits_list_r, 
-                                                    window)
+                                                    window, neg_sampler, split_mode='val')
                 # compute mrr
                 mrr_alpha = np.mean(perf_list_r)
 
@@ -215,7 +201,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
-    parser.add_argument("--num_processes", "-p", default=10, type=int)
+    parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
     parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha

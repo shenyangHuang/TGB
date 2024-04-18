@@ -108,7 +108,8 @@ class TKGNegativeEdgeSampler(object):
                 "pos_src, pos_dst, and pos_timestamp need to be either numpy ndarray or torch tensor!"
                 )
 
-        neg_samples = []
+        neg_samples = [0]*len(pos_src)
+        index =0
         for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
             if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
                 raise ValueError(
@@ -129,10 +130,12 @@ class TKGNegativeEdgeSampler(object):
                 #! always using all possible destinations for evaluation
                 neg_d_arr = filtered_all_dst
 
-                #! this is very slow
-                neg_samples.append(
-                        neg_d_arr
-                    )
+                # #! this is very slow
+                # neg_samples.append(
+                #         neg_d_arr
+                #     )
+                neg_samples[index] = neg_d_arr
+            index += 1
         
         #? can't convert to numpy array due to different lengths of negative samples
         return neg_samples
