@@ -176,36 +176,38 @@ def main(args):
     # creat the agent
     agent = Agent(config)
 
+
     # creat the environment
     state_actions_path = os.path.join(save_path, args.state_actions_path)
+
+
+
+
+    ######################preprocessing###########################
     if not os.path.exists(state_actions_path):
         if args.preprocess:
             print("preprocessing data...")
-            preprocess_data(args, config, timestamps, save_path, all_quads)
+            preprocess_data(args, config, timestamps, save_path, list(all_quads))
             state_action_space = pickle.load(open(os.path.join(save_path, args.state_actions_path), 'rb'))
         else:
             state_action_space = None
     else:
+        print("load preprocessed data...")
         state_action_space = pickle.load(open(os.path.join(save_path, args.state_actions_path), 'rb'))
-    env = Env(list(all_quads), config, state_action_space)
 
+
+    env = Env(list(all_quads), config, state_action_space)
     # Create episode controller
     episode = Episode(env, agent, config)
     if args.cuda:
         episode = episode.cuda()
     pg = PG(config)  # Policy Gradient
     optimizer = torch.optim.Adam(episode.parameters(), lr=args.lr, weight_decay=0.00001)
-
-    # Load the model parameters
-    if os.path.isfile(save_path):
-        params = torch.load(save_path)
-        episode.load_state_dict(params['model_state_dict'])
-        optimizer.load_state_dict(params['optimizer_state_dict'])
-        logging.info('Load pretrain model: {}'.format(save_path))
-
-    ######################Training and Testing###########################
+    
+    ######################Reward Shaping: MLE DIRICHLET alphas###########################
     if args.reward_shaping: #TODO
         try:
+            print("load alphas from pickle file")
             alphas = pickle.load(open(os.path.join(save_path, args.alphas_pkl), 'rb'))
         except:
             print('running MLE dirichlet now')
@@ -217,6 +219,9 @@ def main(args):
         distributions = Dirichlet(alphas, args.k)
     else:
         distributions = None
+
+    ######################Training and Testing###########################
+
     trainer = Trainer(episode, pg, optimizer, args, distributions)
     tester = Tester(episode, args, train_entities, RelEntCooccurrence, dataset.metric)
     test_metrics ={}
@@ -244,7 +249,13 @@ def main(args):
 
         trainer.save_model(save_path)
         logging.info('Save Model in {}'.format(save_path))
-    
+    else:
+          # # Load the model parameters
+        if os.path.isfile(save_path):
+            params = torch.load(save_path)
+            episode.load_state_dict(params['model_state_dict'])
+            optimizer.load_state_dict(params['optimizer_state_dict'])
+            logging.info('Load pretrain model: {}'.format(save_path))
     if args.do_test:
         logging.info('Start Testing......')
         start_test = timeit.default_timer()

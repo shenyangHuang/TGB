@@ -158,7 +158,7 @@ def get_args_timetraveler(args=None):
 
     # Train Params
     parser.add_argument('--batch_size', default=512, type=int, help='training batch size.')
-    parser.add_argument('--max_epochs', default=3, type=int, help='max training epochs.') #400
+    parser.add_argument('--max_epochs', default=400, type=int, help='max training epochs.') #400
     parser.add_argument('--num_workers', default=8, type=int, help='workers number used for dataloader.')
     parser.add_argument('--valid_epoch', default=30, type=int, help='validation frequency.') # 30
     parser.add_argument('--lr', default=0.001, type=float, help='learning rate.')
@@ -205,7 +205,7 @@ def get_args_timetraveler(args=None):
     # configuration for preprocessor 
     parser.add_argument('--store_actions_num', default=0, type=int,
                         help='maximum number of stored neighbors, 0 means store all.')
-    parser.add_argument('--preprocess', default=False,
+    parser.add_argument('--preprocess', default=True,
                         help="Do we want preprocessing for the actionspace")
     # configuration for dirichlet
     parser.add_argument('--tol', default=1e-7, type=float)
