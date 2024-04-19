@@ -158,9 +158,9 @@ def get_args_timetraveler(args=None):
 
     # Train Params
     parser.add_argument('--batch_size', default=512, type=int, help='training batch size.')
-    parser.add_argument('--max_epochs', default=400, type=int, help='max training epochs.')
+    parser.add_argument('--max_epochs', default=3, type=int, help='max training epochs.') #400
     parser.add_argument('--num_workers', default=8, type=int, help='workers number used for dataloader.')
-    parser.add_argument('--valid_epoch', default=30, type=int, help='validation frequency.')
+    parser.add_argument('--valid_epoch', default=30, type=int, help='validation frequency.') # 30
     parser.add_argument('--lr', default=0.001, type=float, help='learning rate.')
     parser.add_argument('--save_epoch', default=30, type=int, help='model saving frequency.')
     parser.add_argument('--clip_gradient', default=10.0, type=float, help='for gradient crop.')
@@ -170,11 +170,11 @@ def get_args_timetraveler(args=None):
                         help='test batch size, it needs to be set to 1 when using IM module.')
     parser.add_argument('--beam_size', default=100, type=int, help='the beam number of the beam search.')
     parser.add_argument('--test_inductive', action='store_true', help='whether to verify inductive inference performance.')
-    parser.add_argument('--IM', action='store_true', help='whether to use IM module.')
+    parser.add_argument('--IM', default=True, action='store_true', help='whether to use IM module.')
     parser.add_argument('--mu', default=0.1, type=float, help='the hyperparameter of IM module.')
 
     # Agent Params
-    parser.add_argument('--ent_dim', default=100, type=int, help='Embedding dimension of the entities')
+    parser.add_argument('--ent_dim', default=80, type=int, help='Embedding dimension of the entities')
     parser.add_argument('--rel_dim', default=100, type=int, help='Embedding dimension of the relations')
     parser.add_argument('--state_dim', default=100, type=int, help='dimension of the LSTM hidden state')
     parser.add_argument('--hidden_dim', default=100, type=int, help='dimension of the MLP hidden layer')
@@ -188,7 +188,7 @@ def get_args_timetraveler(args=None):
 
     # Episode Params
     parser.add_argument('--path_length', default=3, type=int, help='the agent search path length.')
-    parser.add_argument('--max_action_num', default=50, type=int, help='the max candidate actions number.')
+    parser.add_argument('--max_action_num', default=30, type=int, help='the max candidate actions number.')
 
     # Policy Gradient Params
     parser.add_argument('--Lambda', default=0.0, type=float, help='update rate of baseline.')
@@ -197,12 +197,20 @@ def get_args_timetraveler(args=None):
     parser.add_argument('--Zita', default=0.9, type=float, help='attenuation factor of entropy regular term.')
 
     # reward shaping params
-    parser.add_argument('--reward_shaping', action='store_true', help='whether to use reward shaping.')
-    parser.add_argument('--time_span', default=24, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
+    parser.add_argument('--reward_shaping', default=True, action='store_true', help='whether to use reward shaping.')
+    parser.add_argument('--time_span', default=1, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
     parser.add_argument('--alphas_pkl', default='dirchlet_alphas.pkl', type=str,
                         help='the file storing the alpha parameters of the Dirichlet distribution.')
     parser.add_argument('--k', default=300, type=int, help='statistics recent K historical snapshots.')
-
+    # configuration for preprocessor 
+    parser.add_argument('--store_actions_num', default=0, type=int,
+                        help='maximum number of stored neighbors, 0 means store all.')
+    parser.add_argument('--preprocess', default=False,
+                        help="Do we want preprocessing for the actionspace")
+    # configuration for dirichlet
+    parser.add_argument('--tol', default=1e-7, type=float)
+    parser.add_argument('--method', default='meanprecision', type=str)
+    parser.add_argument('--maxiter', default=100, type=int)
     return parser.parse_args(args)
 
 def get_model_config_timetraveler(args, num_ent, num_rel):
@@ -333,6 +341,8 @@ def get_args_cen():
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
     parser.add_argument('--run-nr', type=int, help='Run Number', default=1)
 
+
+
     try:
         args = parser.parse_args()
     except:
@@ -407,8 +417,8 @@ def get_args_regcn():
                         help="do relation prediction")
 
     # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=100,
-                        help="number of minimum training epochs on each time step")
+    parser.add_argument("--n-epochs", type=int, default=20,
+                        help="number of minimum training epochs on each time step") #100
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
     parser.add_argument("--grad-norm", type=float, default=1.0,

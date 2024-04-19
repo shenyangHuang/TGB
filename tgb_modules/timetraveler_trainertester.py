@@ -19,7 +19,7 @@ class Trainer(object):
         counter = 0
         with tqdm.tqdm(total=ntriple, unit='ex') as bar:
             bar.set_description('Train')
-            for src_batch, rel_batch, dst_batch, time_batch in dataloader:
+            for src_batch, rel_batch, dst_batch, time_batch, time_orig_batch in dataloader:
                 if self.args.cuda:
                     src_batch = src_batch.cuda()
                     rel_batch = rel_batch.cuda()
@@ -63,24 +63,27 @@ class Trainer(object):
                 bar.set_postfix(loss='%.4f' % reinfore_loss, reward='%.4f' % torch.mean(reward).item())
         return total_loss / counter, total_reward / counter
 
-    def save_model(self, checkpoint_path='checkpoint.pth'):
+    def save_model(self, save_path, checkpoint_path='checkpoint.pth'):
         """Save the parameters of the model and the optimizer,"""
         argparse_dict = vars(self.args)
-        with open(os.path.join(self.args.save_path, 'config.json'), 'w') as fjson:
+
+        with open(os.path.join(save_path, 'config.json'), 'w') as fjson:
             json.dump(argparse_dict, fjson)
 
         torch.save({
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict()},
-            os.path.join(self.args.save_path, checkpoint_path)
+            os.path.join(save_path, checkpoint_path)
         )
 
 class Tester(object):
-    def __init__(self, model, args, train_entities, RelEntCooccurrence):
+    def __init__(self, model, args, train_entities, RelEntCooccurrence, metric='mrr'):
         self.model = model
         self.args = args
         self.train_entities = train_entities
         self.RelEntCooccurrence = RelEntCooccurrence
+        self.metric = metric
+
 
     def get_rank(self, score, answer, entities_space, num_ent):
         """Get the location of the answer, if the answer is not in the array,
@@ -100,7 +103,7 @@ class Tester(object):
             rank = score.index(answer_prob) + 1
         return rank
 
-    def test(self, dataloader, ntriple, skip_dict, num_ent):
+    def test(self, dataloader, ntriple, num_nodes, neg_sampler, evaluator, split_mode='test'):
         """Get time-aware filtered metrics(MRR, Hits@1/3/10).
         Args:
             ntriple: number of the test examples.
@@ -110,11 +113,12 @@ class Tester(object):
         """
         self.model.eval()
         logs = []
-        with torch.no_grad():
+        perf_list =[]
+        with torch.no_grad():            
             with tqdm.tqdm(total=ntriple, unit='ex') as bar:
                 current_time = 0
                 cache_IM = {}  # key -> entity, values: list, IM representations of the co-o relations.
-                for src_batch, rel_batch, dst_batch, time_batch in dataloader:
+                for src_batch, rel_batch, dst_batch, time_batch,time_orig_batch in dataloader:
                     batch_size = dst_batch.size(0)
 
                     if self.args.IM:
@@ -166,7 +170,7 @@ class Tester(object):
                     for i in range(batch_size):
                         candidate_answers = current_entities[i]
                         candidate_score = beam_prob[i]
-
+                        scores_eval_paper_authors = -10000000000.0*np.ones(num_nodes, dtype=np.float32)
                         # sort by score from largest to smallest
                         idx = np.argsort(-candidate_score)
                         candidate_answers = candidate_answers[idx]
@@ -181,7 +185,24 @@ class Tester(object):
                         rel = rel_batch[i].item()
                         dst = dst_batch[i].item()
                         time = time_batch[i].item()
+                        time_orig = time_orig_batch[i].item()
 
+                        if np.max(candidate_answers) >= num_nodes:
+                            if candidate_answers[-1] == num_nodes:
+                                logging_score_answers = candidate_answers[0:-1]
+                                logging_score = candidate_score[0:-1]
+                            else:
+                                print("Problem with the score ids", np.max(candidate_answers))
+                        else:
+                            logging_score_answers = candidate_answers
+                            logging_score = candidate_score
+
+                        neg_samples_batch = neg_sampler.query_batch(np.expand_dims(np.array(src), axis=0),
+                                                np.expand_dims(np.array(dst), axis=0), 
+                                                np.expand_dims(np.array(time_orig), axis=0), 
+                                                edge_type=np.expand_dims(np.array(rel), axis=0), 
+                                                split_mode=split_mode)
+                        pos_samples_batch = dst
                         # get inductive inference performance.
                         # Only count the results of the example containing new entities.
                         if self.args.test_inductive and src in self.train_entities and dst in self.train_entities:
@@ -197,19 +218,27 @@ class Tester(object):
                         #         candidate_score.remove(tmp_prob[j])
 
                         # ranking_raw = self.get_rank(candidate_score, dst, candidate_answers, num_ent)
-
+                        scores_eval_paper_authors[logging_score_answers] = logging_score
                         # logs.append({
                         #     'MRR': 1.0 / ranking_raw,
                         #     'HITS@1': 1.0 if ranking_raw <= 1 else 0.0,
                         #     'HITS@3': 1.0 if ranking_raw <= 3 else 0.0,
                         #     'HITS@10': 1.0 if ranking_raw <= 10 else 0.0,
                         # })
-                        MRR = 1 #MRR + 1.0 / ranking_raw
-                        #TODO
+                        neg_scores = scores_eval_paper_authors[neg_samples_batch]
+                        pos_scores = scores_eval_paper_authors[pos_samples_batch]
+                        input_dict = {
+                            "y_pred_pos": np.array([pos_scores]),
+                            "y_pred_neg": np.array(neg_scores),
+                            "eval_metric": [self.metric],
+                        }
+                        perf_list.append(evaluator.eval(input_dict)[self.metric])
+
 
                     bar.update(batch_size)
-                    bar.set_postfix(MRR='{}'.format(MRR / batch_size))
+                    bar.set_postfix(MRR='{}'.format(perf_list[-1] / batch_size))
         metrics = {}
+        metrics[self.metric] = np.mean(perf_list)
         # for metric in logs[0].keys():
         #     metrics[metric] = sum([log[metric] for log in logs]) / len(logs)
         return metrics
