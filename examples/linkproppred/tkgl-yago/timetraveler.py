@@ -86,7 +86,7 @@ def preprocess_data(args, config, timestamps, save_path, all_quads):
                 state_actions_space[(tail, t, True)] = env.get_state_actions_space_complete(tail, t, True, args.store_actions_num)
                 state_actions_space[(tail, t, False)] = env.get_state_actions_space_complete(tail, t, False, args.store_actions_num)
             bar.update(1)
-    pickle.dump(state_actions_space, open(os.path.join(save_path, args.outfile), 'wb'))
+    pickle.dump(state_actions_space, open(os.path.join(save_path,  args.state_actions_path), 'wb'))
 
 def log_metrics(mode, step, metrics):
     """Print the evaluation logs"""
@@ -203,7 +203,7 @@ def main(args):
         episode = episode.cuda()
     pg = PG(config)  # Policy Gradient
     optimizer = torch.optim.Adam(episode.parameters(), lr=args.lr, weight_decay=0.00001)
-    
+
     ######################Reward Shaping: MLE DIRICHLET alphas###########################
     if args.reward_shaping: #TODO
         try:
