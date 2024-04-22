@@ -236,6 +236,14 @@ def main(args):
             loss, reward = trainer.train_epoch(train_dataloader, len(train_data))
             logging.info('Epoch {}/{} Loss: {}, reward: {}'.format(i, args.max_epochs, loss, reward))
 
+            #! checking GPU usage
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            print ("--------------GPU memory usage-----------")
+            print ("there are ", free_mem, " free memory")
+            print ("there are ", total_mem, " total available memory")
+            print ("there are ", total_mem - free_mem, " used memory")
+            print ("--------------GPU memory usage-----------")
+            
             if i % args.save_epoch == 0 and i != 0:
                 trainer.save_model(save_path, 'checkpoint_{}.pth'.format(i))
                 logging.info('Save Model in {}'.format(save_path))
