@@ -359,7 +359,7 @@ def get_args_regcn():
                         help="batch-size")
     parser.add_argument("-d", "--dataset", type=str, default='tkgl-yago',
                         help="dataset to use")
-    parser.add_argument("--test", default=True,
+    parser.add_argument("--test", default=False,
                         help="load stat from dir and directly test")
     parser.add_argument("--run-analysis", action='store_true', default=False,
                         help="print log info")
@@ -417,7 +417,7 @@ def get_args_regcn():
                         help="do relation prediction")
 
     # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=2,
+    parser.add_argument("--n-epochs", type=int, default=20,
                         help="number of minimum training epochs on each time step") #100
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
