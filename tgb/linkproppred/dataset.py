@@ -6,6 +6,8 @@ import pandas as pd
 import zipfile
 import requests
 from clint.textui import progress
+import warnings
+
 
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.linkproppred.tkg_negative_sampler import TKGNegativeEdgeSampler
@@ -19,6 +21,7 @@ from tgb.utils.info import (
 from tgb.utils.pre_process import (
     csv_to_pd_data,
     process_node_feat,
+    process_node_type,
     csv_to_pd_data_sc,
     csv_to_pd_data_rc,
     load_edgelist_wiki,
@@ -80,6 +83,9 @@ class LinkPropPredDataset(object):
         if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
         
+        if "thg" in name:
+            self.meta_dict["nodeTypeFile"] = self.root + "/" + self.name + "_nodetype.csv"
+        
         self.meta_dict["val_ns"] = self.root + "/" + self.name + "_val_ns.pkl"
         self.meta_dict["test_ns"] = self.root + "/" + self.name + "_test_ns.pkl"
 
@@ -95,8 +101,11 @@ class LinkPropPredDataset(object):
         self._val_data = None
         self._test_data = None
 
-        # for tkg
+        # for tkg and thg
         self._edge_type = None
+
+        # for thg only
+        self._node_type = None
 
         self.download()
         # check if the root directory exists, if not create it
@@ -217,10 +226,20 @@ class LinkPropPredDataset(object):
                 raise FileNotFoundError(
                     f"File not found at {self.meta_dict['nodefile']}"
                 )
+        #* for thg must have nodetypes 
+        if self.meta_dict["nodeTypeFile"] is not None:
+            if not osp.exists(self.meta_dict["nodeTypeFile"]):
+                raise FileNotFoundError(
+                    f"File not found at {self.meta_dict['nodeTypeFile']}"
+                )
+
+
         OUT_DF = self.root + "/" + "ml_{}.pkl".format(self.name)
         OUT_EDGE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_edge")
         if self.meta_dict["nodefile"] is not None:
             OUT_NODE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_node")
+        if self.meta_dict["nodeTypeFile"] is not None:
+            OUT_NODE_TYPE = self.root + "/" + "ml_{}.pkl".format(self.name + "_nodeType")
 
         if (osp.exists(OUT_DF)) and (self.version_passed is True):
             print("loading processed file")
@@ -228,6 +247,9 @@ class LinkPropPredDataset(object):
             edge_feat = load_pkl(OUT_EDGE_FEAT)
             if self.meta_dict["nodefile"] is not None:
                 node_feat = load_pkl(OUT_NODE_FEAT)
+            if self.meta_dict["nodeTypeFile"] is not None:
+                node_type = load_pkl(OUT_NODE_TYPE)
+                self._node_type = node_type
 
         else:
             print("file not processed, generating processed file")
@@ -255,7 +277,12 @@ class LinkPropPredDataset(object):
             if self.meta_dict["nodefile"] is not None:
                 node_feat = process_node_feat(self.meta_dict["nodefile"], node_ids)
                 save_pkl(node_feat, OUT_NODE_FEAT)
-
+            if self.meta_dict["nodeTypeFile"] is not None:
+                node_type = process_node_type(self.meta_dict["nodeTypeFile"], node_ids)
+                save_pkl(node_type, OUT_NODE_TYPE)
+                #? do not return node_type, simply set it
+                self._node_type = node_type
+                
         return df, edge_feat, node_feat
 
     def pre_process(self):
@@ -417,6 +444,17 @@ class LinkPropPredDataset(object):
             node_feat: np.ndarray, [N, feat_dim] or None if there is no node feature
         """
         return self._node_feat
+    
+    @property
+    def node_type(self) -> Optional[np.ndarray]:
+        r"""
+        Returns the node types of the dataset with dim [N, 1], only for temporal heterogeneous graphs
+        Returns:
+            node_feat: np.ndarray, [N, 1] or None if there is no node feature
+        """
+        if (self._node_type is None):
+            warnings.warn("Warning: only temporal hetergenous graphs have node types. Returning None otherwise.")
+        return self._node_type
 
     @property
     def edge_feat(self) -> Optional[np.ndarray]:

@@ -9,8 +9,6 @@ from tgb.utils.utils import save_pkl
 import os
 from tqdm import tqdm
 
-#! require node types
-
 
 """
 negative sample generator for tkg datasets 
