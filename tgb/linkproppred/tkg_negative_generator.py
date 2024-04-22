@@ -147,21 +147,22 @@ class TKGNegativeEdgeGenerator(object):
                 else:
                     edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
 
-            pos_src, pos_dst, pos_timestamp, edge_type = (
-                data.src.cpu().numpy(),
-                data.dst.cpu().numpy(),
-                data.t.cpu().numpy(),
-                data.edge_type.cpu().numpy(),
-            )
-            
             conflict_dict = {}
             for key in edge_t_dict:
                 conflict_dict[key] = np.array(list(edge_t_dict[key].keys()))
             
-            print ("ns samples for ", len(conflict_dict), " positive edges are generated")
+            print ("conflict sets for ns samples for ", len(conflict_dict), " positive edges are generated")
 
             # save the generated evaluation set to disk
             save_pkl(conflict_dict, filename)
+
+            # pos_src, pos_dst, pos_timestamp, edge_type = (
+            #     data.src.cpu().numpy(),
+            #     data.dst.cpu().numpy(),
+            #     data.t.cpu().numpy(),
+            #     data.edge_type.cpu().numpy(),
+            # )
+            
 
             # # generate a list of negative destinations for each positive edge
             # pos_edge_tqdm = tqdm(

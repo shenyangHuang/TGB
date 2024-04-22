@@ -3,11 +3,13 @@ Sample and Generate negative edges that are going to be used for evaluation of a
 Negative samples are generated and saved to files ONLY once; 
     other times, they should be loaded from file with instances of the `negative_sampler.py`.
 """
+import os
+import torch
 import numpy as np
+from tqdm import tqdm
 from torch_geometric.data import TemporalData
 from tgb.utils.utils import save_pkl
-import os
-from tqdm import tqdm
+from typing import Union
 
 
 """
@@ -18,9 +20,10 @@ class THGNegativeEdgeGenerator(object):
     def __init__(
         self,
         dataset_name: str,
-        first_dst_id: int,
-        last_dst_id: int,
-        strategy: str = "time-filtered",
+        first_node_id: int,
+        last_node_id: int,
+        node_type: Union[np.ndarray, torch.Tensor],
+        strategy: str = "node-type-filtered",
         num_neg_e: int = -1,  # -1 means generate all possible negatives
         rnd_seed: int = 1,
         edge_data: TemporalData = None,
@@ -30,14 +33,12 @@ class THGNegativeEdgeGenerator(object):
         this is a class for generating negative samples for a specific datasets
         the set of the positive samples are provided, the negative samples are generated with specific strategies 
         and are saved for consistent evaluation across different methods
-        negative edges are sampled with 'oen_vs_many' strategy.
-        it is assumed that the destination nodes are indexed sequentially with 'first_dst_id' 
-        and 'last_dst_id' being the first and last index, respectively.
 
         Parameters:
             dataset_name: name of the dataset
-            first_dst_id: identity of the first destination node
-            last_dst_id: indentity of the last destination node
+            first_node_id: the first node id
+            last_node_id: the last node id
+            node_type: the node type of each node
             num_neg_e: number of negative edges being generated per each positive edge
             strategy: specifies which strategy should be used for generating the negatives
             rnd_seed: random seed for reproducibility
@@ -49,12 +50,19 @@ class THGNegativeEdgeGenerator(object):
         self.rnd_seed = rnd_seed
         np.random.seed(self.rnd_seed)
         self.dataset_name = dataset_name
-        self.first_dst_id = first_dst_id
-        self.last_dst_id = last_dst_id      
+        self.first_node_id = first_node_id
+        self.last_node_id = last_node_id
+        if isinstance(node_type, torch.Tensor):
+            node_type = node_type.cpu().numpy()
+        self.node_type = node_type
+        assert isinstance(self.node_type, np.ndarray), "node_type should be a numpy array"
         self.num_neg_e = num_neg_e  #-1 means generate all 
+        if self.num_neg_e != -1:
+            print ("INFO: currently only supporting generating all ns samples")
+
         assert strategy in [
-            "time-filtered",
-        ], "The supported strategies are `time-filtered`"
+            "node-type-filtered",
+        ], "The supported strategies are `node-type-filtered`"
         self.strategy = strategy
         self.edge_data = edge_data
 
@@ -83,20 +91,20 @@ class THGNegativeEdgeGenerator(object):
             + ".pkl"
         )
 
-        if self.strategy == "time-filtered":
-            self.generate_negative_samples_ftr(pos_edges, split_mode, filename)
+        if self.strategy == "node-type-filtered":
+            self.generate_negative_samples_nt(pos_edges, split_mode, filename)
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
 
-    def generate_negative_samples_ftr(self, 
+    def generate_negative_samples_nt(self, 
                                       data: TemporalData, 
                                       split_mode: str, 
                                       filename: str,
                                       ) -> None:
         r"""
-        now we consider (s, d, t, edge_type) as a unique edge
+        now we consider (s, d, t, edge_type) as a unique edge, also adding the node type info for the destination node for convenience so (s, d, t, edge_type): (conflict_set, d_node_type)
         Generate negative samples based on the random strategy:
-            - for each positive edge, sample a batch of negative edges from all possible edges with the same source node
+            - for each positive edge, retrieve all possible destinations based on the node type of the destination node
             - filter actual positive edges at the same timestamp with the same edge type
         
         Parameters:
@@ -126,9 +134,6 @@ class THGNegativeEdgeGenerator(object):
                 data.edge_type.cpu().numpy(),
             )
 
-            # all possible destinations
-            all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
-            evaluation_set = {}
             # generate a list of negative destinations for each positive edge
             pos_edge_tqdm = tqdm(
                 zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
@@ -147,54 +152,20 @@ class THGNegativeEdgeGenerator(object):
                 else:
                     edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
 
-            pos_src, pos_dst, pos_timestamp, edge_type = (
-                data.src.cpu().numpy(),
-                data.dst.cpu().numpy(),
-                data.t.cpu().numpy(),
-                data.edge_type.cpu().numpy(),
-            )
-            
             conflict_dict = {}
             for key in edge_t_dict:
-                conflict_dict[key] = np.array(list(edge_t_dict[key].keys()))
-            
-            print ("ns samples for ", len(conflict_dict), " positive edges are generated")
+                dsts = np.array(list(edge_t_dict[key].keys()))
+                pos_d = dsts[0]
+                #* retieve the node type of the destination node as well 
+                #! assumption, same edge type = same destination node type
+                d_node_type = int(self.node_type[pos_d - self.first_node_id])
+                conflict_dict[key] = (dsts, d_node_type)
+            print ("conflict sets for ns samples for ", len(conflict_dict), " positive edges are generated")
 
             # save the generated evaluation set to disk
             save_pkl(conflict_dict, filename)
 
-            # # generate a list of negative destinations for each positive edge
-            # pos_edge_tqdm = tqdm(
-            #     zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
-            # )
 
-            
-            # for (
-            #     pos_s,
-            #     pos_d,
-            #     pos_t,
-            #     edge_type,
-            # ) in pos_edge_tqdm:
-                
-            # #! generate all negatives unless restricted
-            # conflict_set = list(edge_t_dict[(pos_t, pos_s, edge_type)].keys())
 
-            # # filter out positive destination
-            # conflict_set = np.array(conflict_set)
-            # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
 
-            # '''
-            # when num_neg_e is larger than all possible destinations simple return all possible destinations
-            # '''
-            # if (self.num_neg_e < 0):
-            #     neg_d_arr = filtered_all_dst
-            # elif (self.num_neg_e > len(filtered_all_dst)):
-            #     neg_d_arr = filtered_all_dst
-            # else:
-            #     neg_d_arr = np.random.choice(
-            #     filtered_all_dst, self.num_neg_e, replace=False) #never replace negatives
 
-            # evaluation_set[(pos_s, pos_d, pos_t, edge_type)] = neg_d_arr
-
-            # # save the generated evaluation set to disk
-            # save_pkl(evaluation_set, filename)

@@ -6,11 +6,11 @@ import pandas as pd
 import zipfile
 import requests
 from clint.textui import progress
-import warnings
 
 
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 from tgb.linkproppred.tkg_negative_sampler import TKGNegativeEdgeSampler
+from tgb.linkproppred.thg_negative_sampler import THGNegativeEdgeSampler
 from tgb.utils.info import (
     PROJ_DIR, 
     DATA_URL_DICT, 
@@ -120,14 +120,25 @@ class LinkPropPredDataset(object):
 
         self.min_dst_idx, self.max_dst_idx = int(self._full_data["destinations"].min()), int(self._full_data["destinations"].max())
 
-        if ('tkg' not in self.name):
-            self.ns_sampler = NegativeEdgeSampler(
+        if ('tkg' in self.name):
+            self.ns_sampler = TKGNegativeEdgeSampler(
                 dataset_name=self.name,
                 first_dst_id=self.min_dst_idx,
                 last_dst_id=self.max_dst_idx,
             )
+        elif ('thg' in self.name):
+            #* need to find the smallest node id of all nodes (regardless of types)
+            
+            min_node_idx = min(int(self._full_data["sources"].min()), int(self._full_data["destinations"].min()))
+            max_node_idx = max(int(self._full_data["sources"].max()), int(self._full_data["destinations"].max()))
+            self.ns_sampler = THGNegativeEdgeSampler(
+                dataset_name=self.name,
+                first_node_id=min_node_idx,
+                last_node_id=max_node_idx,
+                node_type=self._node_type,
+            )
         else:
-            self.ns_sampler = TKGNegativeEdgeSampler(
+            self.ns_sampler = NegativeEdgeSampler(
                 dataset_name=self.name,
                 first_dst_id=self.min_dst_idx,
                 last_dst_id=self.max_dst_idx,
@@ -282,7 +293,7 @@ class LinkPropPredDataset(object):
                 save_pkl(node_type, OUT_NODE_TYPE)
                 #? do not return node_type, simply set it
                 self._node_type = node_type
-                
+
         return df, edge_feat, node_feat
 
     def pre_process(self):
@@ -448,12 +459,10 @@ class LinkPropPredDataset(object):
     @property
     def node_type(self) -> Optional[np.ndarray]:
         r"""
-        Returns the node types of the dataset with dim [N, 1], only for temporal heterogeneous graphs
+        Returns the node types of the dataset with dim [N], only for temporal heterogeneous graphs
         Returns:
-            node_feat: np.ndarray, [N, 1] or None if there is no node feature
+            node_feat: np.ndarray, [N] or None if there is no node feature
         """
-        if (self._node_type is None):
-            warnings.warn("Warning: only temporal hetergenous graphs have node types. Returning None otherwise.")
         return self._node_type
 
     @property

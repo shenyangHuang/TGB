@@ -20,9 +20,7 @@ def process_node_type(
     1. process the node type into integer
     3. return a numpy array of node types with index corresponding to node id
     """
-    feat_size = 1
-    node_feat = np.zeros((len(node_ids), feat_size))
-
+    node_feat = np.zeros(len(node_ids))
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0

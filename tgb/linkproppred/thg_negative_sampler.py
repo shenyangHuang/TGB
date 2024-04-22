@@ -14,13 +14,14 @@ import os
 import time
 
 
-class TKGNegativeEdgeSampler(object):
+class THGNegativeEdgeSampler(object):
     def __init__(
         self,
         dataset_name: str,
-        first_dst_id: int,
-        last_dst_id: int,
-        strategy: str = "time_filtered",
+        first_node_id: int,
+        last_node_id: int,
+        node_type: np.ndarray,
+        strategy: str = "node-type-filtered",
     ) -> None:
         r"""
         Negative Edge Sampler
@@ -29,8 +30,9 @@ class TKGNegativeEdgeSampler(object):
 
         Parameters:
             dataset_name: name of the dataset
-            first_dst_id: identity of the first destination node
-            last_dst_id: indentity of the last destination node
+            first_node_id: identity of the first node
+            last_node_id: indentity of the last destination node
+            node_type: the node type of each node
             strategy: will always load the pre-generated negatives
         
         Returns:
@@ -38,8 +40,44 @@ class TKGNegativeEdgeSampler(object):
         """
         self.dataset_name = dataset_name
         self.eval_set = {}
-        self.first_dst_id = first_dst_id
-        self.last_dst_id = last_dst_id
+        self.first_node_id = first_node_id
+        self.last_node_id = last_node_id
+        self.node_type = node_type
+        assert isinstance(self.node_type, np.ndarray), "node_type should be a numpy array"
+        self.node_type_dict = self.get_destinations_based_on_node_type(first_node_id, last_node_id, self.node_type)
+
+    def get_destinations_based_on_node_type(self, 
+                                            first_node_id: int,
+                                            last_node_id: int,
+                                            node_type: np.ndarray) -> dict:
+        r"""
+        get the destination node id arrays based on the node type
+
+        Parameters:
+            first_node_id: the first node id
+            last_node_id: the last node id
+            node_type: the node type of each node
+
+        Returns:
+            node_type_dict: a dictionary containing the destination node ids for each node type
+        """
+        node_type_store = {}
+        assert first_node_id <= last_node_id, "Invalid destination node ids!"
+        assert len(node_type) == (last_node_id - first_node_id + 1), "node type array must match the indices"
+        for k in range(len(node_type)):
+            nt = int(node_type[k]) #node type must be ints
+            nid = k + first_node_id
+            if nt not in node_type_store:
+                node_type_store[nt] = {nid:1}
+            else:
+                node_type_store[nt][nid] = 1
+        
+        node_type_dict = {}
+        for ntype in node_type_store:
+            node_type_dict[ntype] = np.array(list(node_type_store[ntype].keys()))
+            assert np.all(np.diff(node_type_dict[ntype]) >= 0), "Destination node ids for a given type must be sorted"
+            assert np.all(node_type_dict[ntype] <= last_node_id), "Destination node ids must be less than or equal to the last destination id"
+        return node_type_dict
 
     def load_eval_set(
         self,
@@ -116,14 +154,10 @@ class TKGNegativeEdgeSampler(object):
                 )
             else:
                 conflict_dict = self.eval_set[split_mode]
-                conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
-                all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
+                conflict_set, d_node_type = conflict_dict[(pos_t, pos_s, e_type)]
+                all_dst = self.node_type_dict[d_node_type]
                 filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-
-                #! always using all possible destinations for evaluation
                 neg_d_arr = filtered_all_dst
-
-                #! this is very slow
                 neg_samples.append(
                         neg_d_arr
                     )
