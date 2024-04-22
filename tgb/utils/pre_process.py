@@ -30,16 +30,16 @@ def process_node_type(
                 idx += 1
                 continue
             else:
-                nid = row[0]
-                if nid not in node_ids:
-                    continue
-                else:
+                nid = int(row[0])
+                try:
+                    node_type = int(row[1])
+                except:
+                    raise ValueError(row[1], " is not an integer thus can't be a node type for thg dataset")
+                try:
                     node_id = node_ids[nid]
-                    try:
-                        node_type = int(row[1])
-                    except:
-                        raise ValueError(row[1], " is not an integer thus can't be a node type for thg dataset")
-                    node_feat[node_id] = node_type
+                except:
+                    raise ValueError(nid, " is not a valid node id")
+                node_feat[node_id] = node_type
     return node_feat
 
 

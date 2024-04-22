@@ -55,16 +55,47 @@ class THGNegativeEdgeGenerator(object):
         if isinstance(node_type, torch.Tensor):
             node_type = node_type.cpu().numpy()
         self.node_type = node_type
+        self.node_type_dict = self.get_destinations_based_on_node_type(first_node_id, last_node_id, self.node_type) # {node_type: {nid:1}}
         assert isinstance(self.node_type, np.ndarray), "node_type should be a numpy array"
         self.num_neg_e = num_neg_e  #-1 means generate all 
-        if self.num_neg_e != -1:
-            print ("INFO: currently only supporting generating all ns samples")
 
         assert strategy in [
             "node-type-filtered",
         ], "The supported strategies are `node-type-filtered`"
         self.strategy = strategy
         self.edge_data = edge_data
+
+    def get_destinations_based_on_node_type(self, 
+                                            first_node_id: int,
+                                            last_node_id: int,
+                                            node_type: np.ndarray) -> dict:
+        r"""
+        get the destination node id arrays based on the node type
+
+        Parameters:
+            first_node_id: the first node id
+            last_node_id: the last node id
+            node_type: the node type of each node
+
+        Returns:
+            node_type_dict: a dictionary containing the destination node ids for each node type
+        """
+        node_type_store = {}
+        assert first_node_id <= last_node_id, "Invalid destination node ids!"
+        assert len(node_type) == (last_node_id - first_node_id + 1), "node type array must match the indices"
+        for k in range(len(node_type)):
+            nt = int(node_type[k]) #node type must be ints
+            nid = k + first_node_id
+            if nt not in node_type_store:
+                node_type_store[nt] = {nid:1}
+            else:
+                node_type_store[nt][nid] = 1
+        node_type_dict = {}
+        for ntype in node_type_store:
+            node_type_dict[ntype] = np.array(list(node_type_store[ntype].keys()))
+            assert np.all(np.diff(node_type_dict[ntype]) >= 0), "Destination node ids for a given type must be sorted"
+            assert np.all(node_type_dict[ntype] <= last_node_id), "Destination node ids must be less than or equal to the last destination id"
+        return node_type_dict
 
     def generate_negative_samples(self, 
                                   pos_edges: TemporalData,
@@ -152,18 +183,28 @@ class THGNegativeEdgeGenerator(object):
                 else:
                     edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
 
-            conflict_dict = {}
-            for key in edge_t_dict:
-                dsts = np.array(list(edge_t_dict[key].keys()))
-                pos_d = dsts[0]
+            out_dict = {}
+            for key in tqdm(edge_t_dict):
+                conflict_set = np.array(list(edge_t_dict[key].keys()))
+                pos_d = conflict_set[0]
                 #* retieve the node type of the destination node as well 
                 #! assumption, same edge type = same destination node type
                 d_node_type = int(self.node_type[pos_d - self.first_node_id])
-                conflict_dict[key] = (dsts, d_node_type)
-            print ("conflict sets for ns samples for ", len(conflict_dict), " positive edges are generated")
-
+                all_dst = self.node_type_dict[d_node_type]
+                if (self.num_neg_e == -1):
+                    filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                else:
+                    #* lazy sampling
+                    neg_d_arr = np.random.choice(
+                        all_dst, self.num_neg_e, replace=False) #never replace negatives
+                    if len(np.setdiff1d(neg_d_arr, conflict_set)) < self.num_neg_e:
+                        neg_d_arr = np.random.choice(
+                            np.setdiff1d(all_dst, conflict_set), self.num_neg_e, replace=False)
+                    filtered_all_dst = neg_d_arr
+                out_dict[key] = filtered_all_dst
+            print ("ns samples for ", len(out_dict), " positive edges are generated")
             # save the generated evaluation set to disk
-            save_pkl(conflict_dict, filename)
+            save_pkl(out_dict, filename)
 
 
 
