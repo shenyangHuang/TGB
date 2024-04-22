@@ -65,6 +65,8 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
     input_list = [snap for snap in history_list[-args.test_history_len:]] 
     perf_list_all = []
     for time_idx, test_snap in enumerate(tqdm(test_list)):
+        if time_idx == 10:
+            print(time_idx)
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]    
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
         timesteps_batch =timesteps_to_eval[time_idx]*np.ones(len(test_triples_input[:,0]))
@@ -154,8 +156,8 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         torch.cuda.set_device(args.gpu)
         model.cuda()
 
-    if args.add_static_graph: # TODO: what to do about this part: 
-        static_graph = build_sub_graph(len(static_node_id), num_static_rels, static_triples, use_cuda, args.gpu)
+    # if args.add_static_graph: # TODO: what to do about this part: 
+    #     static_graph = build_sub_graph(len(static_node_id), num_static_rels, static_triples, use_cuda, args.gpu)
 
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
@@ -289,17 +291,19 @@ neg_sampler = dataset.negative_sampler
 dataset.load_val_ns()
 dataset.load_test_ns()
 
-
+val_mrr, test_mrr = 0, 0
 if args.grid_search:
     print("TODO: implement hyperparameter grid search")
 # single run
 else:
     #TODO: differentiate between train, valid, test
     start_train = timeit.default_timer()
-    args.test = False
-    val_mrr = run_experiment(args)
+    if args.test == False:
+        print('start training')
+        val_mrr = run_experiment(args)
     start_test = timeit.default_timer()
     args.test = True
+    print('start testing')
     test_mrr = run_experiment(args)
 
 
