@@ -191,10 +191,11 @@ def get_walks(rule, walk_edges):
     """
 
     df_edges = []
+    #pd.Series(values).astype(uint16)
     df = pd.DataFrame(
         walk_edges[0],
-        columns=["entity_" + str(0), "entity_" + str(1), "timestamp_" + str(0)],
-        dtype=np.uint16,
+        columns=["entity_" + str(0), "entity_" + str(1), "timestamp_" + str(0)]#,
+    #    dtype=np.uint16,
     )  # Change type if necessary for better memory efficiency
     if not rule["var_constraints"]:
         del df["entity_" + str(0)]
