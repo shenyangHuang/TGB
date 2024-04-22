@@ -181,6 +181,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         print("----------------------------------------start training----------------------------------------\n")
         best_mrr = 0
         for epoch in range(args.n_epochs):
+
             model.train()
             losses = []
             idx = [_ for _ in range(len(train_list))]
@@ -210,6 +211,14 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
 
             print("Epoch {:04d} | Ave Loss: {:.4f} | Best MRR {:.4f} | Model {} "
                   .format(epoch, np.mean(losses),  best_mrr, model_name))
+            
+            #! checking GPU usage
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            print ("--------------GPU memory usage-----------")
+            print ("there are ", free_mem, " free memory")
+            print ("there are ", total_mem, " total available memory")
+            print ("there are ", total_mem - free_mem, " used memory")
+            print ("--------------GPU memory usage-----------")
 
             # validation
             if epoch and epoch % args.evaluate_every == 0:

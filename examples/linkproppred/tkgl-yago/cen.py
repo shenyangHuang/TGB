@@ -7,6 +7,7 @@ Complex Evolutional Pattern Learning for Temporal Knowledge Graph Reasoning. ACL
 """
 import sys
 sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
+
 import timeit
 import argparse
 import os
@@ -117,7 +118,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
     model = RecurrentRGCNCEN(args.decoder,
                           args.encoder,
                             num_nodes,
-                            int(num_rels/2),
+                            num_rels,
                             args.n_hidden,
                             args.opn,
                             sequence_len=args.train_history_len,
@@ -197,6 +198,14 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
             print("His {:04d}, Epoch {:04d} | Ave Loss: {:.4f} | Best MRR {:.4f} | Model {} "
                 .format(args.start_history_len, epoch, np.mean(losses), best_mrr, model_name))
+            
+            #! checking GPU usage
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            print ("--------------GPU memory usage-----------")
+            print ("there are ", free_mem, " free memory")
+            print ("there are ", total_mem, " total available memory")
+            print ("there are ", total_mem - free_mem, " used memory")
+            print ("--------------GPU memory usage-----------")
 
             # validation        
             if epoch % args.evaluate_every == 0:
@@ -291,6 +300,14 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
                 print("His {:04d}, Epoch {:04d} | Ave Loss: {:.4f} |Best MRR {:.4f} | Model {} "
                     .format(history_len, epoch, np.mean(losses), best_mrr, model_name))
+
+                #! checking GPU usage
+                free_mem, total_mem = torch.cuda.mem_get_info()
+                print ("--------------GPU memory usage-----------")
+                print ("there are ", free_mem, " free memory")
+                print ("there are ", total_mem, " total available memory")
+                print ("there are ", total_mem - free_mem, " used memory")
+                print ("--------------GPU memory usage-----------")
 
                 # validation
                 if epoch % args.evaluate_every == 0:
