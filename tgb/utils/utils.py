@@ -359,7 +359,7 @@ def get_args_regcn():
                         help="batch-size")
     parser.add_argument("-d", "--dataset", type=str, default='tkgl-yago',
                         help="dataset to use")
-    parser.add_argument("--test", action='store_true', default=False,
+    parser.add_argument("--test", default=True,
                         help="load stat from dir and directly test")
     parser.add_argument("--run-analysis", action='store_true', default=False,
                         help="print log info")
@@ -417,7 +417,7 @@ def get_args_regcn():
                         help="do relation prediction")
 
     # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=20,
+    parser.add_argument("--n-epochs", type=int, default=2,
                         help="number of minimum training epochs on each time step") #100
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
@@ -587,9 +587,8 @@ def reformat_ts(timestamps):
 
     ts_new = []
     timestamps2 = timestamps - ts_min
-    for timestamp in timestamps2:
-        timestamp = int(timestamp/ts_dist)
-        ts_new.append(timestamp)
+    ts_new = np.ceil(timestamps2/ts_dist).astype(int)
+
     return np.array(ts_new)
 
 ## preprocess: define rules
