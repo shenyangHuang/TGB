@@ -69,15 +69,54 @@ def read_csv2dict(fname):
     return out_dict
 
 
-def writeIDmapping(id_dict, outname):
+# def writeIDmapping(id_dict, outname):
+#     r"""
+#     write the id mapping to a file
+#     """
+#     with open(outname, 'w') as f:
+#         writer = csv.writer(f, delimiter =',')
+#         writer.writerow(['ID', 'name'])
+#         for key in id_dict:
+#             writer.writerow([key, id_dict[key]])
+
+
+def edge2nodetype(out_dict):
     r"""
-    write the id mapping to a file
+    1. remap node id of nodes
+    2. output the node_type file
+    """
+    node_dict = {} # {node_name: node_id}
+    node_type_dict = {} # {node_id: node_type}
+    edge_dict = {} # {edge: edge_type}
+    dates = list(out_dict.keys())
+    dates.sort()
+    for date in dates:
+        for edge in out_dict[date]:
+                head = edge[0] # user node
+                tail = edge[1] # app node
+                relation_type = int(edge[2])
+                if head not in node_dict:
+                    node_dict[head] = len(node_dict)
+                    node_type_dict[node_dict[head]] = 0 #user
+                if tail not in node_dict:
+                    node_dict[tail] = len(node_dict)
+                    node_type_dict[node_dict[tail]] = 1 #app
+                if date not in edge_dict:
+                    edge_dict[date] = {}
+                edge_dict[date][(node_dict[head], node_dict[tail], relation_type)] = 1
+    return node_dict, node_type_dict, edge_dict
+                
+
+def writeNodeType(node_type_dict, outname):
+    r"""
+    write the node type mapping to a file
     """
     with open(outname, 'w') as f:
         writer = csv.writer(f, delimiter =',')
-        writer.writerow(['ID', 'name'])
-        for key in id_dict:
-            writer.writerow([key, id_dict[key]])
+        writer.writerow(['node_id', 'type'])
+        for key in node_type_dict:
+            writer.writerow([key, node_type_dict[key]])
+
 
 
 def write2edgelist(out_dict, outname):
@@ -101,12 +140,23 @@ def write2edgelist(out_dict, outname):
     print ("there are {} lines in the file".format(num_lines))
         
 
+"""
+need to have edgelist with n_ids 
+need to have a node_type file to document which nodes are which type
+"""
 
 
 def main():
     fname = "raw_myket_input-001.csv"
     out_dict = read_csv2dict(fname)
-    write2edgelist (out_dict, "thgl-myket_edgelist.csv")
+    # write2edgelist (out_dict, "thgl-myket_edgelist.csv")
+    node_dict, node_type_dict, edge_dict = edge2nodetype(out_dict)
+
+    write2edgelist (edge_dict, "thgl-myket_edgelist.csv")
+    writeNodeType(node_type_dict, "thgl-myket_nodetype.csv")
+
+
+
 
 
 

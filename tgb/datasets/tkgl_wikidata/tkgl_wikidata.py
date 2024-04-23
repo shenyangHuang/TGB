@@ -26,7 +26,7 @@ def timeEdgeWrite2csv(outname, out_dict):
             dst = edge[2]
             rel_type = edge[3]
             time_rel_type = edge[4]
-            row = [ts, src, dst, rel_type]
+            row = [ts, src, dst, rel_type, time_rel_type]
             writer.writerow(row)
 
 

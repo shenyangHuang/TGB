@@ -76,31 +76,26 @@ def write2csv(outname, out_dict):
 
 def main():
 
-    #example
-    # fname = "2018-Jan.txt"
-    # print ("hi")
-    # lines = load_csv_raw(fname)
-    # outname = "tkgl-polecat_edgelist.csv"
-    # write2csv(outname, lines)
-
     total_lines = 0
-    num_days = 0
+    total_edge_dict = {} 
     #1. find all files with .txt in the folder
     for file in glob.glob("*.tab"):
-        outname = file[7:11] + "_edgelist.csv"
-        print ("processing", file, "to", outname)
+        # outname = file[7:11] + "_edgelist.csv"
+        print ("processing", file)
         edge_dict, num_lines = load_csv_raw(file)
         total_lines += num_lines
-        num_days += len(edge_dict)
         print ("-----------------------------------")
-        print (outname)
+        print ("file, ", file)
         print ("number of lines, ", num_lines)
         print ("number of days, ", len(edge_dict))
         print ("-----------------------------------")
-        #write2csv(outname, edge_dict)
-
+        total_edge_dict.update(edge_dict)
+    
+    outname = "tkgl-icews_edgelist.csv"
     print ("total number of lines", total_lines)
-    print ("total number of days", num_days)
+    print ("total number of days", len(total_edge_dict))    
+    write2csv(outname, total_edge_dict)
+
 
 
 
