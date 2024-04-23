@@ -214,6 +214,7 @@ def main(args):
             mle_d = MLE_Dirchlet(all_quads, num_rels, args.k, args.time_span,
                          args.tol, args.method, args.maxiter)
             pickle.dump(mle_d.alphas, open(os.path.join(save_path, args.alphas_pkl), 'wb'))
+            
             print('dumped alphas')
             alphas = mle_d.alphas
         distributions = Dirichlet(alphas, args.k)

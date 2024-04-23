@@ -95,7 +95,7 @@ def log_metrics(mode, step, metrics):
 
 def main(args):
 
-    # TODO: preprocessing and dirichlet param estimation steps! 
+    
     start_overall = timeit.default_timer()
     #######################Set Logger#################################
     
@@ -205,7 +205,7 @@ def main(args):
     optimizer = torch.optim.Adam(episode.parameters(), lr=args.lr, weight_decay=0.00001)
 
     ######################Reward Shaping: MLE DIRICHLET alphas###########################
-    if args.reward_shaping: #TODO
+    if args.reward_shaping: 
         try:
             print("load alphas from pickle file")
             alphas = pickle.load(open(os.path.join(save_path, args.alphas_pkl), 'rb'))
