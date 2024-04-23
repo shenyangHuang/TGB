@@ -85,6 +85,8 @@ class LinkPropPredDataset(object):
         
         if "thg" in name:
             self.meta_dict["nodeTypeFile"] = self.root + "/" + self.name + "_nodetype.csv"
+        else:
+            self.meta_dict["nodeTypeFile"] = None
         
         self.meta_dict["val_ns"] = self.root + "/" + self.name + "_val_ns.pkl"
         self.meta_dict["test_ns"] = self.root + "/" + self.name + "_test_ns.pkl"
@@ -275,6 +277,8 @@ class LinkPropPredDataset(object):
             elif self.name == "tgbl-wiki":
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
             elif self.name == "tkgl-polecat":
+                df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            elif self.name == "tkgl-icews":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-yago":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
