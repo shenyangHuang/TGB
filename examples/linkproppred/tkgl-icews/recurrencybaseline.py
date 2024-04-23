@@ -69,7 +69,7 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
 
 
 ## test
-def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window):         
+def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):         
     perf_list_all = []
     hits_list_all =[]
     ## loop through relations and apply baselines
@@ -87,7 +87,7 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
 
             perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel,
                                                    all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
-                                                   window, neg_sampler, split_mode='test')
+                                                   window, neg_sampler, split_mode)
 
         end = time.time()
         total_time = round(end - start, 6)  
@@ -104,6 +104,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
     """ optional, find best values for lambda and alpha
     """
     best_config= {}
+    best_mrr = 0
     for rel in rels: # loop through relations. for each relation, apply rules with selected params, compute valid mrr
         start = time.time()
         rel_key = int(rel)            
@@ -122,10 +123,10 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             timesteps_valid.sort()
             trainval_data_c_rel = trainval_data_prel[rel]
 
-            s = np.array(val_data_c_rel[:,0])
-            r = np.array(val_data_c_rel[:,1])
-            o = np.array(val_data_c_rel[:,2])
-            t = np.array(val_data_c_rel[:,4])
+            # s = np.array(val_data_c_rel[:,0])
+            # r = np.array(val_data_c_rel[:,1])
+            # o = np.array(val_data_c_rel[:,2])
+            # t = np.array(val_data_c_rel[:,4])
 
             # neg_samples_batch = neg_sampler.query_batch(s, o, 
             #                         t, edge_type=r, split_mode='val')
@@ -157,10 +158,11 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
                     best_mrr_psi = float(mrr)
                     best_lmbda_psi = lmbda_psi
 
+
                 lmbda_mrrs.append(float(mrr))
             best_config[str(rel_key)]['lmbda_psi'] = [best_lmbda_psi, best_mrr_psi]
             best_config[str(rel_key)]['other_lmbda_mrrs'] = lmbda_mrrs
-
+            best_mrr = best_mrr_psi
             ##### 2) tune alphas: ###############
             best_config[str(rel_key)]['not_trained'] = 'False'    
             alphas = params_dict['alpha'] 
@@ -184,6 +186,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
                 if mrr_alpha > best_mrr_alpha:
                     best_mrr_alpha = float(mrr_alpha)
                     best_alpha = alpha
+                    best_mrr = best_mrr_alpha
                 alpha_mrrs.append(float(mrr_alpha))
 
             best_config[str(rel_key)]['alpha'] = [best_alpha, best_mrr_alpha]
@@ -192,7 +195,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
         end = time.time()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
-    return best_config
+    return best_config, best_mrr
 
 
 
@@ -251,8 +254,8 @@ val_data_prel = group_by(val_data, 1)
 trainval_data_prel = group_by(train_val_data, 1)
 
 #load the ns samples 
-if parsed['train_flag']:
-    dataset.load_val_ns()
+# if parsed['train_flag']:
+dataset.load_val_ns()
 dataset.load_test_ns()
 
 # parameter options
@@ -271,7 +274,7 @@ basis_dict = create_basis_dict(train_val_data)
 ## train to find best lambda and alpha
 start_train = time.time()
 if parsed['train_flag']:
-    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+    best_config, val_mrr = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
     if parsed['save_config']:
         import json
@@ -283,6 +286,14 @@ else: # use preset lmbda and alpha; same for all relations
         best_config[str(rel)] = {}
         best_config[str(rel)]['lmbda_psi'] = [parsed['lmbda']]
         best_config[str(rel)]['alpha'] = [parsed['alpha']]
+    
+    # compute validation mrr
+    print("Computing validation MRR")
+    perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel, 
+                                                 trainval_data_prel, neg_sampler, parsed['num_processes'], 
+                                                parsed['window'], split_mode='val')
+    val_mrr = float(np.mean(perf_list_all_val))
+
 
 end_train = time.time()
 start_test = time.time()
@@ -291,7 +302,8 @@ perf_list_all, hits_list_all = test(best_config,rels, test_data_prel,
                                                 parsed['window'])
 
 
-print(f"The MRR is {np.mean(perf_list_all)}")
+print(f"The test MRR is {np.mean(perf_list_all)}")
+print(f"The valid MRR is {val_mrr}")
 print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
@@ -321,6 +333,7 @@ save_results({'model': MODEL_NAME,
               'run': 1,
               'seed': SEED,
               metric: float(np.mean(perf_list_all)),
+              'val_mrr': val_mrr,
               'hits10': float(np.mean(hits_list_all)),
               'test_time': test_time_o,
               'tot_train_val_time': total_time_o
