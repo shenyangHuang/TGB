@@ -73,15 +73,13 @@ def learn_rules(i, num_relations):
 
     return rl.rules_dict
 
-def apply_rules(i, num_queries):
+def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edges, all_quads, args, split_mode):
     """
     Apply rules (multiprocessing possible).
 
     Parameters:
         i (int): process number
         num_queries (int): minimum number of queries for each process
-        pos_sample (list): positive samples
-        neg_samples (list): negative samples
 
     Returns:
         hits_list (list): hits list (hits@10 per sample)
@@ -92,37 +90,28 @@ def apply_rules(i, num_queries):
     all_candidates = [dict() for _ in range(len(args))]
     no_cands_counter = 0
 
-    num_rest_queries = len(test_data) - (i + 1) * num_queries
+    num_rest_queries = len(data) - (i + 1) * num_queries
     if num_rest_queries >= num_queries:
         test_queries_idx = range(i * num_queries, (i + 1) * num_queries)
     else:
-        test_queries_idx = range(i * num_queries, len(test_data))
+        test_queries_idx = range(i * num_queries, len(data))
 
-    cur_ts = test_data[test_queries_idx[0]][3]
+    cur_ts = data[test_queries_idx[0]][3]
     edges = ra.get_window_edges(all_quads[:,0:4], cur_ts, learn_edges, window)
-
-    sample_start = time.time()
-    # neg_samples_batch = neg_sampler.query_batch(np.array(test_data[test_queries_idx,0]), 
-    #                                             np.array(test_data[test_queries_idx,2]), 
-    #                                             np.array(test_data[test_queries_idx,4]), 
-    #                                             edge_type=np.array(test_data[test_queries_idx,1]), 
-    #                                             split_mode='test')
-    # pos_samples_batch = test_data[test_queries_idx,2]
 
     it_start = time.time()
     hits_list = [0] * num_queries #len(test_queries_idx)
     perf_list = [0] * num_queries #* len(test_queries_idx)
     for index, j in enumerate(test_queries_idx):
-        neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(test_data[j,0]), axis=0), 
-                                                np.expand_dims(np.array(test_data[j,2]), axis=0), 
-                                                np.expand_dims(np.array(test_data[j,4]), axis=0), 
-                                                np.expand_dims(np.array(test_data[j,1]), axis=0), 
-                                                split_mode='test')[0]
-        
+        neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(data[j,0]), axis=0), 
+                                                np.expand_dims(np.array(data[j,2]), axis=0), 
+                                                np.expand_dims(np.array(data[j,4]), axis=0), 
+                                                np.expand_dims(np.array(data[j,1]), axis=0), 
+                                                split_mode=split_mode)[0]        
         
         # neg_samples_batch[j]
-        pos_sample_el =  test_data[j,2]
-        test_query = test_data[j]
+        pos_sample_el =  data[j,2]
+        test_query = data[j]
         assert pos_sample_el == test_query[2]
         cands_dict = [dict() for _ in range(len(args))]
 
@@ -277,7 +266,7 @@ timestamps = reformat_ts(timestamps_orig) # stepsize:1
 
 all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
 train_data = all_quads[dataset.train_mask,0:4] # we do not need the original timestamps
-val_data = all_quads[dataset.val_mask,0:4]
+val_data = all_quads[dataset.val_mask,0:5]
 test_data = all_quads[dataset.test_mask,0:5]
 all_data = all_quads[:,0:4]
 
@@ -285,12 +274,11 @@ metric = dataset.eval_metric
 evaluator = Evaluator(name=name)
 neg_sampler = dataset.negative_sampler
 
-train_val_data = np.concatenate([train_data, val_data])
 inv_relation_id = get_inv_relation_id(num_rels)
 
 #load the ns samples 
 
-    # dataset.load_val_ns()
+dataset.load_val_ns()
 dataset.load_test_ns()
 output_dir =  f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
 learn_rules_flag = parsed['learn_rules_flag']
@@ -346,13 +334,33 @@ score_func = ra.score_12
 # It is possible to specify a list of list of arguments for tuning
 args = [[0.1, 0.5]]
 
+# compute valid mrr
+print('Computing valid MRR')
+start_valid = time.time()
+num_queries = len(val_data) // num_processes
 
+output = Parallel(n_jobs=num_processes)(
+    delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, val_data, window, learn_edges, 
+                         all_quads, args, split_mode='val') for i in range(num_processes))
+end = time.time()
+
+perf_list_val = []
+hits_list_val = []
+
+for i in range(num_processes):
+    perf_list_val.extend(output[i][0])
+    hits_list_val.extend(output[i][1])
+
+end_valid = time.time()
+
+# compute test mrr
+print('Computing test MRR')
 start = time.time()
 num_queries = len(test_data) // num_processes
 
 output = Parallel(n_jobs=num_processes)(
-    delayed(apply_rules)(i, num_queries) for i in range(num_processes)
-)
+    delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, test_data, window, learn_edges, 
+                         all_quads, args, split_mode='test') for i in range(num_processes))
 end = time.time()
 
 perf_list_all = []
@@ -363,8 +371,10 @@ for i in range(num_processes):
     hits_list_all.extend(output[i][1])
 
 total_time = round(end - start, 6)
+total_valid_time = round(end_valid - start_valid, 6)
 print("Application finished in {} seconds.".format(total_time))
 
+print(f"The valid MRR is {np.mean(perf_list_val)}")
 print(f"The MRR is {np.mean(perf_list_all)}")
 print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
@@ -396,7 +406,9 @@ save_results({'model': MODEL_NAME,
               'seed': SEED,
               metric: float(np.mean(perf_list_all)),
               'hits10': float(np.mean(hits_list_all)),
+              'val_mrr': float(np.mean(perf_list_val)),
               'test_time': test_time_o,
-              'tot_train_val_time': total_time_o
+              'tot_train_val_time': total_time_o,
+              'valid_time': total_valid_time
               }, 
     results_filename)
