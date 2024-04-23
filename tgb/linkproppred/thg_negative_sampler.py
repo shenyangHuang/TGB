@@ -14,13 +14,14 @@ import os
 import time
 
 
-class TKGNegativeEdgeSampler(object):
+class THGNegativeEdgeSampler(object):
     def __init__(
         self,
         dataset_name: str,
-        first_dst_id: int,
-        last_dst_id: int,
-        strategy: str = "time_filtered",
+        first_node_id: int,
+        last_node_id: int,
+        node_type: np.ndarray,
+        strategy: str = "node-type-filtered",
     ) -> None:
         r"""
         Negative Edge Sampler
@@ -29,8 +30,9 @@ class TKGNegativeEdgeSampler(object):
 
         Parameters:
             dataset_name: name of the dataset
-            first_dst_id: identity of the first destination node
-            last_dst_id: indentity of the last destination node
+            first_node_id: identity of the first node
+            last_node_id: indentity of the last destination node
+            node_type: the node type of each node
             strategy: will always load the pre-generated negatives
         
         Returns:
@@ -38,9 +40,11 @@ class TKGNegativeEdgeSampler(object):
         """
         self.dataset_name = dataset_name
         self.eval_set = {}
-        self.first_dst_id = first_dst_id
-        self.last_dst_id = last_dst_id
-
+        self.first_node_id = first_node_id
+        self.last_node_id = last_node_id
+        self.node_type = node_type
+        assert isinstance(self.node_type, np.ndarray), "node_type should be a numpy array"
+        
     def load_eval_set(
         self,
         fname: str,
@@ -108,28 +112,28 @@ class TKGNegativeEdgeSampler(object):
                 "pos_src, pos_dst, and pos_timestamp need to be either numpy ndarray or torch tensor!"
                 )
 
-        neg_samples = [] #[0]*len(pos_src)
-        # index =0
+        neg_samples = []
         for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
             if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
                 raise ValueError(
                     f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
                 )
             else:
-                conflict_dict = self.eval_set[split_mode]
-                conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
-                all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
-                filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-
-                #! always using all possible destinations for evaluation
-                neg_d_arr = filtered_all_dst
-
-                # #! this is very slow
+                filtered_dst = self.eval_set[split_mode]
+                neg_d_arr = filtered_dst
                 neg_samples.append(
                         neg_d_arr
                     )
-                # neg_samples[index] = neg_d_arr
-            # index += 1
+
+                # conflict_set, d_node_type = conflict_dict[(pos_t, pos_s, e_type)]
+
+                # all_dst = self.node_type_dict[d_node_type]
+                # # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
+                # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                # neg_d_arr = filtered_all_dst
+                # neg_samples.append(
+                #         neg_d_arr
+                #     )
         
         #? can't convert to numpy array due to different lengths of negative samples
         return neg_samples

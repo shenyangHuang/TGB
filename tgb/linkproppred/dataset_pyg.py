@@ -38,6 +38,11 @@ class PyGLinkPropPredDataset(Dataset):
             self._node_feat = None
         else:
             self._node_feat = torch.from_numpy(self._node_feat).float()
+        
+        self._node_type = self.dataset.node_type
+        if self.node_type is not None:
+            self._node_type = torch.from_numpy(self.dataset.node_type).long()
+        
         self.process_data()
 
         self._ns_sampler = self.dataset.negative_sampler
@@ -140,6 +145,15 @@ class PyGLinkPropPredDataset(Dataset):
             node_feat: the node features
         """
         return self._node_feat
+    
+    @property
+    def node_type(self) -> torch.Tensor:
+        r"""
+        Returns the node types of the dataset
+        Returns:
+            node_type: the node types [N]
+        """
+        return self._node_type
 
     @property
     def src(self) -> torch.Tensor:

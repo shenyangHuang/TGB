@@ -8,9 +8,44 @@ import csv
 import datetime
 from datetime import date
 
+"""
+function to process node type for thg datasets
+"""
+
+def process_node_type(
+    fname: str,
+    node_ids,
+):
+    """
+    1. process the node type into integer
+    3. return a numpy array of node types with index corresponding to node id
+    """
+    node_feat = np.zeros(len(node_ids))
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        # node_id,type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                nid = int(row[0])
+                try:
+                    node_type = int(row[1])
+                except:
+                    raise ValueError(row[1], " is not an integer thus can't be a node type for thg dataset")
+                try:
+                    node_id = node_ids[nid]
+                except:
+                    raise ValueError(nid, " is not a valid node id")
+                node_feat[node_id] = node_type
+    return node_feat
+
+
 
 """
-functions for thg datasets
+functions for thg dataset
 """
 def csv_to_thg_data(
     fname: str,
@@ -46,8 +81,8 @@ def csv_to_thg_data(
                 continue
             else:
                 ts = int(row[0]) #converted to UNIX timestamp already 
-                src = row[1]
-                dst = row[2]
+                src = int(row[1])
+                dst = int(row[2])
                 relation = int(row[3])
                 if src not in node_ids:
                     node_ids[src] = unique_id
@@ -953,7 +988,6 @@ def process_node_feat(
                     )
                     node_feat[node_id] = final
     return node_feat
-
 
 """
 functions for un trade
