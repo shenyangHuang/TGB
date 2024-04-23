@@ -127,9 +127,9 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             o = np.array(val_data_c_rel[:,2])
             t = np.array(val_data_c_rel[:,4])
 
-            neg_samples_batch = neg_sampler.query_batch(s, o, 
-                                    t, edge_type=r, split_mode='val')
-            pos_samples_batch = val_data_c_rel[:,2]
+            # neg_samples_batch = neg_sampler.query_batch(s, o, 
+            #                         t, edge_type=r, split_mode='val')
+            # pos_samples_batch = val_data_c_rel[:,2]
             # queries per process if multiple processes
 
             ######  1) tune lmbda_psi ###############        
