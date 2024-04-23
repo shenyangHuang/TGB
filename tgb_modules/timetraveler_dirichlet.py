@@ -456,7 +456,7 @@ class MLE_Dirchlet(object):
         for quad in trainQuads:
             if quad[1] not in relations_observed_data.keys():
                 relations_observed_data[quad[1]] = []
-            observed = np.zeros([self.k])
+            observed = np.zeros([self.k+1])
             occ_times = self.entity_occ_times[quad[2]]
             for time in occ_times.keys():
                 if time >= quad[3]:
