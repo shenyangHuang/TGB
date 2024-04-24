@@ -120,7 +120,7 @@ class THGNegativeEdgeSampler(object):
                 )
             else:
                 filtered_dst = self.eval_set[split_mode]
-                neg_d_arr = filtered_dst
+                neg_d_arr = filtered_dst[(pos_t, pos_s, e_type)]
                 neg_samples.append(
                         neg_d_arr
                     )

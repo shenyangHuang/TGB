@@ -1,5 +1,5 @@
-for chunk in 0; do
-num_chunk=55 
+for chunk in 1; do
+num_chunk=25
 while [ $chunk -le $num_chunk ]; do
     cmd="tkgl_wikidata.py \
     --chunk ${chunk} \
