@@ -5,7 +5,7 @@ sys.path.insert(0,'/../../../')
 
 ## imports
 
-import time
+import timeit
 import argparse
 import numpy as np
 from copy import copy
@@ -74,7 +74,7 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
     hits_list_all =[]
     ## loop through relations and apply baselines
     for rel in rels:
-        start = time.time()
+        start =  timeit.default_timer()
         if rel in test_data_prel.keys():
             lmbda_psi = best_config[str(rel)]['lmbda_psi'][0]
             alpha = best_config[str(rel)]['alpha'][0]
@@ -89,7 +89,7 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
                                                    all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
                                                    window, neg_sampler, split_mode)
 
-        end = time.time()
+        end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
 
@@ -106,7 +106,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
     best_config= {}
     best_mrr = 0
     for rel in rels: # loop through relations. for each relation, apply rules with selected params, compute valid mrr
-        start = time.time()
+        start =  timeit.default_timer()
         rel_key = int(rel)            
 
         best_config[str(rel_key)] = {}
@@ -192,7 +192,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             best_config[str(rel_key)]['alpha'] = [best_alpha, best_mrr_alpha]
             best_config[str(rel_key)]['other_alpha_mrrs'] = alpha_mrrs
 
-        end = time.time()
+        end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
     return best_config, best_mrr
@@ -213,7 +213,7 @@ def get_args():
     parsed = vars(parser.parse_args())
     return parsed
 
-start_o = time.time()
+start_o =  timeit.default_timer()
 
 parsed = get_args()
 ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
@@ -272,7 +272,7 @@ basis_dict = create_basis_dict(train_val_data)
 ## init
 # rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
-start_train = time.time()
+start_train =  timeit.default_timer()
 if parsed['train_flag']:
     best_config, val_mrr = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
@@ -295,8 +295,8 @@ else: # use preset lmbda and alpha; same for all relations
     val_mrr = float(np.mean(perf_list_all_val))
 
 
-end_train = time.time()
-start_test = time.time()
+end_train =  timeit.default_timer()
+start_test =  timeit.default_timer()
 perf_list_all, hits_list_all = test(best_config,rels, test_data_prel, 
                                                  all_data_prel, neg_sampler, parsed['num_processes'], 
                                                 parsed['window'])
@@ -308,7 +308,7 @@ print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
 
-end_o = time.time()
+end_o =  timeit.default_timer()
 train_time_o = round(end_train- start_train, 6)  
 test_time_o = round(end_o- start_test, 6)  
 total_time_o = round(end_o- start_o, 6)  

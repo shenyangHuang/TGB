@@ -5,7 +5,7 @@ sys.path.insert(0,'/../../../')
 
 ## imports
 
-import time
+import timeit
 import argparse
 import numpy as np
 from copy import copy
@@ -69,12 +69,12 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
 
 
 ## test
-def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window):         
+def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):         
     perf_list_all = []
     hits_list_all =[]
     ## loop through relations and apply baselines
     for rel in rels:
-        start = time.time()
+        start =  timeit.default_timer()
         if rel in test_data_prel.keys():
             lmbda_psi = best_config[str(rel)]['lmbda_psi'][0]
             alpha = best_config[str(rel)]['alpha'][0]
@@ -87,9 +87,9 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
 
             perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel,
                                                    all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
-                                                   window, neg_sampler, split_mode='test')
+                                                   window, neg_sampler, split_mode)
 
-        end = time.time()
+        end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
 
@@ -104,8 +104,9 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
     """ optional, find best values for lambda and alpha
     """
     best_config= {}
+    best_mrr = 0
     for rel in rels: # loop through relations. for each relation, apply rules with selected params, compute valid mrr
-        start = time.time()
+        start =  timeit.default_timer()
         rel_key = int(rel)            
 
         best_config[str(rel_key)] = {}
@@ -122,14 +123,14 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             timesteps_valid.sort()
             trainval_data_c_rel = trainval_data_prel[rel]
 
-            s = np.array(val_data_c_rel[:,0])
-            r = np.array(val_data_c_rel[:,1])
-            o = np.array(val_data_c_rel[:,2])
-            t = np.array(val_data_c_rel[:,4])
+            # s = np.array(val_data_c_rel[:,0])
+            # r = np.array(val_data_c_rel[:,1])
+            # o = np.array(val_data_c_rel[:,2])
+            # t = np.array(val_data_c_rel[:,4])
 
-            neg_samples_batch = neg_sampler.query_batch(s, o, 
-                                    t, edge_type=r, split_mode='val')
-            pos_samples_batch = val_data_c_rel[:,2]
+            # neg_samples_batch = neg_sampler.query_batch(s, o, 
+            #                         t, edge_type=r, split_mode='val')
+            # pos_samples_batch = val_data_c_rel[:,2]
             # queries per process if multiple processes
 
             ######  1) tune lmbda_psi ###############        
@@ -157,10 +158,11 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
                     best_mrr_psi = float(mrr)
                     best_lmbda_psi = lmbda_psi
 
+
                 lmbda_mrrs.append(float(mrr))
             best_config[str(rel_key)]['lmbda_psi'] = [best_lmbda_psi, best_mrr_psi]
             best_config[str(rel_key)]['other_lmbda_mrrs'] = lmbda_mrrs
-
+            best_mrr = best_mrr_psi
             ##### 2) tune alphas: ###############
             best_config[str(rel_key)]['not_trained'] = 'False'    
             alphas = params_dict['alpha'] 
@@ -184,22 +186,23 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
                 if mrr_alpha > best_mrr_alpha:
                     best_mrr_alpha = float(mrr_alpha)
                     best_alpha = alpha
+                    best_mrr = best_mrr_alpha
                 alpha_mrrs.append(float(mrr_alpha))
 
             best_config[str(rel_key)]['alpha'] = [best_alpha, best_mrr_alpha]
             best_config[str(rel_key)]['other_alpha_mrrs'] = alpha_mrrs
 
-        end = time.time()
+        end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
-    return best_config
+    return best_config, best_mrr
 
 
 
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="thgl-myket", type=str) 
+    parser.add_argument("--dataset", "-d", default="tkgl-myket", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
@@ -210,7 +213,7 @@ def get_args():
     parsed = vars(parser.parse_args())
     return parsed
 
-start_o = time.time()
+start_o =  timeit.default_timer()
 
 parsed = get_args()
 ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
@@ -251,8 +254,8 @@ val_data_prel = group_by(val_data, 1)
 trainval_data_prel = group_by(train_val_data, 1)
 
 #load the ns samples 
-if parsed['train_flag']:
-    dataset.load_val_ns()
+# if parsed['train_flag']:
+dataset.load_val_ns()
 dataset.load_test_ns()
 
 # parameter options
@@ -269,9 +272,9 @@ basis_dict = create_basis_dict(train_val_data)
 ## init
 # rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
-start_train = time.time()
+start_train =  timeit.default_timer()
 if parsed['train_flag']:
-    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+    best_config, val_mrr = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
     if parsed['save_config']:
         import json
@@ -283,20 +286,29 @@ else: # use preset lmbda and alpha; same for all relations
         best_config[str(rel)] = {}
         best_config[str(rel)]['lmbda_psi'] = [parsed['lmbda']]
         best_config[str(rel)]['alpha'] = [parsed['alpha']]
+    
+    # compute validation mrr
+    print("Computing validation MRR")
+    perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel, 
+                                                 trainval_data_prel, neg_sampler, parsed['num_processes'], 
+                                                parsed['window'], split_mode='val')
+    val_mrr = float(np.mean(perf_list_all_val))
 
-end_train = time.time()
-start_test = time.time()
+
+end_train =  timeit.default_timer()
+start_test =  timeit.default_timer()
 perf_list_all, hits_list_all = test(best_config,rels, test_data_prel, 
                                                  all_data_prel, neg_sampler, parsed['num_processes'], 
                                                 parsed['window'])
 
 
-print(f"The MRR is {np.mean(perf_list_all)}")
+print(f"The test MRR is {np.mean(perf_list_all)}")
+print(f"The valid MRR is {val_mrr}")
 print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
 
-end_o = time.time()
+end_o =  timeit.default_timer()
 train_time_o = round(end_train- start_train, 6)  
 test_time_o = round(end_o- start_test, 6)  
 total_time_o = round(end_o- start_o, 6)  
@@ -321,6 +333,7 @@ save_results({'model': MODEL_NAME,
               'run': 1,
               'seed': SEED,
               metric: float(np.mean(perf_list_all)),
+              'val_mrr': val_mrr,
               'hits10': float(np.mean(hits_list_all)),
               'test_time': test_time_o,
               'tot_train_val_time': total_time_o
