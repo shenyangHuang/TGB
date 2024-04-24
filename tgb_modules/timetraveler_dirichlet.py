@@ -464,16 +464,16 @@ class MLE_Dirchlet(object):
                 observed[(quad[3] - time) // self.timespan] = occ_times[time]
             relations_observed_data[quad[1]].append(observed)
 
-            reversed_r = quad[1] + 1 + self.num_r
-            if reversed_r not in relations_observed_data.keys():
-                relations_observed_data[reversed_r] = []
-            reversed_r_observed = np.zeros([self.k])
-            occ_times = self.entity_occ_times[quad[0]]
-            for time in occ_times.keys():
-                if time >= quad[3]:
-                    continue
-                reversed_r_observed[(quad[3] - time) // self.timespan] = occ_times[time]
-            relations_observed_data[reversed_r].append(reversed_r_observed)
+            # reversed_r = quad[1] + 1 + self.num_r
+            # if reversed_r not in relations_observed_data.keys():
+            #     relations_observed_data[reversed_r] = []
+            # reversed_r_observed = np.zeros([self.k+1])
+            # occ_times = self.entity_occ_times[quad[0]]
+            # for time in occ_times.keys():
+            #     if time >= quad[3]:
+            #         continue
+            #     reversed_r_observed[(quad[3] - time) // self.timespan] = occ_times[time]
+            # relations_observed_data[reversed_r].append(reversed_r_observed)
         return relations_observed_data
 
     def mle_dirchlet(self):
