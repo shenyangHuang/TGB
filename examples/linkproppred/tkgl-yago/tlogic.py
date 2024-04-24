@@ -8,7 +8,7 @@ Yushan Liu, Yunpu Ma, Marcel Hildebrandt, Mitchell Joblin, Volker Tresp
 import sys
 sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 sys.path.insert(0,'/../../../')
-import time
+import timeit
 import argparse
 import numpy as np
 import json
@@ -51,12 +51,12 @@ def learn_rules(i, num_relations):
     for k in relations_idx:
         rel = all_relations[k]
         for length in rule_lengths:
-            it_start = time.time()
+            it_start =  timeit.default_timer()
             for _ in range(num_walks):
                 walk_successful, walk = temporal_walk.sample_walk(length + 1, rel)
                 if walk_successful:
                     rl.create_rule(walk)
-            it_end = time.time()
+            it_end =  timeit.default_timer()
             it_time = round(it_end - it_start, 6)
             num_rules.append(sum([len(v) for k, v in rl.rules_dict.items()]) // 2)
             num_new_rules = num_rules[-1] - num_rules[-2]
@@ -99,7 +99,7 @@ def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edg
     cur_ts = data[test_queries_idx[0]][3]
     edges = ra.get_window_edges(all_quads[:,0:4], cur_ts, learn_edges, window)
 
-    it_start = time.time()
+    it_start =  timeit.default_timer()
     hits_list = [0] * num_queries #len(test_queries_idx)
     perf_list = [0] * num_queries #* len(test_queries_idx)
     for index, j in enumerate(test_queries_idx):
@@ -187,14 +187,14 @@ def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edg
                 all_candidates[s][j] = dict()
 
         if not (j - test_queries_idx[0] + 1) % 100:
-            it_end = time.time()
+            it_end =  timeit.default_timer()
             it_time = round(it_end - it_start, 6)
             print(
                 "Process {0}: test samples finished: {1}/{2}, {3} sec".format(
                     i, j - test_queries_idx[0] + 1, len(test_queries_idx), it_time
                 )
             )
-            it_start = time.time()
+            it_start =  timeit.default_timer()
 
         predictions = create_scores_array(all_candidates[s][j], num_nodes)  
         predictions_of_interest_pos = np.array(predictions[pos_sample_el])
@@ -233,7 +233,7 @@ def get_args():
     parsed = vars(parser.parse_args())
     return parsed
 
-start_o = time.time()
+start_o =  timeit.default_timer()
 
 ## get args
 parsed = get_args()
@@ -283,7 +283,7 @@ dataset.load_test_ns()
 output_dir =  f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
 learn_rules_flag = parsed['learn_rules_flag']
 ## 1. learn rules
-start_train = time.time()
+start_train =  timeit.default_timer()
 if learn_rules_flag:
     print("start learning rules")
     # edges (dict): edges for each relation
@@ -294,12 +294,12 @@ if learn_rules_flag:
                         output_dir=output_dir)
     all_relations = sorted(temporal_walk.edges)  # Learn for all relations
 
-    start = time.time()
+    start =  timeit.default_timer()
     num_relations = len(all_relations) // num_processes
     output = Parallel(n_jobs=num_processes)(
         delayed(learn_rules)(i, num_relations) for i in range(num_processes)
     )
-    end = time.time()
+    end =  timeit.default_timer()
 
     all_rules = output[0]
     for i in range(1, num_processes):
@@ -318,10 +318,10 @@ else:
     rule_filename = parsed['rule_filename']
     print("Loading rules from file {}".format(parsed['rule_filename']))
 
-end_train = time.time()
+end_train =  timeit.default_timer()
 
 ## 2. Apply rules
-start_test = time.time()
+start_test =  timeit.default_timer()
 rules_dict = json.load(open(output_dir + rule_filename))
 rules_dict = {int(k): v for k, v in rules_dict.items()}
 
@@ -336,13 +336,13 @@ args = [[0.1, 0.5]]
 
 # compute valid mrr
 print('Computing valid MRR')
-start_valid = time.time()
+start_valid =  timeit.default_timer()
 num_queries = len(val_data) // num_processes
 
 output = Parallel(n_jobs=num_processes)(
     delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, val_data, window, learn_edges, 
                          all_quads, args, split_mode='val') for i in range(num_processes))
-end = time.time()
+end =  timeit.default_timer()
 
 perf_list_val = []
 hits_list_val = []
@@ -351,17 +351,17 @@ for i in range(num_processes):
     perf_list_val.extend(output[i][0])
     hits_list_val.extend(output[i][1])
 
-end_valid = time.time()
+end_valid =  timeit.default_timer()
 
 # compute test mrr
 print('Computing test MRR')
-start = time.time()
+start =  timeit.default_timer()
 num_queries = len(test_data) // num_processes
 
 output = Parallel(n_jobs=num_processes)(
     delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, test_data, window, learn_edges, 
                          all_quads, args, split_mode='test') for i in range(num_processes))
-end = time.time()
+end =  timeit.default_timer()
 
 perf_list_all = []
 hits_list_all = []
@@ -380,7 +380,7 @@ print(f"The Hits@10 is {np.mean(hits_list_all)}")
 print(f"We have {len(perf_list_all)} predictions")
 print(f"The test set has len {len(test_data)} ")
 
-end_o = time.time()
+end_o =  timeit.default_timer()
 train_time_o = round(end_train- start_train, 6)  
 test_time_o = round(end_o- start_test, 6)  
 total_time_o = round(end_o- start_o, 6)  
