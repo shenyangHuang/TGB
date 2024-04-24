@@ -201,7 +201,7 @@ def get_args_timetraveler(args=None):
     parser.add_argument('--time_span', default=1, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
     parser.add_argument('--alphas_pkl', default='dirchlet_alphas.pkl', type=str,
                         help='the file storing the alpha parameters of the Dirichlet distribution.')
-    parser.add_argument('--k', default=300, type=int, help='statistics recent K historical snapshots.')
+    parser.add_argument('--k', default=12000, type=int, help='statistics recent K historical snapshots.')
     # configuration for preprocessor 
     parser.add_argument('--store_actions_num', default=0, type=int,
                         help='maximum number of stored neighbors, 0 means store all.')
@@ -589,6 +589,18 @@ def reformat_ts(timestamps):
     timestamps2 = timestamps - ts_min
     ts_new = np.ceil(timestamps2/ts_dist).astype(int)
 
+    return np.array(ts_new)
+
+def get_original_ts(reformatted_ts, ts_dist, min_ts):
+    """ get original timestamps from reformatted timestamps
+    :param reformatted_ts: np.array() with reformatted timestamps
+    returns: np.array(ts_new)
+    """
+    reformatted_ts = list(set(reformatted_ts))
+    reformatted_ts.sort()
+    ts_new = []
+    for ts in reformatted_ts:
+        ts_new.append((ts * ts_dist)+min_ts)
     return np.array(ts_new)
 
 ## preprocess: define rules
