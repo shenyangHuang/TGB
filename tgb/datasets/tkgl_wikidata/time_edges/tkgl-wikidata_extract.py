@@ -13,6 +13,7 @@ def load_time_csv_raw(fname):
     num_lines = 0
     #? timestamp,head,tail,relation_type,time_rel_type
     #* +1999-01-01T00:00:00Z,Q31,Q4916,P38,P580
+    error_ctr = 0
     with open(fname, 'r') as f:
         reader = csv.reader(f, delimiter =',')
 
@@ -20,7 +21,7 @@ def load_time_csv_raw(fname):
             if first_row:
                 first_row = False
                 continue
-            date = row[0][1:10]
+            date = row[0][0:11]
             head = row[1]
             tail = row[2]
             relation_type = row[3]
@@ -32,10 +33,17 @@ def load_time_csv_raw(fname):
             if ("None" in date or "None" in head or "None" in tail or "None" in relation_type):
                 continue
             else:
-                 #! remove redundant edges with same timestamps
-                TIME_FORMAT = "%Y-%m-%d" #2018-01-01
-                date_cur = datetime.datetime.strptime(date, TIME_FORMAT)
-                ts = int(date_cur.timestamp())
+                TIME_FORMAT = "%Y"
+                #* only keep track of year in positive BC
+                if (date[0] == "+"):
+                    ts = int(date[1:5])
+                else:
+                    continue
+
+                #* no scifi for knowledge graphs 
+                if (ts > 2024):
+                    continue
+
                 num_lines += 1
                 if (ts in out_dict):
                     if (head, tail, relation_type, time_rel) in out_dict[ts]:
@@ -55,7 +63,7 @@ def write2csv(outname: str,
     """
     with open(outname, 'w') as f:
         writer = csv.writer(f, delimiter =',')
-        writer.writerow(['date', 'head', 'tail', 'relation_type','time_rel_type'])
+        writer.writerow(['ts', 'head', 'tail', 'relation_type','time_rel_type'])
         dates = list(out_dict.keys())
         dates.sort()
         for date in dates:
@@ -68,8 +76,27 @@ def write2csv(outname: str,
                 writer.writerow(row)
 
 
+def update_dict(total_dict, new_dict):
+    r"""
+    Update the total_dict with new_dict
+    """
+    for key in new_dict:
+        if key in total_dict:
+            for edge in new_dict[key]:
+                if edge in total_dict[key]:
+                    total_dict[key][edge] += new_dict[key][edge]
+                else:
+                    total_dict[key][edge] = new_dict[key][edge]
+        else:
+            total_dict[key] = new_dict[key]
+    return total_dict
+
+
+
 
 def main():
+
+    #! when timestamps overlap can't update dictionary
 
     total_lines = 0
     total_edge_dict = {}
@@ -79,6 +106,13 @@ def main():
     for file in glob.glob("*.csv"):
         print (file)
         edge_dict, num_lines = load_time_csv_raw(file)
+        print ("processed ", num_lines, " lines")
         total_lines += num_lines
-        total_edge_dict.update(edge_dict)
-    edge_type_dict, node_dict = write2csv(total_edge_file, total_edge_dict)
+        update_dict(total_edge_dict, edge_dict)
+    print ("processed a total of ", total_lines, " lines")
+    write2csv(total_edge_file, total_edge_dict)
+
+
+
+if __name__ == "__main__":
+    main()
