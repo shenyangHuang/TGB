@@ -6,7 +6,6 @@ Haohai Sun, Jialun Zhong, Yunpu Ma, Zhen Han, Kun He.
 TimeTraveler: Reinforcement Learning for Temporal Knowledge Graph Forecasting EMNLP 2021
 """
 import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 import timeit
 
 import torch
@@ -20,6 +19,8 @@ import os.path as osp
 from pathlib import Path
 import os
 
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb_modules.timetraveler_agent import Agent
 from tgb_modules.timetraveler_environment import Env
 from tgb_modules.timetraveler_dirichlet import Dirichlet, MLE_Dirchlet
@@ -205,7 +206,7 @@ def main(args):
     optimizer = torch.optim.Adam(episode.parameters(), lr=args.lr, weight_decay=0.00001)
 
     ######################Reward Shaping: MLE DIRICHLET alphas###########################
-    if args.reward_shaping: #TODO
+    if args.reward_shaping: 
         try:
             print("load alphas from pickle file")
             alphas = pickle.load(open(os.path.join(save_path, args.alphas_pkl), 'rb'))
@@ -214,7 +215,7 @@ def main(args):
             mle_d = MLE_Dirchlet(all_quads, num_rels, args.k, args.time_span,
                          args.tol, args.method, args.maxiter)
             pickle.dump(mle_d.alphas, open(os.path.join(save_path, args.alphas_pkl), 'wb'))
-            
+
             print('dumped alphas')
             alphas = mle_d.alphas
         distributions = Dirichlet(alphas, args.k)

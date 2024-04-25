@@ -6,7 +6,6 @@ Haohai Sun, Jialun Zhong, Yunpu Ma, Zhen Han, Kun He.
 TimeTraveler: Reinforcement Learning for Temporal Knowledge Graph Forecasting EMNLP 2021
 """
 import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 import timeit
 
 import torch
@@ -20,6 +19,8 @@ import os.path as osp
 from pathlib import Path
 import os
 
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb_modules.timetraveler_agent import Agent
 from tgb_modules.timetraveler_environment import Env
 from tgb_modules.timetraveler_dirichlet import Dirichlet, MLE_Dirchlet

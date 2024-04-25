@@ -5,11 +5,7 @@ Reference:
 Zixuan Li, Saiping Guan, Xiaolong Jin, Weihua Peng, Yajuan Lyu , Yong Zhu, Long Bai, Wei Li, Jiafeng Guo, Xueqi Cheng. 
 Complex Evolutional Pattern Learning for Temporal Knowledge Graph Reasoning. ACL 2022.
 """
-import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
-
 import timeit
-import argparse
 import os
 import sys
 import os.path as osp
@@ -19,18 +15,12 @@ import torch
 import random
 from tqdm import tqdm
 # internal imports
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb_modules.rrgcn import RecurrentRGCNCEN
 from tgb.utils.utils import set_random_seed, get_args_cen, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-
-
-# from src.hyperparameter_range import hp_range
-# os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
-
-#TODOs:
-# hyperparameter selsection
 
 def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode, split_mode):
     """

@@ -6,9 +6,7 @@ Zixuan Li, Xiaolong Jin, Wei Li, Saiping Guan, Jiafeng Guo, Huawei Shen, Yuanzhu
 Knowledge Graph Reasoning Based on Evolutional Representation Learning. SIGIR 2021.
 """
 import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
 import timeit
-import argparse
 import os
 import sys
 import os.path as osp
@@ -18,16 +16,13 @@ import torch
 import random
 from tqdm import tqdm
 # internal imports
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb_modules.rrgcn import RecurrentRGCNREGCN
 from tgb.utils.utils import set_random_seed, get_args_regcn, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 
-
-#TODOs:
-# check how the model is different: do I need a whole new class or can I just use the cen one?
-# check how the predict method is different: do I need a whole new class/method or can I just use the cen one with slight modifications
-# hyperparameter selsection
 
 def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, static_graph, mode, split_mode):
     """
