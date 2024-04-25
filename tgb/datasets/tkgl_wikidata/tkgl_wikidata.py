@@ -1,7 +1,7 @@
 r"""
 How to use
-python tkgl_wikidata.py --chunk 0 --num_chunks 55
-python tkgl_wikidata.py --chunk 1 --num_chunks 55
+python tkgl_wikidata.py --chunk 0 --num_chunks 25
+# python tkgl_wikidata.py --chunk 1 --num_chunks 55
 """
 
 from qwikidata.entity import WikidataItem
@@ -74,16 +74,8 @@ def main():
     wjd = WikidataJsonDump(wjd_dump_path)
 
     print(wjd_dump_path)
-    num_totals = 110000000
 
-    #! should break down to chunks of 2000000
-    tmp = np.linspace(0, num_totals, args.num_chunks + 1).astype(np.int64)
-    start_idx = tmp[args.chunk]
-    end_idx = tmp[args.chunk + 1]
-    # start_idx = 0
-    # end_idx = 2000000 #10000000 #10000000 #1000
-    print('Start: ', start_idx)
-    print('End: ', end_idx)
+    
 
     """
     # head = entity_dict['id']
@@ -105,10 +97,22 @@ def main():
     dummy_rel_set = ['P31','P279']  #filter out instance of and subclass of
     time_rel_set = ['P585','P580', 'P582', 'P577', 'P574']  #point in time, start time, end time, publication date,year of publication of scientific name for taxon
 
+    num_totals = 100000000 #4000000 #10000000 #110000000
+
+    # start_idx = 0
+    # end_idx = num_totals
+    # print('Start: ', start_idx)
+    # print('End: ', end_idx)
+
+    tmp = np.linspace(0, num_totals, args.num_chunks + 1).astype(np.int64)
+    start_idx = tmp[args.chunk]
+    end_idx = tmp[args.chunk + 1]
+    print('Start: ', start_idx)
+    print('End: ', end_idx)
+
 
     #? output format is (timestamp, head, tail, relation_type, time_rel_type)
-
-    for i, entity_dict in enumerate(tqdm(wjd, total=(end_idx-start_idx))):
+    for i, entity_dict in enumerate(tqdm(wjd, total=(end_idx))):
         #! entity_dict keys(['type', 'id', 'labels', 'descriptions', 'aliases', 'claims', 'sitelinks', 'pageid', 'ns', 'title', 'lastrevid', 'modified'])
         if i > end_idx:
             break
