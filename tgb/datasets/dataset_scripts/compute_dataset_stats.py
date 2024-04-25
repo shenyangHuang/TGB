@@ -1,24 +1,22 @@
 import numpy as np
 
 import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
-sys.path.insert(0,'/../../../')
-
+import os
+import os.path as osp
+from pathlib import Path
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 ## imports
 
 
 import numpy as np
+import seasonal
 
-import os
-import os.path as osp
-from pathlib import Path
 import pandas as pd
 from datetime import datetime
 #internal imports 
-from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
-from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import set_random_seed, create_basis_dict, group_by, reformat_ts, get_original_ts
+from tgb.utils.utils import  reformat_ts, get_original_ts
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -215,7 +213,7 @@ def extract_timeseries_from_graphs(self, graph_dict):
 
     return [num_triples, num_nodes, max_deg, mean_deg, mean_deg_c, max_deg_c, min_deg_c, density]
 
-def estimate_seasons(self, train_data):
+def estimate_seasons(train_data):
     """ Estimate seasonal effects in a series.
             
     Estimate the major period of the data by testing seasonal differences for various period lengths and returning 
@@ -242,9 +240,11 @@ def estimate_seasons(self, train_data):
 # create a dictionary with all the stats and save to json and csv
 def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num_val_quads, num_test_quads, num_all_quads,
                          num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_timesteps,
+                         test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
-                         mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts):
+                         mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
+                         seasonal_value):
     stats_dict = {
         "dataset_name": dataset_name,
         "num_rels": num_rels,
@@ -253,6 +253,10 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
         "num_val_quads": num_val_quads,
         "num_test_quads": num_test_quads,
         "num_all_quads": num_all_quads,
+        "test_ind_nodes": test_ind_nodes,
+        "test_ind_nodes_perc": test_ind_nodes_perc,
+        "val_ind_nodes": val_ind_nodes,
+        "val_ind_nodes_perc": val_ind_nodes_perc,
         "num_train_timesteps": num_train_timesteps,
         "num_val_timesteps": num_val_timesteps,
         "num_test_timesteps": num_test_timesteps,
@@ -267,7 +271,8 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
         "mean_node_per_ts": mean_node_per_ts,
         "std_node_per_ts": std_node_per_ts,
         "min_node_per_ts": min_node_per_ts,
-        "max_node_per_ts": max_node_per_ts
+        "max_node_per_ts": max_node_per_ts,
+        "seasonal_value": seasonal_value
         # "train_nodes": train_nodes
     }
 
@@ -287,7 +292,20 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
 
     print("Stats saved to csv and json in folder: ", save_path)
 
-names = ['tkgl-myket'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
+def num_nodes_not_in_train(train_data, test_data):
+    """ Calculate the number of nodes in the test set that are not in the train set.
+    :param train_data: np.array, training data
+    :param test_data: np.array, test data
+    :return: int, number of nodes in the test set that are not in the train set
+    """
+    train_nodes = np.unique(train_data[:,0]) + np.unique(train_data[:,2])
+    test_nodes = np.unique(test_data[:,0]) + np.unique(test_data[:,2])
+    num_nodes_not_in_train = len(np.setdiff1d(test_nodes, train_nodes))
+    return num_nodes_not_in_train
+
+
+
+names = ['tkgl-wiki'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -313,6 +331,12 @@ for dataset_name in names:
     num_val_quads = val_data.shape[0]
     num_test_quads = test_data.shape[0]
     num_all_quads = num_train_quads + num_val_quads + num_test_quads
+
+    # compute inductive nodes
+    test_ind_nodes = num_nodes_not_in_train(train_data, test_data)
+    val_ind_nodes = num_nodes_not_in_train(train_data, val_data)
+    test_ind_nodes_perc = test_ind_nodes/num_nodes
+    val_ind_nodes_perc = val_ind_nodes/num_nodes
 
     # compute number of timesteps in train/val/test set
     num_train_timesteps = len(np.unique(train_data[:,-1]))
@@ -389,15 +413,20 @@ for dataset_name in names:
     no_nodes_list_orig = []
     no_nodes_datetime = []
     for t in ts_all.t_2_triple.keys():
-        num_nodes = len(ts_all.unique_nodes(ts_all.t_2_triple[t]))
-        n_nodes_list.append(num_nodes)
+        num_nodes_ts = len(ts_all.unique_nodes(ts_all.t_2_triple[t]))
+        n_nodes_list.append(num_nodes_ts)
         n_edges_list.append(len(ts_all.t_2_triple[t]))
-        if num_nodes == 0:
+        if num_nodes_ts == 0:
             if t not in no_nodes_list:
                 no_nodes_list.append(t)
                 no_nodes_list_orig.append(all_possible_orig_timestamps[t])
                 no_nodes_datetime.append(datetime.utcfromtimestamp(all_possible_orig_timestamps[t]))
-
+    # compute seasonality of num nodes over time: 
+    seasonal_value = estimate_seasons(n_nodes_list)
+    if seasonal_value == 1:
+        print('there was no seasonality for number of nodes found')
+    else:
+        print(f'the seasonality for number of nodes is {seasonal_value}')
     print('0 nodes for timesteps: ', no_nodes_list)
     print('this is original unix timestamps: ', no_nodes_list_orig)
     print('this is datetime: ', no_nodes_datetime)
@@ -436,6 +465,8 @@ for dataset_name in names:
 
     create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
                          num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
+                         test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
-                         np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list))
+                         np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
+                         seasonal_value)

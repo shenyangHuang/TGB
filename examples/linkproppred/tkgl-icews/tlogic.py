@@ -6,16 +6,17 @@ Yushan Liu, Yunpu Ma, Marcel Hildebrandt, Mitchell Joblin, Volker Tresp
 
 # imports
 import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
-sys.path.insert(0,'/../../../')
+import os
+import os.path as osp
+from pathlib import Path
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 import timeit
 import argparse
 import numpy as np
 import json
 from joblib import Parallel, delayed
-import os
-import os.path as osp
-from pathlib import Path
+
 
 import itertools
 
