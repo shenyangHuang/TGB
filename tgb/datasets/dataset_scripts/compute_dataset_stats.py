@@ -305,7 +305,7 @@ def num_nodes_not_in_train(train_data, test_data):
 
 
 
-names = ['tkgl-wiki'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
+names = ['tkgl-icews', 'thgl-myket'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 

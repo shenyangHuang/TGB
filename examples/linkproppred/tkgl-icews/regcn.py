@@ -253,8 +253,6 @@ start_overall = timeit.default_timer()
 # set hyperparameters
 args, _ = get_args_regcn()
 args.dataset = 'tkgl-icews'
-args.n_epochs = 1
-args.test = True
 SEED = args.seed  # set the random seed for consistency
 set_random_seed(SEED)
 
