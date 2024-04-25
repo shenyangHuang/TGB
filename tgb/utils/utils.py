@@ -403,7 +403,7 @@ def get_args_regcn():
                         help="number of weight blocks for each relation")
     parser.add_argument("--n-basis", type=int, default=100,
                         help="number of basis vector for compgcn")
-    parser.add_argument("--n-layers", type=int, default=1,
+    parser.add_argument("--n-layers", type=int, default=2,
                         help="number of propagation rounds")
     parser.add_argument("--self-loop", action='store_true', default=True,
                         help="perform layer normalization in every layer of gcn ")
@@ -439,9 +439,9 @@ def get_args_regcn():
                         help="feat dropout for decoder")
 
     # configuration for sequences stat
-    parser.add_argument("--train-history-len", type=int, default=1,
+    parser.add_argument("--train-history-len", type=int, default=3,
                         help="history length")
-    parser.add_argument("--test-history-len", type=int, default=1,
+    parser.add_argument("--test-history-len", type=int, default=3,
                         help="history length for test")
     parser.add_argument("--dilate-len", type=int, default=1,
                         help="dilate history graph")
