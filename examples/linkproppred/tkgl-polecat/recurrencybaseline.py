@@ -1,22 +1,17 @@
-
-import sys
-sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
-sys.path.insert(0,'/../../../')
-
 ## imports
-
 import timeit
 import argparse
 import numpy as np
 from copy import copy
+from pathlib import Path
+import ray
+import sys
 import os
 import os.path as osp
-from pathlib import Path
-
-import ray
-
 
 #internal imports 
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
