@@ -23,7 +23,7 @@ def load_csv_raw(fname):
             head = row[0]
             tail = row[1]
             relation_type = row[2]
-
+            num_lines += 1
             if ( "None" in head or "None" in tail or "None" in relation_type):
                 continue
             else:
@@ -83,7 +83,6 @@ def main():
     for file in glob.glob("*.csv"):
         print (file)
         edge_dict, num_lines = load_csv_raw(file)
-        print ("processed ", num_lines, " lines")
         total_lines += num_lines
         update_dict(total_edge_dict, edge_dict)
     print ("processed a total of ", total_lines, " lines")
