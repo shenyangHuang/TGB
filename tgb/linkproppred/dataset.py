@@ -276,6 +276,10 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict["fname"])
             elif self.name == "tgbl-wiki":
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
+            elif self.name == "tgbl-subreddit":
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
+            elif self.name == "tgbl-lastfm":
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
             elif self.name == "tkgl-polecat":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-icews":

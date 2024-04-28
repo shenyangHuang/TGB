@@ -24,6 +24,8 @@ class BColors:
 
 DATA_URL_DICT = {
     "tgbl-wiki":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki.zip", #v1
+    "tgbl-subreddit":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-subreddit.zip",
+    "tgbl-lastfm":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-lastfm.zip",
     "tgbl-review": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-review.zip", #v1
     "tgbl-coin": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-coin-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-coin.zip",
     "tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight-v2.zip", #"tgbl-flight": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-flight_edgelist_v2_ts.zip",
@@ -43,6 +45,8 @@ DATA_URL_DICT = {
 
 DATA_VERSION_DICT = {
     "tgbl-wiki": 2,  
+    "tgbl-subreddit": 1,
+    "tgbl-lastfm": 1,
     "tgbl-review": 2,
     "tgbl-coin": 2,
     "tgbl-comment": 1,
@@ -61,6 +65,8 @@ DATA_VERSION_DICT = {
 
 DATA_EVAL_METRIC_DICT = {
     "tgbl-wiki": "mrr",
+    "tgbl-subreddit": "mrr",
+    "tgbl-lastfm": "mrr",
     "tgbl-review": "mrr",
     "tgbl-coin": "mrr",
     "tgbl-comment": "mrr",
