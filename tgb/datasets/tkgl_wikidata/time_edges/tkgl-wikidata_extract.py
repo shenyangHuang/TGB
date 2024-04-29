@@ -92,6 +92,40 @@ def update_dict(total_dict, new_dict):
     return total_dict
 
 
+def retrieve_all_entities(total_dict):
+    r"""
+    retrieve the entities from all edges of the total dictionary
+
+    Parameters:
+        total_dict: dictionary of all edges, {ts: {edge: count}}
+    """
+    node_dict = {}
+    for key in total_dict:
+        for edge in total_dict[key]:
+            head = edge[0]
+            tail = edge[1]
+            if head not in node_dict:
+                node_dict[head] = 1
+            else:
+                node_dict[head] += 1
+            if tail not in node_dict:
+                node_dict[tail] = 1
+            else:
+                node_dict[tail] += 1
+    return node_dict
+
+
+def writenode2csv(outname: str, 
+              out_dict: dict,):
+    r"""
+    Write the dictionary to a csv file
+    """
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['entity', 'occurrences'])
+        for node in out_dict:
+            row = [node, out_dict[node]]
+            writer.writerow(row) 
 
 
 def main():
@@ -110,6 +144,8 @@ def main():
         total_lines += num_lines
         update_dict(total_edge_dict, edge_dict)
     print ("processed a total of ", total_lines, " lines")
+    node_dict = retrieve_all_entities(total_edge_dict)
+    writenode2csv("wiki_entities.csv", node_dict)
     write2csv(total_edge_file, total_edge_dict)
 
 

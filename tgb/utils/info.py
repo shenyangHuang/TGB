@@ -82,6 +82,21 @@ DATA_EVAL_METRIC_DICT = {
     "tgbn-token": "ndcg",
 }
 
+DATA_NS_STRATEGY_DICT = {
+    "tgbl-wiki": "hist_rnd",
+    "tgbl-subreddit": "hist_rnd",
+    "tgbl-lastfm": "hist_rnd",
+    "tgbl-review": "hist_rnd",
+    "tgbl-coin": "hist_rnd",
+    "tgbl-comment": "hist_rnd",
+    "tgbl-flight": "hist_rnd",
+    "tkgl-polecat": "time-filtered",
+    "tkgl-yago": "time-filtered",
+    "tkgl-wikidata": "dst-time-filtered",
+    "tkgl-icews": "time-filtered",
+    "thgl-myket": "node-type-filtered",
+}
+
 
 DATA_NUM_CLASSES = {
     "tgbn-trade": 255,
