@@ -1,7 +1,7 @@
 r"""
 How to use
 python tkgl_wikidata.py --chunk 0 --num_chunks 25
-# python tkgl_wikidata.py --chunk 1 --num_chunks 55
+# python tkgl_wikidata.py --chunk 1 --num_chunks 25
 """
 
 from qwikidata.entity import WikidataItem
@@ -98,11 +98,6 @@ def main():
     time_rel_set = ['P585','P580', 'P582', 'P577', 'P574']  #point in time, start time, end time, publication date,year of publication of scientific name for taxon
 
     num_totals = 100000000 #4000000 #10000000 #110000000
-
-    # start_idx = 0
-    # end_idx = num_totals
-    # print('Start: ', start_idx)
-    # print('End: ', end_idx)
 
     tmp = np.linspace(0, num_totals, args.num_chunks + 1).astype(np.int64)
     start_idx = tmp[args.chunk]
