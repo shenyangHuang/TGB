@@ -84,6 +84,9 @@ class LinkPropPredDataset(object):
 
         if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
+
+        if name == "tkgl-wikidata":
+            self.meta_dict["staticfile"] = self.root + "/" + "_static_edgelist.csv"
         
         if "thg" in name:
             self.meta_dict["nodeTypeFile"] = self.root + "/" + self.name + "_nodetype.csv"
@@ -107,6 +110,9 @@ class LinkPropPredDataset(object):
 
         # for tkg and thg
         self._edge_type = None
+
+        #tkgl-wikidata only
+        self._static_data = None
 
         # for thg only
         self._node_type = None
