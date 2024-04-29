@@ -19,6 +19,7 @@ from tgb.utils.info import (
     DATA_URL_DICT, 
     DATA_VERSION_DICT, 
     DATA_EVAL_METRIC_DICT, 
+    DATA_NS_STRATEGY_DICT,
     BColors
 )
 from tgb.utils.pre_process import (
@@ -30,6 +31,7 @@ from tgb.utils.pre_process import (
     load_edgelist_wiki,
     csv_to_tkg_data,
     csv_to_thg_data,
+    csv_to_wikidata,
 )
 from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.utils import add_inverse_quadruples
@@ -85,6 +87,9 @@ class LinkPropPredDataset(object):
 
         if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
+
+        if name == "tkgl-wikidata":
+            self.meta_dict["staticfile"] = self.root + "/" + "_static_edgelist.csv"
         
         if "thg" in name:
             self.meta_dict["nodeTypeFile"] = self.root + "/" + self.name + "_nodetype.csv"
@@ -109,6 +114,9 @@ class LinkPropPredDataset(object):
         # for tkg and thg
         self._edge_type = None
 
+        #tkgl-wikidata only
+        self._static_data = None
+
         # for thg only
         self._node_type = None
 
@@ -126,11 +134,16 @@ class LinkPropPredDataset(object):
         self.min_dst_idx, self.max_dst_idx = int(self._full_data["destinations"].min()), int(self._full_data["destinations"].max())
 
         if ('tkg' in self.name):
-            self.ns_sampler = TKGNegativeEdgeSampler(
-                dataset_name=self.name,
-                first_dst_id=self.min_dst_idx,
-                last_dst_id=self.max_dst_idx,
-            )
+            if self.name in DATA_NS_STRATEGY_DICT:
+                self.ns_sampler = TKGNegativeEdgeSampler(
+                    dataset_name=self.name,
+                    first_dst_id=self.min_dst_idx,
+                    last_dst_id=self.max_dst_idx,
+                    strategy=DATA_NS_STRATEGY_DICT[self.name],
+                    partial_path=self.root + "/" + self.name,
+                )
+            else:
+                raise ValueError(f"Dataset {self.name} negative sampling strategy not found.")
         elif ('thg' in self.name):
             #* need to find the smallest node id of all nodes (regardless of types)
             
@@ -280,12 +293,18 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_pd_data_sc(self.meta_dict["fname"])
             elif self.name == "tgbl-wiki":
                 df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
+            elif self.name == "tgbl-subreddit":
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
+            elif self.name == "tgbl-lastfm":
+                df, edge_feat, node_ids = load_edgelist_wiki(self.meta_dict["fname"])
             elif self.name == "tkgl-polecat":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-icews":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-yago":
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
+            elif self.name == "tkgl-wikidata":
+                df, edge_feat, node_ids = csv_to_wikidata(self.meta_dict["fname"])
             elif self.name == "thgl-myket":
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             else:

@@ -20,7 +20,8 @@ class TKGNegativeEdgeSampler(object):
         dataset_name: str,
         first_dst_id: int,
         last_dst_id: int,
-        strategy: str = "time_filtered",
+        strategy: str = "time-filtered",
+        partial_path: str = PROJ_DIR + "/data/processed",
     ) -> None:
         r"""
         Negative Edge Sampler
@@ -32,6 +33,7 @@ class TKGNegativeEdgeSampler(object):
             first_dst_id: identity of the first destination node
             last_dst_id: indentity of the last destination node
             strategy: will always load the pre-generated negatives
+            partial_path: the path to the directory where the negative edges are stored
         
         Returns:
             None
@@ -40,6 +42,18 @@ class TKGNegativeEdgeSampler(object):
         self.eval_set = {}
         self.first_dst_id = first_dst_id
         self.last_dst_id = last_dst_id
+        self.strategy = strategy
+        self.dst_dict = None
+        if self.strategy in ["dst-time-filtered"]:
+            dst_dict_name = (
+                partial_path 
+                + "_"
+                + "dst_dict"
+                + ".pkl"
+            )
+            if not os.path.exists(dst_dict_name):
+                raise FileNotFoundError(f"File not found at {dst_dict_name}, dst_time_filtered strategy requires the dst_dict file")
+            self.dst_dict = load_pkl(dst_dict_name)
 
     def load_eval_set(
         self,
@@ -107,29 +121,48 @@ class TKGNegativeEdgeSampler(object):
             raise RuntimeError(
                 "pos_src, pos_dst, and pos_timestamp need to be either numpy ndarray or torch tensor!"
                 )
-
-        neg_samples = [] #[0]*len(pos_src)
-        # index =0
-        for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
-            if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
-                raise ValueError(
-                    f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
-                )
-            else:
-                conflict_dict = self.eval_set[split_mode]
-                conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
-                all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
-                filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-
-                #! always using all possible destinations for evaluation
-                neg_d_arr = filtered_all_dst
-
-                # #! this is very slow
-                neg_samples.append(
-                        neg_d_arr
-                    )
-                # neg_samples[index] = neg_d_arr
-            # index += 1
         
+        if self.strategy == "time-filtered":
+            neg_samples = []
+            for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
+                if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
+                    )
+                else:
+                    conflict_dict = self.eval_set[split_mode]
+                    conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
+                    all_dst = np.arange(self.first_dst_id, self.last_dst_id + 1)
+                    filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
+
+                    #! always using all possible destinations for evaluation
+                    neg_d_arr = filtered_all_dst
+
+                    #! this is very slow
+                    neg_samples.append(
+                            neg_d_arr
+                        )
+        elif self.strategy == "dst-time-filtered":
+            neg_samples = []
+            for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
+                if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
+                    )
+                else:
+                    conflict_dict = self.eval_set[split_mode]
+                    conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
+                    dst_dict = self.dst_dict
+                    assert dst_dict is not None, "dst_dict is None, please check for file integrity."
+                    all_dst = dst_dict[e_type]
+                    filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                    # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
+                    neg_d_arr = filtered_all_dst
+                    neg_samples.append(
+                            neg_d_arr
+                        )
         #? can't convert to numpy array due to different lengths of negative samples
         return neg_samples
+
+
+        
