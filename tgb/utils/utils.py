@@ -197,7 +197,7 @@ def get_args_timetraveler(args=None):
     parser.add_argument('--Zita', default=0.9, type=float, help='attenuation factor of entropy regular term.')
 
     # reward shaping params
-    parser.add_argument('--reward_shaping', default=True, action='store_true', help='whether to use reward shaping.')
+    parser.add_argument('--reward_shaping', default=True, help='whether to use reward shaping.')
     parser.add_argument('--time_span', default=1, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
     parser.add_argument('--alphas_pkl', default='dirchlet_alphas.pkl', type=str,
                         help='the file storing the alpha parameters of the Dirichlet distribution.')
@@ -247,7 +247,8 @@ def get_args_cen():
                         help="dataset to use")
     parser.add_argument("--test", type=int, default=0,
                         help="1: formal test 2: continual test")
-  
+    parser.add_argument("--trainflag", type=bool, default=True,
+                        help="do we want to train or directly test")
     parser.add_argument("--run-statistic", action='store_true', default=False,
                         help="statistic the result")
 
@@ -559,7 +560,13 @@ def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
         g.r_to_e = torch.from_numpy(np.array(r_to_e))
     return g
 
-
+def compute_min_distance(unique_sorted_timestamps):
+    """ compute the minimum distance between timestamps, where the timestamps are in a sorted list
+    """
+    min_distance = np.inf
+    for i in range(1, len(unique_sorted_timestamps)):
+        min_distance = min(min_distance, unique_sorted_timestamps[i] - unique_sorted_timestamps[i-1])
+    return min_distance
 
 def group_by(data: np.array, key_idx: int) -> dict:
     """
@@ -583,7 +590,7 @@ def reformat_ts(timestamps):
     all_ts = list(set(timestamps))
     all_ts.sort()
     ts_min = np.min(all_ts)
-    ts_dist = all_ts[1] - all_ts[0]
+    ts_dist = compute_min_distance(all_ts) # all_ts[1] - all_ts[0]
 
     ts_new = []
     timestamps2 = timestamps - ts_min
