@@ -59,6 +59,7 @@ class TKGNegativeEdgeGenerator(object):
             "dst-time-filtered",
         ], "The supported strategies are `time-filtered`"
         self.strategy = strategy
+        self.dst_dict = None
         if self.strategy == "dst-time-filtered":
             if partial_path is None:
                 raise ValueError(
@@ -72,7 +73,7 @@ class TKGNegativeEdgeGenerator(object):
                     + "dst_dict"
                     + ".pkl"
                 )
-                self.generate_dst_dict(edge_data=edge_data, dst_name=self.dst_dict_name)
+                self.dst_dict = self.generate_dst_dict(edge_data=edge_data, dst_name=self.dst_dict_name)
         self.edge_data = edge_data
 
     def generate_dst_dict(self, edge_data: TemporalData, dst_name: str) -> dict:
@@ -119,19 +120,16 @@ class TKGNegativeEdgeGenerator(object):
         edge_type_size = []
         for key in dst_track_dict:
             dst = np.array(list(dst_track_dict[key].keys()))
-            #* if there are too few dst, sample up to 1000
-            if len(dst) < 1000:
-                dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), 1000, replace=False)
-                while np.intersect1d(dst, dst_sampled).shape[0] != 0:
-                    dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), 1000, replace=False)
-                dst_sampled[0:len(dst)] = dst[:]
-                dst = dst_sampled
+            # #* if there are too few dst, sample up to 1000
+            # if len(dst) < 1000:
+            #     dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), 1000, replace=False)
+            #     while np.intersect1d(dst, dst_sampled).shape[0] != 0:
+            #         dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), 1000, replace=False)
+            #     dst_sampled[0:len(dst)] = dst[:]
+            #     dst = dst_sampled
             edge_type_size.append(len(dst))
             dst_dict[key] = dst
-        print ("dst saved for ", len(dst_dict), " edge types")
-        print ("edge type size max: ", max(edge_type_size))
-        print ("edge type size min: ", min(edge_type_size))
-        save_pkl(dst_dict, dst_name)
+        print ('destination candidates generated for all edge types ', len(dst_dict))
         return dst_dict
 
     def generate_negative_samples(self, 
@@ -162,7 +160,7 @@ class TKGNegativeEdgeGenerator(object):
         if self.strategy == "time-filtered":
             self.generate_negative_samples_ftr(pos_edges, split_mode, filename)
         elif self.strategy == "dst-time-filtered":
-            self.generate_negative_samples_ftr(pos_edges, split_mode, filename)
+            self.generate_negative_samples_dst(pos_edges, split_mode, filename)
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
         
@@ -228,6 +226,125 @@ class TKGNegativeEdgeGenerator(object):
             print ("conflict sets for ns samples for ", len(conflict_dict), " positive edges are generated")
             # save the generated evaluation set to disk
             save_pkl(conflict_dict, filename)
+
+
+    def generate_negative_samples_dst(self, 
+                                      data: TemporalData, 
+                                      split_mode: str, 
+                                      filename: str,
+                                      ) -> None:
+        r"""
+        now we consider (s, d, t, edge_type) as a unique edge
+        Generate negative samples based on the random strategy:
+            - for each positive edge, sample a batch of negative edges from all possible edges with the same source node
+            - filter actual positive edges at the same timestamp with the same edge type
+        
+        Parameters:
+            data: an object containing positive edges information
+            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
+            filename: name of the file containing the generated negative edges
+        """
+        print(
+            f"INFO: Negative Sampling Strategy: {self.strategy}, Data Split: {split_mode}"
+        )
+        assert split_mode in [
+            "val",
+            "test",
+        ], "Invalid split-mode! It should be `val` or `test`!"
+
+        if os.path.exists(filename):
+            print(
+                f"INFO: negative samples for '{split_mode}' evaluation are already generated!"
+            )
+        else:
+            if self.dst_dict is None:
+                raise ValueError("The dst_dict is not generated!")
+
+            print(f"INFO: Generating negative samples for '{split_mode}' evaluation!")
+            # retrieve the information from the batch
+            pos_src, pos_dst, pos_timestamp, edge_type = (
+                data.src.cpu().numpy(),
+                data.dst.cpu().numpy(),
+                data.t.cpu().numpy(),
+                data.edge_type.cpu().numpy(),
+            )
+            # generate a list of negative destinations for each positive edge
+            pos_edge_tqdm = tqdm(
+                zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
+            )
+
+            edge_t_dict = {} # {(t, u, edge_type): {v_1, v_2, ..} }
+            out_dict = {}
+            #! iterate once to put all edges into a dictionary for reference
+            for (
+                pos_s,
+                pos_d,
+                pos_t,
+                edge_type,
+            ) in pos_edge_tqdm:
+                if (pos_t, pos_s, edge_type) not in edge_t_dict:
+                    edge_t_dict[(pos_t, pos_s, edge_type)] = {pos_d:1}
+                else:
+                    edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
+
+
+            pos_src, pos_dst, pos_timestamp, edge_type = (
+                data.src.cpu().numpy(),
+                data.dst.cpu().numpy(),
+                data.t.cpu().numpy(),
+                data.edge_type.cpu().numpy(),
+            )
+
+            new_pos_edge_tqdm = tqdm(
+                zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
+            )
+
+            min_dst_idx, max_dst_idx = int(self.edge_data.dst.min()), int(self.edge_data.dst.max())
+
+
+            for (
+                pos_s,
+                pos_d,
+                pos_t,
+                edge_type,
+            ) in new_pos_edge_tqdm:
+                #* generate based on # of ns samples
+                conflict_set = np.array(list(edge_t_dict[(pos_t, pos_s, edge_type)].keys()))
+                dst_set = self.dst_dict[edge_type]  #dst_set contains conflict set
+                sample_num = self.num_neg_e + len(conflict_set)
+                filtered_dst_set = np.setdiff1d(dst_set, conflict_set) #more efficient
+                # filtered_dst_set = np.setxor1d(dst_set, conflict_set) 
+                dst_sampled = None
+                all_dst = np.arange(min_dst_idx, max_dst_idx+1)
+                if len(filtered_dst_set) < (sample_num):
+                    # #* collision check for the random samples with the dst set are not checked
+                    # rng = np.random.default_rng()
+                    # dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
+
+                    #* with collision check
+                    filtered_sample_set = np.setdiff1d(all_dst, filtered_dst_set)
+                    # filtered_sample_set = np.setxor1d(all_dst, filtered_dst_set)
+                    dst_sampled = np.random.choice(filtered_sample_set, sample_num, replace=False)
+
+                    #* rejection sampling, too slow for large sample size
+                    # while np.intersect1d(dst_set, dst_sampled).shape[0] != 0:
+                    #     dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
+                    #     #dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), sample_num, replace=False)
+                    # #* remove the conflict set from dst set
+                    dst_sampled[0:len(filtered_dst_set)] = filtered_dst_set[:]
+                else:
+                    # dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
+                    dst_sampled = np.random.choice(filtered_dst_set, sample_num, replace=False)
+                out_dict[(pos_t, pos_s, edge_type)] = dst_sampled
+            
+            print ("negative samples for ", len(out_dict), " positive edges are generated")
+            # save the generated evaluation set to disk
+            save_pkl(out_dict, filename)
+
+    
+
+
+    
 
 
 
