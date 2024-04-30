@@ -150,14 +150,8 @@ class TKGNegativeEdgeSampler(object):
                         f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
                     )
                 else:
-                    conflict_dict = self.eval_set[split_mode]
-                    conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
-                    dst_dict = self.dst_dict
-                    assert dst_dict is not None, "dst_dict is None, please check for file integrity."
-                    all_dst = dst_dict[e_type]
-                    filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
-                    # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-                    neg_d_arr = filtered_all_dst
+                    filtered_dst = self.eval_set[split_mode]
+                    neg_d_arr = filtered_dst[(pos_t, pos_s, e_type)]
                     neg_samples.append(
                             neg_d_arr
                         )
