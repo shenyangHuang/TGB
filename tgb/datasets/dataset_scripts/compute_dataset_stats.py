@@ -305,7 +305,7 @@ def num_nodes_not_in_train(train_data, test_data):
 
 
 
-names = ['tkgl-icews', 'thgl-myket'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
+names = ['tkgl-wikidata'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -350,6 +350,7 @@ for dataset_name in names:
     # compute recurrency factor
     # compute average duration of facts
     timestep_range = 1+np.max(timestamps) - np.min(timestamps)
+    all_possible_timestep_indices = [i for i in range(timestep_range)]
     ts_all = TripleSet()
     ts_all.add_triples(all_quads, num_rels_without_inv, timestep_range)
     ts_all.compute_stat()
@@ -407,7 +408,7 @@ for dataset_name in names:
     ts_set = list(set(timestamps_orig))
     ts_set.sort()
     ts_dist = ts_set[1] - ts_set[0]
-    all_possible_orig_timestamps =get_original_ts(timestamps, ts_dist, np.min(ts_set))
+    all_possible_orig_timestamps =get_original_ts(all_possible_timestep_indices, ts_dist, np.min(ts_set))
 
     no_nodes_list = []
     no_nodes_list_orig = []

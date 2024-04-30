@@ -210,14 +210,6 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     best_epoch = epoch
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
-        # mrr = test(model, args.start_history_len, 
-        #                 train_list+valid_list,
-        #                 test_list, 
-        #                 num_rels, 
-        #                 num_nodes, 
-        #                 use_cuda, 
-        #                 model_state_file, 
-        #                 mode="test", split_mode= "test")
         
     elif trainvalidtest_id == 0: #curriculum training
         model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.start_history_len}'
@@ -316,18 +308,11 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             ks_idx += 1
             if mrr.item() < max(best_mrr_list):
                 test_history_len = history_len-1
+                print("early stopping, best history length: ", test_history_len)
                 break
             else:
                 best_mrr_list.append(mrr.item())
-
-        # mrr = test(model, test_history_len, 
-        #            train_list+valid_list,
-        #             test_list, 
-        #             num_rels, 
-        #             num_nodes, 
-        #             use_cuda, 
-        #             prev_state_file,  
-        #             mode="test", split_mode= "test")
+        
     return mrr, test_history_len
 
 
@@ -387,17 +372,20 @@ if args.grid_search:
     print("TODO: implement hyperparameter grid search")
 # single run
 else:
-    train_flag = True
+    
     start_train = timeit.default_timer()
-    if train_flag:
+    if args.trainflag:
+        print('running pretrain and train')
         # pretrain
         mrr, _ = run_experiment(args, trainvalidtest_id=-1)
         # train
         mrr, args.test_history_len = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
         # the best history len (for valid mrr)
     else:
+        print('directly start testing')
         if args.test_history_len_2 != args.test_history_len:
             args.test_history_len = args.test_history_len_2 # hyperparameter value as given in original paper 
+        
 
     print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
     # test on val set
