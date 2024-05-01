@@ -28,6 +28,7 @@ from tgb.utils.pre_process import (
     load_edgelist_wiki,
     csv_to_tkg_data,
     csv_to_thg_data,
+    csv_to_forum_data,
     csv_to_wikidata,
 )
 from tgb.utils.utils import save_pkl, load_pkl
@@ -305,6 +306,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             elif self.name == "thgl-github":
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
+            elif self.name == "thgl-forum":
+                df, edge_feat, node_ids = csv_to_forum_data(self.meta_dict["fname"])
             else:
                 raise ValueError(f"Dataset {self.name} not found.")
 

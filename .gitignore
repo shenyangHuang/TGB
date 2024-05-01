@@ -17,6 +17,9 @@
 *.out
 *.pkl
 *.txt
+*.attr
+*.edge
+store_files/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 raw/
