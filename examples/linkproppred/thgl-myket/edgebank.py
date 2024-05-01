@@ -160,11 +160,11 @@ dataset.load_val_ns()
 
 # testing ...
 start_val = timeit.default_timer()
-perf_metric_test = test(data, val_mask, neg_sampler, split_mode='val')
+perf_metric_val = test(data, val_mask, neg_sampler, split_mode='val')
 end_val = timeit.default_timer()
 
-print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-print(f"\tval: {metric}: {perf_metric_test: .4f}")
+print(f"INFO: val: Evaluation Setting: >>> ONE-VS--ALL <<< ")
+print(f"\tval: {metric}: {perf_metric_val: .4f}")
 test_time = timeit.default_timer() - start_val
 print(f"\tval: Elapsed Time (s): {test_time: .4f}")
 
@@ -191,6 +191,7 @@ save_results({'model': MODEL_NAME,
               'run': 1,
               'seed': SEED,
               metric: perf_metric_test,
+              'val_mrr': perf_metric_val,
               'test_time': test_time,
               'tot_train_val_time': 'NA'
               }, 
