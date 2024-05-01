@@ -1,5 +1,7 @@
 !requirements*.txt
 #dataset
+*.xz
+*.dict
 *.tab
 *.npz
 *.xz
