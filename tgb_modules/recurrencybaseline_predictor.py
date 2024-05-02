@@ -43,7 +43,7 @@ def apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_no
         scores_dict_eval (dict): dict  with one entry per test query (one per direction) key: str(test_qery), value: 
         tensor with scores, one score per node. example: [14, 0, 1, 336]':tensor([1.8019e+01,5.1101e+02,..., 0.0000e+0])
     """
-
+    num_this_queries = len(test_data)
     cur_ts = test_data[0][3]
     first_test_query_ts = first_test_ts #test_data[0][3]
     edges, all_data_ts = get_window_edges(all_data, cur_ts, window, first_test_query_ts) # get for the current 
@@ -55,10 +55,12 @@ def apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_no
 
     predictions_xi=np.zeros(num_nodes) 
     predictions_psi=np.zeros(num_nodes)
-
-    hits_list = [0] * num_queries #len(test_queries_idx)
-    perf_list = [0] * num_queries #* len(test_queries_idx)
-    for j in range(num_queries):   
+    # if num_queries != len(test_queries_idx):
+        # print('num_queries not equal to len(test_queries_idx)')
+        
+    hits_list = [0] * num_this_queries #len(test_queries_idx)
+    perf_list = [0] * num_this_queries #* len(test_queries_idx)
+    for j in range(num_this_queries):   
         neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(test_data[j,0]), axis=0), 
                                                 np.expand_dims(np.array(test_data[j,2]), axis=0), 
                                                 np.expand_dims(np.array(test_data[j,4]), axis=0), 
