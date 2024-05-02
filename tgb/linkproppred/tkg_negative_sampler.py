@@ -44,16 +44,16 @@ class TKGNegativeEdgeSampler(object):
         self.last_dst_id = last_dst_id
         self.strategy = strategy
         self.dst_dict = None
-        if self.strategy in ["dst-time-filtered"]:
-            dst_dict_name = (
-                partial_path 
-                + "_"
-                + "dst_dict"
-                + ".pkl"
-            )
-            if not os.path.exists(dst_dict_name):
-                raise FileNotFoundError(f"File not found at {dst_dict_name}, dst_time_filtered strategy requires the dst_dict file")
-            self.dst_dict = load_pkl(dst_dict_name)
+        # if self.strategy in ["dst-time-filtered"]:
+        #     dst_dict_name = (
+        #         partial_path 
+        #         + "_"
+        #         + "dst_dict"
+        #         + ".pkl"
+        #     )
+        #     if not os.path.exists(dst_dict_name):
+        #         raise FileNotFoundError(f"File not found at {dst_dict_name}, dst_time_filtered strategy requires the dst_dict file")
+        #     self.dst_dict = load_pkl(dst_dict_name)
 
     def load_eval_set(
         self,

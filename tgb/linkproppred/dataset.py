@@ -338,8 +338,7 @@ class LinkPropPredDataset(object):
         #! design choice, only stores the original edges not the inverse relations on disc
         if ("tkgl" in self.name):
             df = add_inverse_quadruples(df)
-        if ("myket" in self.name):
-            df = add_inverse_quadruples(df)
+
         sources = np.array(df["u"])
         destinations = np.array(df["i"])
         timestamps = np.array(df["ts"])

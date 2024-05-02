@@ -244,7 +244,7 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
                          mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
-                         seasonal_value):
+                         seasonal_value, collision_trainval, collision_valtest):
     stats_dict = {
         "dataset_name": dataset_name,
         "num_rels": num_rels,
@@ -272,7 +272,9 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
         "std_node_per_ts": std_node_per_ts,
         "min_node_per_ts": min_node_per_ts,
         "max_node_per_ts": max_node_per_ts,
-        "seasonal_value": seasonal_value
+        "seasonal_value": seasonal_value,
+        "collision_trainval": collision_trainval,
+        "collision_valtest": collision_valtest        
         # "train_nodes": train_nodes
     }
 
@@ -305,13 +307,16 @@ def num_nodes_not_in_train(train_data, test_data):
 
 
 
-names = ['tkgl-wikidata'] #'tkgl-yago', 'tkgl-polecat', 'tkgl-icews' #,'tkgl-wiki'
+names = ['thgl-forum','thgl-myket', 'tkgl-yago', 'tkgl-polecat', 'tkgl-icews','tkgl-wiki', 'thgl-github']
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
     relations = dataset.edge_type
     num_rels = dataset.num_rels
-    num_rels_without_inv = int(num_rels/2)
+    if 'tkgl' in dataset_name:
+        num_rels_without_inv = int(num_rels/2)
+    else:
+        num_rels_without_inv = num_rels
 
     rels = np.arange(0,num_rels)
     subjects = dataset.full_data["sources"]
@@ -324,13 +329,20 @@ for dataset_name in names:
     train_data = all_quads[dataset.train_mask]
     val_data = all_quads[dataset.val_mask]
     test_data = all_quads[dataset.test_mask]
-
+    collision_trainval = np.intersect1d(timestamps_orig[dataset.train_mask], timestamps_orig[dataset.val_mask])
+    collision_valtest = np.intersect1d(timestamps_orig[dataset.val_mask], timestamps_orig[dataset.test_mask])
+    if len(collision_trainval) > 0:
+        print("!!!!!!!!!Collision between train and val set!!!!!!!!!")
+    if len(collision_valtest) > 0:
+        print("!!!!!!!!!Collision between val and test set!!!!!!!!!")
+    print(subjects.shape)
 
     # compute number of quads in train/val/test set
     num_train_quads = train_data.shape[0]
     num_val_quads = val_data.shape[0]
     num_test_quads = test_data.shape[0]
     num_all_quads = num_train_quads + num_val_quads + num_test_quads
+    print(num_all_quads)
 
     # compute inductive nodes
     test_ind_nodes = num_nodes_not_in_train(train_data, test_data)
@@ -346,6 +358,7 @@ for dataset_name in names:
 
     # compute number on nodes in valid set or test set that have not been seen in train set
     train_nodes = np.unique(train_data[:,0]) + np.unique(train_data[:,2])
+
 
     # compute recurrency factor
     # compute average duration of facts
@@ -470,4 +483,4 @@ for dataset_name in names:
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
                          np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
-                         seasonal_value)
+                         seasonal_value, collision_trainval, collision_valtest)
