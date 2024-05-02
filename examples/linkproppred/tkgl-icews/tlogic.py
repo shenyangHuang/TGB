@@ -101,8 +101,8 @@ def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edg
     edges = ra.get_window_edges(all_quads[:,0:4], cur_ts, learn_edges, window)
 
     it_start =  timeit.default_timer()
-    hits_list = [0] * num_queries #len(test_queries_idx)
-    perf_list = [0] * num_queries #* len(test_queries_idx)
+    hits_list = [0] * len(test_queries_idx)
+    perf_list = [0] * len(test_queries_idx)
     for index, j in enumerate(test_queries_idx):
         neg_sample_el =  neg_sampler.query_batch(np.expand_dims(np.array(data[j,0]), axis=0), 
                                                 np.expand_dims(np.array(data[j,2]), axis=0), 
