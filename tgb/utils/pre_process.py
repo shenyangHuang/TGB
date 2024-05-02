@@ -42,6 +42,85 @@ def process_node_type(
                 node_feat[node_id] = node_type
     return node_feat
 
+"""
+functions for thgl-forum dataset
+"""
+def csv_to_forum_data(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    used by thgl-forum dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, head, tail, relation type
+    Args:
+        fname: the path to the raw data
+    """
+    feat_size = 2
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    node_ids = {}
+    unique_id = 0
+
+    word_max = 10000
+    score_max = 10000
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                #! ts,src,dst,relation_type,num_words,score
+                ts = int(row[0]) #converted to UNIX timestamp already 
+                src = int(row[1])
+                dst = int(row[2])
+                relation = int(row[3])
+                num_words = int(row[4])
+                score = int(row[5])
+                if src not in node_ids:
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if dst not in node_ids:
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = float(1)
+                edge_type[idx - 1] = relation
+                feat_l[idx - 1] = np.array([num_words/word_max, score/score_max])
+                idx += 1
+    return (
+        pd.DataFrame(
+            {
+                "u": u_list,
+                "i": i_list,
+                "ts": ts_list,
+                "label": label_list,
+                "idx": idx_list,
+                "w": w_list,
+                "edge_type": edge_type,
+            }
+        ),
+        feat_l,
+        node_ids,
+    )
+
+
 
 
 """
