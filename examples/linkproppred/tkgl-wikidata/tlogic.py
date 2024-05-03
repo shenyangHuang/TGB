@@ -322,7 +322,7 @@ else:
 end_train =  timeit.default_timer()
 
 ## 2. Apply rules
-start_test =  timeit.default_timer()
+
 rules_dict = json.load(open(output_dir + rule_filename))
 rules_dict = {int(k): v for k, v in rules_dict.items()}
 
@@ -355,6 +355,7 @@ for i in range(num_processes):
 end_valid =  timeit.default_timer()
 
 # compute test mrr
+start_test =  timeit.default_timer()
 print('Computing test MRR')
 start =  timeit.default_timer()
 num_queries = len(test_data) // num_processes
