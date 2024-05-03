@@ -237,7 +237,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="thgl-forums", type=str) 
+    parser.add_argument("--dataset", "-d", default="thgl-forum", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
