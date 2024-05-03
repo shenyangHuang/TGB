@@ -8,7 +8,7 @@ import ray
 import sys
 import os
 import os.path as osp
-
+import json
 #internal imports 
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
@@ -67,7 +67,11 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
 def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):         
     perf_list_all = []
     hits_list_all =[]
+
+    csv_file = f'{perrel_results_path}/{MODEL_NAME}_NONE_{DATA}_results_{SEED}'+split_mode+'.csv'
+
     ## loop through relations and apply baselines
+    
     for rel in rels:
         start =  timeit.default_timer()
         if rel in test_data_prel.keys():
@@ -79,18 +83,54 @@ def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_proce
             timesteps_test = list(set(test_data_c_rel[:,3]))
             timesteps_test.sort()
             all_data_c_rel = all_data_prel[rel]         
-
-            perf_list_all, hits_list_all = predict(num_processes, test_data_c_rel,
-                                                   all_data_c_rel, alpha, lmbda_psi,perf_list_all, hits_list_all, 
-                                                   window, neg_sampler, split_mode)
-
+            perf_list_rel = []
+            hits_list_rel = []
+            perf_list_rel, hits_list_rel = predict(num_processes, test_data_c_rel,
+                                                all_data_c_rel, alpha, lmbda_psi,perf_list_rel, hits_list_rel, 
+                                                window, neg_sampler, split_mode)
+            perf_list_all.extend(perf_list_rel)
+            hits_list_all.extend(hits_list_rel)
+        else:
+            perf_list_rel =[]
+         
         end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
+        
+
+        with open(csv_file, 'a') as f:
+            f.write("{},{}\n".format(rel, perf_list_rel))
 
     return perf_list_all, hits_list_all
 
+def read_dict_compute_mrr(split_mode='test'):
+    csv_file = f'{perrel_results_path}/{MODEL_NAME}_NONE_{DATA}_results_{SEED}'+split_mode+'.csv'
+    # Initialize an empty dictionary to store the data
+    results_per_rel_dict = {}
+    mrr_per_rel = {}
+    all_mrrs = []
+    # Open the file for reading
+    with open(csv_file, 'r') as f:
+        # Read each line in the file
+        for line in f:
+            # Split the line at the comma
+            parts = line.strip().split(',')
+            # Extract the key (the first part)
+            key = int(parts[0])
+            # Extract the values (the rest of the parts), remove square brackets
+            values = [float(value.strip('[]')) for value in parts[1:]]
+            # Add the key-value pair to the dictionary
+            if key in results_per_rel_dict.keys():
+                print(f"Key {key} already exists in the dictionary!!! might have duplicate entries in results csv")
+            results_per_rel_dict[key] = values
+            all_mrrs.extend(values)
+            mrr_per_rel[key] = np.mean(values)
 
+    if len(list(results_per_rel_dict.keys())) != num_rels:
+        print("we do not have entries for each rel in the results csv file. only num enties: ", len(list(results_per_rel_dict.keys())))
+
+    print("Split mode: "+split_mode +" Mean MRR: ", np.mean(all_mrrs))
+    print("mrr per relation: ", mrr_per_rel)
 
 
 
@@ -190,19 +230,19 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
         end =  timeit.default_timer()
         total_time = round(end - start, 6)  
         print("Relation {} finished in {} seconds.".format(rel, total_time))
-    return best_config, best_mrr
+    return best_config
 
 
 
 ## args
 def get_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", "-d", default="thgl-forum", type=str) 
+    parser.add_argument("--dataset", "-d", default="thgl-forums", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep
     parser.add_argument("--num_processes", "-p", default=1, type=int)
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
-    parser.add_argument("--train_flag", "-tr",  default=False) # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--train_flag", "-tr",  default='False') # do we need training, ie selection of lambda and alpha
     parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
     parsed = vars(parser.parse_args())
@@ -211,10 +251,16 @@ def get_args():
 start_o =  timeit.default_timer()
 
 parsed = get_args()
-ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
+if parsed['num_processes']>1:
+    ray.init(num_cpus=parsed["num_processes"], num_gpus=0)
 MODEL_NAME = 'RecurrencyBaseline'
 SEED = parsed['seed']  # set the random seed for consistency
 set_random_seed(SEED)
+perrel_results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_models'
+if not osp.exists(perrel_results_path):
+    os.mkdir(perrel_results_path)
+    print('INFO: Create directory {}'.format(perrel_results_path))
+Path(perrel_results_path).mkdir(parents=True, exist_ok=True)
 
 ## load dataset and prepare it accordingly
 name = parsed["dataset"]
@@ -230,6 +276,7 @@ num_nodes = dataset.num_nodes
 timestamps_orig = dataset.full_data["timestamps"]
 timestamps = reformat_ts(timestamps_orig) # stepsize:1
 
+print("split train valid test data")
 all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
 train_data = all_quads[dataset.train_mask]
 val_data = all_quads[dataset.val_mask]
@@ -243,6 +290,7 @@ train_val_data = np.concatenate([train_data, val_data])
 all_data = np.concatenate([train_data, val_data, test_data])
 
 # create dicts with key: relation id, values: triples for that relation id
+print("grouping data by relation")
 test_data_prel = group_by(test_data, 1)
 all_data_prel = group_by(all_data, 1)
 val_data_prel = group_by(val_data, 1)
@@ -250,11 +298,12 @@ trainval_data_prel = group_by(train_val_data, 1)
 
 #load the ns samples 
 # if parsed['train_flag']:
+print("loading negative samples")
 dataset.load_val_ns()
 dataset.load_test_ns()
 
 # parameter options
-if parsed['train_flag']:
+if parsed['train_flag'] == 'True':
     params_dict = {}
     params_dict['lmbda_psi'] = [0, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.5, 0.9, 1.0001] 
     params_dict['alpha'] = [0, 0.00001, 0.0001, 0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 1]
@@ -262,14 +311,16 @@ if parsed['train_flag']:
     default_alpha = params_dict['alpha'][-2]
 
 ## load rules
+print("creating rules")
 basis_dict = create_basis_dict(train_val_data)
-
+print("done with creating rules")
 ## init
 # rb_predictor = RecurrencyBaselinePredictor(rels)
 ## train to find best lambda and alpha
 start_train =  timeit.default_timer()
-if parsed['train_flag']:
-    best_config, val_mrr = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+if parsed['train_flag'] ==  'True':
+    print('start training')
+    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
          parsed['window'])
     if parsed['save_config']:
         import json
@@ -282,12 +333,12 @@ else: # use preset lmbda and alpha; same for all relations
         best_config[str(rel)]['lmbda_psi'] = [parsed['lmbda']]
         best_config[str(rel)]['alpha'] = [parsed['alpha']]
     
-    # compute validation mrr
-    print("Computing validation MRR")
-    perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel, 
-                                                 trainval_data_prel, neg_sampler, parsed['num_processes'], 
-                                                parsed['window'], split_mode='val')
-    val_mrr = float(np.mean(perf_list_all_val))
+# compute validation mrr
+print("Computing validation MRR")
+perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel, 
+                                                trainval_data_prel, neg_sampler, parsed['num_processes'], 
+                                            parsed['window'], split_mode='val')
+val_mrr = float(np.mean(perf_list_all_val))
 
 
 end_train =  timeit.default_timer()
@@ -321,6 +372,9 @@ Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_NONE_{DATA}_results.json'
 
 
+
+
+
 metric = dataset.eval_metric
 save_results({'model': MODEL_NAME,
               'train_flag': parsed['train_flag'],
@@ -335,8 +389,8 @@ save_results({'model': MODEL_NAME,
               }, 
     results_filename)
 
-
-ray.shutdown()
+if parsed['num_processes']>1:
+    ray.shutdown()
 
 
     
