@@ -568,6 +568,19 @@ def compute_min_distance(unique_sorted_timestamps):
         min_distance = min(min_distance, unique_sorted_timestamps[i] - unique_sorted_timestamps[i-1])
     return min_distance
 
+def compute_maxminmean_distances(unique_sorted_timestamps):
+    differences = []
+    
+    # Iterate over the list and compute the differences between successive elements
+    for i in range(len(unique_sorted_timestamps) - 1):
+        diff = unique_sorted_timestamps[i+1] - unique_sorted_timestamps[i]
+        differences.append(diff)
+    
+    # Calculate the mean of the differences
+    mean_diff = sum(differences) / len(differences)
+    
+    return np.max(differences), np.min(differences), np.mean(differences)
+
 def group_by(data: np.array, key_idx: int) -> dict:
     """
     group data in an np array to dict; where key is specified by key_idx. for example groups elements of array by relations
@@ -581,8 +594,19 @@ def group_by(data: np.array, key_idx: int) -> dict:
         data_dict[key] = np.array(list(group))
     return data_dict
 
+def tkg_granularity_lookup(dataset_name, ts_distmean):
+    """ lookup the granularity of the dataset, and return the corresponding granularity
+    """
+    if 'icews' or 'polecat' in dataset_name:
+        return 86400
+    elif 'wiki' or 'yago' in dataset_name:
+        return 31536000
+    else:
+        return ts_distmean
 
-def reformat_ts(timestamps):
+    
+
+def reformat_ts(timestamps, dataset_name='tkgl'):
     """ reformat timestamps s.t. they start with 0, and have stepsize 1.
     :param timestamps: np.array() with timestamps
     returns: np.array(ts_new)
@@ -590,7 +614,14 @@ def reformat_ts(timestamps):
     all_ts = list(set(timestamps))
     all_ts.sort()
     ts_min = np.min(all_ts)
-    ts_dist = compute_min_distance(all_ts) # all_ts[1] - all_ts[0]
+    if 'tkgl' in dataset_name:
+        ts_distmax, ts_distmin, ts_distmean = compute_maxminmean_distances(all_ts)
+        ts_dist = tkg_granularity_lookup(dataset_name, ts_distmean)
+        if ts_dist - ts_distmean > 0.1*ts_distmean:
+            print('PROBLEM: the distances are somehwat off from the granularity of the dataset. using original mean distance')
+            ts_dist = ts_distmean
+    else:
+        ts_dist = compute_min_distance(all_ts) # all_ts[1] - all_ts[0]
 
     ts_new = []
     timestamps2 = timestamps - ts_min
