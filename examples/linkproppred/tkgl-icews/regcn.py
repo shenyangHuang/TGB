@@ -270,7 +270,7 @@ objects= dataset.full_data["destinations"]
 relations = dataset.edge_type
 
 timestamps_orig = dataset.full_data["timestamps"]
-timestamps = reformat_ts(timestamps_orig) # stepsize:1
+timestamps = reformat_ts(timestamps_orig, DATA) # stepsize:1
 all_quads = np.stack((subjects, relations, objects, timestamps), axis=1)
 
 train_data = all_quads[dataset.train_mask]

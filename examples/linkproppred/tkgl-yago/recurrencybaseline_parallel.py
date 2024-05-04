@@ -12,10 +12,11 @@ import json
 #internal imports 
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
-from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
+from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote, apply_baselines_parallel
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import set_random_seed,  save_results, create_basis_dict, group_by, reformat_ts
+from joblib import Parallel, delayed
 
 def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
             perf_list_all, hits_list_all, window, neg_sampler, split_mode):
@@ -28,29 +29,39 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
     else:
         num_processes_tmp = num_processes  
     if num_processes > 1:
-        object_references =[]                   
-        
+                         
+        output = Parallel(n_jobs=num_processes_tmp)(
+        delayed(apply_baselines_parallel)(k, num_queries, data_c_rel, all_data_c_rel, window, 
+                        basis_dict, 
+                        num_nodes, num_rels, lmbda_psi, 
+                        alpha, evaluator,first_ts, neg_sampler, split_mode) for k in range(num_processes_tmp))
         for i in range(num_processes_tmp):
-            num_test_queries = len(data_c_rel) - (i + 1) * num_queries
-            if num_test_queries >= num_queries:
-                test_queries_idx =[i * num_queries, (i + 1) * num_queries]
-            else:
-                test_queries_idx = [i * num_queries, len(test_data)]
+            perf_list_all.extend(output[i][0])
+            hits_list_all.extend(output[i][1])
 
-            valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
+        # object_references =[]  
+        # for i in range(num_processes_tmp):
+        #     num_test_queries = len(data_c_rel) - (i + 1) * num_queries
+        #     if num_test_queries >= num_queries:
+        #         test_queries_idx =[i * num_queries, (i + 1) * num_queries]
+        #     else:
+        #         test_queries_idx = [i * num_queries, len(test_data)]
 
-            ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
-                                basis_dict, 
-                                num_nodes, num_rels, lmbda_psi, 
-                                alpha, evaluator,first_ts, neg_sampler, split_mode)
-            object_references.append(ob)
+        #     valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
 
-        output = ray.get(object_references)
 
-        # updates the scores and logging dict for each process
-        for proc_loop in range(num_processes_tmp):
-            perf_list_all.extend(output[proc_loop][0])
-            hits_list_all.extend(output[proc_loop][1])
+        #     ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
+        #                         basis_dict, 
+        #                         num_nodes, num_rels, lmbda_psi, 
+        #                         alpha, evaluator,first_ts, neg_sampler, split_mode)
+        #     object_references.append(ob)
+
+        # output = ray.get(object_references)
+
+        # # updates the scores and logging dict for each process
+        # for proc_loop in range(num_processes_tmp):
+        #     perf_list_all.extend(output[proc_loop][0])
+        #     hits_list_all.extend(output[proc_loop][1])
 
     else:
         perf_list, hits_list = apply_baselines(len(data_c_rel), data_c_rel, all_data_c_rel, 

@@ -274,7 +274,7 @@ subjects = dataset.full_data["sources"]
 objects= dataset.full_data["destinations"]
 num_nodes = dataset.num_nodes 
 timestamps_orig = dataset.full_data["timestamps"]
-timestamps = reformat_ts(timestamps_orig) # stepsize:1
+timestamps = reformat_ts(timestamps_orig, DATA) # stepsize:1
 
 print("split train valid test data")
 all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)

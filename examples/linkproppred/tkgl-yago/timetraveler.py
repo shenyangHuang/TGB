@@ -130,7 +130,7 @@ def main(args):
     relations = dataset.edge_type
 
     timestamps_orig = dataset.full_data["timestamps"]
-    timestamps = reformat_ts(timestamps_orig) # stepsize:1
+    timestamps = reformat_ts(timestamps_orig, DATA) # stepsize:1
     all_quads = np.stack((subjects, relations, objects, timestamps,timestamps_orig), axis=1)
 
     train_data = all_quads[dataset.train_mask]
