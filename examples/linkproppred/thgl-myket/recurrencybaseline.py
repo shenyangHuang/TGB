@@ -243,8 +243,9 @@ def get_args():
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
     parser.add_argument("--train_flag", "-tr",  default='False') # do we need training, ie selection of lambda and alpha
-    parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
-    parser.add_argument('--seed', type=int, help='Random seed', default=100)
+    parser.add_argument("--load_flag", "-lo",  default='False') # do we need training, ie selection of lambda and alpha
+    parser.add_argument("--save_config", "-c",  default='True') # do we need to save the selection of lambda and alpha in config file?
+    parser.add_argument('--seed', type=int, help='Random seed', default=1)
     parsed = vars(parser.parse_args())
     return parsed
 
@@ -319,13 +320,18 @@ print("done with creating rules")
 ## train to find best lambda and alpha
 start_train =  timeit.default_timer()
 if parsed['train_flag'] ==  'True':
-    print('start training')
-    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
-         parsed['window'])
-    if parsed['save_config']:
-        import json
-        with open('best_config.json', 'w') as outfile:
-            json.dump(best_config, outfile)
+    if parsed['load_flag'] == 'True':
+        with open('best_config.json', 'r') as infile:
+            best_config = json.load(infile)
+    else:
+        print('start training')
+        best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+            parsed['window'])
+        if parsed['save_config'] == 'True':
+            import json
+            with open('best_config.json', 'w') as outfile:
+                json.dump(best_config, outfile)
+
 else: # use preset lmbda and alpha; same for all relations
     best_config = {} 
     for rel in rels:
