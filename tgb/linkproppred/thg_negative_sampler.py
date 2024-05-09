@@ -43,6 +43,7 @@ class THGNegativeEdgeSampler(object):
         self.first_node_id = first_node_id
         self.last_node_id = last_node_id
         self.node_type = node_type
+        self.strategy = strategy
         assert isinstance(self.node_type, np.ndarray), "node_type should be a numpy array"
         
     def load_eval_set(
@@ -111,29 +112,49 @@ class THGNegativeEdgeSampler(object):
             raise RuntimeError(
                 "pos_src, pos_dst, and pos_timestamp need to be either numpy ndarray or torch tensor!"
                 )
-
-        neg_samples = []
-        for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
-            if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
-                raise ValueError(
-                    f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
-                )
-            else:
-                filtered_dst = self.eval_set[split_mode]
-                neg_d_arr = filtered_dst[(pos_t, pos_s, e_type)]
-                neg_samples.append(
-                        neg_d_arr
+        if self.strategy == "time-filtered":
+            neg_samples = []
+            for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
+                if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
                     )
+                else:
+                    conflict_dict = self.eval_set[split_mode]
+                    conflict_set = conflict_dict[(pos_t, pos_s, e_type)]
+                    all_dst = np.arange(self.first_node_id, self.last_node_id + 1)
+                    filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
 
-                # conflict_set, d_node_type = conflict_dict[(pos_t, pos_s, e_type)]
+                    #! always using all possible destinations for evaluation
+                    neg_d_arr = filtered_all_dst
 
-                # all_dst = self.node_type_dict[d_node_type]
-                # # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-                # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
-                # neg_d_arr = filtered_all_dst
-                # neg_samples.append(
-                #         neg_d_arr
-                #     )
-        
-        #? can't convert to numpy array due to different lengths of negative samples
+                    #! this is very slow
+                    neg_samples.append(
+                            neg_d_arr
+                        )
+        else:
+            neg_samples = []
+            for pos_s, pos_d, pos_t, e_type in zip(pos_src, pos_dst, pos_timestamp, edge_type):
+                if (pos_t, pos_s, e_type) not in self.eval_set[split_mode]:
+                    raise ValueError(
+                        f"The edge ({pos_s}, {pos_d}, {pos_t}, {e_type}) is not in the '{split_mode}' evaluation set! Please check the implementation."
+                    )
+                else:
+                    filtered_dst = self.eval_set[split_mode]
+                    neg_d_arr = filtered_dst[(pos_t, pos_s, e_type)]
+                    neg_samples.append(
+                            neg_d_arr
+                        )
+
+                    # conflict_set, d_node_type = conflict_dict[(pos_t, pos_s, e_type)]
+
+                    # all_dst = self.node_type_dict[d_node_type]
+                    # # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
+                    # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
+                    # neg_d_arr = filtered_all_dst
+                    # neg_samples.append(
+                    #         neg_d_arr
+                    #     )
+            
+            #? can't convert to numpy array due to different lengths of negative samples
         return neg_samples

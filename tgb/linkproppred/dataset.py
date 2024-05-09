@@ -147,15 +147,23 @@ class LinkPropPredDataset(object):
                 raise ValueError(f"Dataset {self.name} negative sampling strategy not found.")
         elif ('thg' in self.name):
             #* need to find the smallest node id of all nodes (regardless of types)
-            
             min_node_idx = min(int(self._full_data["sources"].min()), int(self._full_data["destinations"].min()))
             max_node_idx = max(int(self._full_data["sources"].max()), int(self._full_data["destinations"].max()))
-            self.ns_sampler = THGNegativeEdgeSampler(
-                dataset_name=self.name,
-                first_node_id=min_node_idx,
-                last_node_id=max_node_idx,
-                node_type=self._node_type,
-            )
+            if self.name in DATA_NS_STRATEGY_DICT:
+                self.ns_sampler = THGNegativeEdgeSampler(
+                    dataset_name=self.name,
+                    first_node_id=min_node_idx,
+                    last_node_id=max_node_idx,
+                    node_type=self._node_type,
+                    strategy=DATA_NS_STRATEGY_DICT[self.name]
+                )
+            else:                
+                self.ns_sampler = THGNegativeEdgeSampler(
+                    dataset_name=self.name,
+                    first_node_id=min_node_idx,
+                    last_node_id=max_node_idx,
+                    node_type=self._node_type
+                )                
         else:
             self.ns_sampler = NegativeEdgeSampler(
                 dataset_name=self.name,
