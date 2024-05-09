@@ -1,17 +1,30 @@
+"""
+ from paper: "History repeats itself: A Baseline for Temporal Knowledge Graph Forecasting" 
+Julia Gastinger, Christian Meilicke, Federico Errica, Timo Sztyler, Anett Schuelke, Heiner Stuckenschmidt (IJCAI 2024)
 
+@inproceedings{gastinger2024baselines,
+  title={History repeats itself: A Baseline for Temporal Knowledge Graph Forecasting},
+  author={Gastinger, Julia and Meilicke, Christian and Errica, Federico and Sztyler, Timo and Schuelke, Anett and Stuckenschmidt, Heiner},
+  booktitle={33nd International Joint Conference on Artificial Intelligence (IJCAI 2024)},
+  year={2024},
+  organization={International Joint Conferences on Artificial Intelligence Organization}
+}
+
+"""
 import numpy as np
 from collections import Counter
 import ray
 from tgb.utils.utils import create_scores_array
 
 @ray.remote
-def apply_baselines_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
 
-    return apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+    return baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha,  evaluator,first_test_ts, neg_sampler, split_mode)
 
-def apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
+
+def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
     """
     Apply baselines psi and xi (multiprocessing possible).
@@ -113,8 +126,8 @@ def apply_baselines(num_queries, test_data, all_data, window, basis_dict, num_no
         }
 
         predictions = evaluator.eval(input_dict)
-        perf_list[j] = predictions['mrr']
-        hits_list[j] = predictions['hits@10']
+        perf_list[j] = float(predictions['mrr'])
+        hits_list[j] = float(predictions['hits@10'])
         
 
     return perf_list, hits_list

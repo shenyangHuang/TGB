@@ -418,7 +418,7 @@ def get_args_regcn():
                         help="do relation prediction")
 
     # configuration for stat training
-    parser.add_argument("--n-epochs", type=int, default=20,
+    parser.add_argument("--n-epochs", type=int, default=10,
                         help="number of minimum training epochs on each time step") #100
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")

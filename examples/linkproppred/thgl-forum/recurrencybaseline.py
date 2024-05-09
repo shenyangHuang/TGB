@@ -1,3 +1,16 @@
+""" from paper: "History repeats itself: A Baseline for Temporal Knowledge Graph Forecasting" 
+Julia Gastinger, Christian Meilicke, Federico Errica, Timo Sztyler, Anett Schuelke, Heiner Stuckenschmidt (IJCAI 2024)
+
+@inproceedings{gastinger2024baselines,
+  title={History repeats itself: A Baseline for Temporal Knowledge Graph Forecasting},
+  author={Gastinger, Julia and Meilicke, Christian and Errica, Federico and Sztyler, Timo and Schuelke, Anett and Stuckenschmidt, Heiner},
+  booktitle={33nd International Joint Conference on Artificial Intelligence (IJCAI 2024)},
+  year={2024},
+  organization={International Joint Conferences on Artificial Intelligence Organization}
+}
+
+"""
+
 ## imports
 import timeit
 import argparse
@@ -12,7 +25,7 @@ import json
 #internal imports 
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
-from tgb_modules.recurrencybaseline_predictor import apply_baselines, apply_baselines_remote
+from tgb_modules.recurrencybaseline_predictor import baseline_predict, baseline_predict_remote
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import set_random_seed,  save_results, create_basis_dict, group_by, reformat_ts
@@ -39,7 +52,7 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
 
             valid_data_b = data_c_rel[test_queries_idx[0]:test_queries_idx[1]]
 
-            ob = apply_baselines_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
+            ob = baseline_predict_remote.remote(num_queries, valid_data_b, all_data_c_rel, window, 
                                 basis_dict, 
                                 num_nodes, num_rels, lmbda_psi, 
                                 alpha, evaluator,first_ts, neg_sampler, split_mode)
@@ -53,7 +66,7 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
             hits_list_all.extend(output[proc_loop][1])
 
     else:
-        perf_list, hits_list = apply_baselines(len(data_c_rel), data_c_rel, all_data_c_rel, 
+        perf_list, hits_list = baseline_predict(len(data_c_rel), data_c_rel, all_data_c_rel, 
                             window, basis_dict, 
                             num_nodes, num_rels, lmbda_psi, 
                             alpha, evaluator, first_ts, neg_sampler, split_mode)                  
@@ -62,17 +75,20 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
     
     return perf_list_all, hits_list_all
 
-
 ## test
-def test(best_config, rels,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):         
+def test(best_config, all_relations,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):  
+    """ create predictions for each relation on test or valid set and compute mrr
+    :return  perf_list_all: list of mrrs for each test query
+    :return hits_list_all: list of hits for each test query
+    """       
     perf_list_all = []
     hits_list_all =[]
-
+    
     csv_file = f'{perrel_results_path}/{MODEL_NAME}_NONE_{DATA}_results_{SEED}'+split_mode+'.csv'
 
     ## loop through relations and apply baselines
     
-    for rel in rels:
+    for rel in all_relations:
         start =  timeit.default_timer()
         if rel in test_data_prel.keys():
             lmbda_psi = best_config[str(rel)]['lmbda_psi'][0]
@@ -158,17 +174,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             timesteps_valid.sort()
             trainval_data_c_rel = trainval_data_prel[rel]
 
-            # s = np.array(val_data_c_rel[:,0])
-            # r = np.array(val_data_c_rel[:,1])
-            # o = np.array(val_data_c_rel[:,2])
-            # t = np.array(val_data_c_rel[:,4])
-
-            # neg_samples_batch = neg_sampler.query_batch(s, o, 
-            #                         t, edge_type=r, split_mode='val')
-            # pos_samples_batch = val_data_c_rel[:,2]
-            # queries per process if multiple processes
-
-            ######  1) tune lmbda_psi ###############        
+            ######  1) select lambda ###############        
             lmbdas_psi = params_dict['lmbda_psi']        
 
             alpha = 1
@@ -198,7 +204,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
             best_config[str(rel_key)]['lmbda_psi'] = [best_lmbda_psi, best_mrr_psi]
             best_config[str(rel_key)]['other_lmbda_mrrs'] = lmbda_mrrs
             best_mrr = best_mrr_psi
-            ##### 2) tune alphas: ###############
+            ##### 2) select alpha ###############
             best_config[str(rel_key)]['not_trained'] = 'False'    
             alphas = params_dict['alpha'] 
             lmbda_psi = best_config[str(rel_key)]['lmbda_psi'][0] # use the best lmbda psi
@@ -243,8 +249,9 @@ def get_args():
     parser.add_argument("--lmbda", "-l",  default=0.1, type=float) # fix lambda. used if trainflag == false
     parser.add_argument("--alpha", "-alpha",  default=0.99, type=float) # fix alpha. used if trainflag == false
     parser.add_argument("--train_flag", "-tr",  default='False') # do we need training, ie selection of lambda and alpha
-    parser.add_argument("--save_config", "-c",  default=True) # do we need to save the selection of lambda and alpha in config file?
-    parser.add_argument('--seed', type=int, help='Random seed', default=1)
+    parser.add_argument("--load_flag", "-lo",  default='False') # if train_flag set to True: do you want to load best_config?
+    parser.add_argument("--save_config", "-c",  default='True') # do we need to save the selection of lambda and alpha in config file?
+    parser.add_argument('--seed', type=int, help='Random seed', default=1) # not needed
     parsed = vars(parser.parse_args())
     return parsed
 
@@ -319,13 +326,18 @@ print("done with creating rules")
 ## train to find best lambda and alpha
 start_train =  timeit.default_timer()
 if parsed['train_flag'] ==  'True':
-    print('start training')
-    best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
-         parsed['window'])
-    if parsed['save_config']:
-        import json
-        with open('best_config.json', 'w') as outfile:
-            json.dump(best_config, outfile)
+    if parsed['load_flag'] == 'True':
+        with open('best_config.json', 'r') as infile:
+            best_config = json.load(infile)
+    else:
+        print('start training')
+        best_config = train(params_dict,  rels, val_data_prel, trainval_data_prel, neg_sampler, parsed['num_processes'], 
+            parsed['window'])
+        if parsed['save_config'] == 'True':
+            import json
+            with open('best_config.json', 'w') as outfile:
+                json.dump(best_config, outfile)
+
 else: # use preset lmbda and alpha; same for all relations
     best_config = {} 
     for rel in rels:
@@ -333,6 +345,8 @@ else: # use preset lmbda and alpha; same for all relations
         best_config[str(rel)]['lmbda_psi'] = [parsed['lmbda']]
         best_config[str(rel)]['alpha'] = [parsed['alpha']]
     
+end_train =  timeit.default_timer()
+
 # compute validation mrr
 print("Computing validation MRR")
 perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel, 
@@ -340,19 +354,12 @@ perf_list_all_val, hits_list_all_val = test(best_config,rels, val_data_prel,
                                             parsed['window'], split_mode='val')
 val_mrr = float(np.mean(perf_list_all_val))
 
-
-end_train =  timeit.default_timer()
+# compute test mrr
+print("Computing test MRR")
 start_test =  timeit.default_timer()
 perf_list_all, hits_list_all = test(best_config,rels, test_data_prel, 
                                                  all_data_prel, neg_sampler, parsed['num_processes'], 
                                                 parsed['window'])
-
-
-print(f"The test MRR is {np.mean(perf_list_all)}")
-print(f"The valid MRR is {val_mrr}")
-print(f"The Hits@10 is {np.mean(hits_list_all)}")
-print(f"We have {len(perf_list_all)} predictions")
-print(f"The test set has len {len(test_data)} ")
 
 end_o =  timeit.default_timer()
 train_time_o = round(end_train- start_train, 6)  
@@ -362,19 +369,19 @@ print("Running Training to find best configs finished in {} seconds.".format(tra
 print("Running testing with best configs finished in {} seconds.".format(test_time_o))
 print("Running all steps finished in {} seconds.".format(total_time_o))
 
-# for saving the results...
+print(f"The test MRR is {np.mean(perf_list_all)}")
+print(f"The valid MRR is {val_mrr}")
+print(f"The Hits@10 is {np.mean(hits_list_all)}")
+print(f"We have {len(perf_list_all)} predictions")
+print(f"The test set has len {len(test_data)} ")
 
+# for saving the results...
 results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
 if not osp.exists(results_path):
     os.mkdir(results_path)
     print('INFO: Create directory {}'.format(results_path))
 Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_NONE_{DATA}_results.json'
-
-
-
-
-
 metric = dataset.eval_metric
 save_results({'model': MODEL_NAME,
               'train_flag': parsed['train_flag'],
