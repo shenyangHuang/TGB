@@ -141,7 +141,7 @@ class TripleSet:
     def unique_nodes(self, snapshot):
         """
             Returns the set of unique nodes in a snapshot."""
-        return set([x[0] for x in snapshot] + [x[2] for x in snapshot])
+        return   set([x[0] for x in snapshot] + [x[2] for x in snapshot])
 
 def max_consecutive_numbers(lst):
     max_count = 0
@@ -245,6 +245,12 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
                          mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
                          seasonal_value, collision_trainval, collision_valtest):
+    if  'tkgl' in dataset_name:
+        num_train_quads = int(num_train_quads/2)
+        num_val_quads = int(num_val_quads/2)
+        num_test_quads = int(num_test_quads/2)
+        num_all_quads = int(num_all_quads/2)
+
     stats_dict = {
         "dataset_name": dataset_name,
         "num_rels": num_rels,
@@ -300,14 +306,14 @@ def num_nodes_not_in_train(train_data, test_data):
     :param test_data: np.array, test data
     :return: int, number of nodes in the test set that are not in the train set
     """
-    train_nodes = np.unique(train_data[:,0]) + np.unique(train_data[:,2])
-    test_nodes = np.unique(test_data[:,0]) + np.unique(test_data[:,2])
+    train_nodes =np.unique(np.concatenate((np.unique(train_data[:,0]), np.unique(train_data[:,2]))))
+    test_nodes = np.unique(np.concatenate((np.unique(test_data[:,0]), np.unique(test_data[:,2]))))
     num_nodes_not_in_train = len(np.setdiff1d(test_nodes, train_nodes))
     return num_nodes_not_in_train
 
 
 
-names = ['thgl-forum','thgl-myket', 'tkgl-yago', 'tkgl-polecat', 'tkgl-icews','tkgl-wiki', 'thgl-github']
+names = [ 'thgl-myket','thgl-github'] #'tkgl-wikidata', 'tkgl-yago', 'thgl-forum',
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -323,14 +329,14 @@ for dataset_name in names:
     objects= dataset.full_data["destinations"]
     num_nodes = dataset.num_nodes 
     timestamps_orig = dataset.full_data["timestamps"]
-    timestamps = reformat_ts(timestamps_orig) # stepsize:1
+    timestamps = reformat_ts(timestamps_orig, dataset_name) # stepsize:1
 
     all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
     train_data = all_quads[dataset.train_mask]
     val_data = all_quads[dataset.val_mask]
     test_data = all_quads[dataset.test_mask]
-    collision_trainval = np.intersect1d(timestamps_orig[dataset.train_mask], timestamps_orig[dataset.val_mask])
-    collision_valtest = np.intersect1d(timestamps_orig[dataset.val_mask], timestamps_orig[dataset.test_mask])
+    collision_trainval = np.intersect1d(list(set(timestamps_orig[dataset.train_mask])), list(set(timestamps_orig[dataset.val_mask])))
+    collision_valtest = np.intersect1d(list(set(timestamps_orig[dataset.val_mask])), list(set(timestamps_orig[dataset.test_mask])))
     if len(collision_trainval) > 0:
         print("!!!!!!!!!Collision between train and val set!!!!!!!!!")
     if len(collision_valtest) > 0:
@@ -357,7 +363,6 @@ for dataset_name in names:
     num_all_ts = num_train_timesteps + num_val_timesteps + num_test_timesteps
 
     # compute number on nodes in valid set or test set that have not been seen in train set
-    train_nodes = np.unique(train_data[:,0]) + np.unique(train_data[:,2])
 
 
     # compute recurrency factor
@@ -421,7 +426,8 @@ for dataset_name in names:
     ts_set = list(set(timestamps_orig))
     ts_set.sort()
     ts_dist = ts_set[1] - ts_set[0]
-    all_possible_orig_timestamps =get_original_ts(all_possible_timestep_indices, ts_dist, np.min(ts_set))
+    if 'tkg' in dataset_name:
+        all_possible_orig_timestamps =get_original_ts(all_possible_timestep_indices, ts_dist, np.min(ts_set))
 
     no_nodes_list = []
     no_nodes_list_orig = []
@@ -430,20 +436,25 @@ for dataset_name in names:
         num_nodes_ts = len(ts_all.unique_nodes(ts_all.t_2_triple[t]))
         n_nodes_list.append(num_nodes_ts)
         n_edges_list.append(len(ts_all.t_2_triple[t]))
-        if num_nodes_ts == 0:
-            if t not in no_nodes_list:
-                no_nodes_list.append(t)
-                no_nodes_list_orig.append(all_possible_orig_timestamps[t])
-                no_nodes_datetime.append(datetime.utcfromtimestamp(all_possible_orig_timestamps[t]))
+        if 'tkg' in dataset_name:
+            if num_nodes_ts == 0:
+                if t not in no_nodes_list:
+                    no_nodes_list.append(t)
+                    no_nodes_list_orig.append(all_possible_orig_timestamps[t])
+                    no_nodes_datetime.append(datetime.utcfromtimestamp(all_possible_orig_timestamps[t]))
     # compute seasonality of num nodes over time: 
     seasonal_value = estimate_seasons(n_nodes_list)
     if seasonal_value == 1:
         print('there was no seasonality for number of nodes found')
     else:
         print(f'the seasonality for number of nodes is {seasonal_value}')
-    print('0 nodes for timesteps: ', no_nodes_list)
-    print('this is original unix timestamps: ', no_nodes_list_orig)
-    print('this is datetime: ', no_nodes_datetime)
+    if 'tkgl' in dataset_name:
+        print('we have 0 nodes for' + str(len(no_nodes_list)) + ' timesteps')
+        print('0 nodes for timesteps: ', no_nodes_list)
+        print('this is original unix timestamps: ', no_nodes_list_orig)
+        print('this is datetime: ', no_nodes_datetime)
+    else:
+        print('we have 0 nodes for' + str(len(no_nodes_list)) + ' timesteps')
 
             
     print(f"average number of triples per ts is {np.mean(n_edges_list)}")
@@ -476,6 +487,9 @@ for dataset_name in names:
     plt.title(f'Number of nodes per timestep for {dataset_name}')
     save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_nodes_per_ts_{dataset_name}.png"))
     plt.savefig(save_path)
+
+    
+   
 
     create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
                          num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
