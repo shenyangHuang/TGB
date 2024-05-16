@@ -213,6 +213,41 @@ def extract_timeseries_from_graphs(self, graph_dict):
 
     return [num_triples, num_nodes, max_deg, mean_deg, mean_deg_c, max_deg_c, min_deg_c, density]
 
+def discretize_values(num_nodes_per_timestep, k):
+    """
+    Discretize the values of a time series into k bins and return the mean value of each bin.
+    """
+    # Calculate the number of elements per bin
+    elements_per_bin = len(num_nodes_per_timestep) // k
+    
+    # Create an empty list to store the mean values of each bin
+    means = []
+    ts_discretized_min = []
+    ts_discretized_max = []
+    
+    # Iterate over the bins
+    start_indices =[]
+    end_indices = []
+    mid_indices = []
+    for i in range(k):
+        # Calculate the start and end indices of the current bin
+        start_index = i * elements_per_bin
+        end_index = (i + 1) * elements_per_bin
+        
+        # Extract the elements of the current bin
+        bin_values = num_nodes_per_timestep[start_index:end_index]
+        
+        # Calculate the mean of the bin values and append it to the list
+        bin_mean = np.mean(bin_values)
+        means.append(bin_mean)
+        ts_discretized_min.append(min(bin_values))
+        ts_discretized_max.append(max(bin_values))
+        start_indices.append(start_index)
+        end_indices.append(end_index)
+        mid_indices.append((start_index + end_index) // 2)
+    
+    return means,ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices
+
 def estimate_seasons(train_data):
     """ Estimate seasonal effects in a series.
             
@@ -313,7 +348,7 @@ def num_nodes_not_in_train(train_data, test_data):
 
 
 
-names = [ 'thgl-myket','thgl-github'] #'tkgl-wikidata', 'tkgl-yago', 'thgl-forum',
+names = [ 'thgl-github'] #'tkgl-polecat','tkgl-yago', 'tkgl-icews',, 'thgl-forum', 'tkgl-wikidata', 'thgl-myket'
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -443,7 +478,8 @@ for dataset_name in names:
                     no_nodes_list_orig.append(all_possible_orig_timestamps[t])
                     no_nodes_datetime.append(datetime.utcfromtimestamp(all_possible_orig_timestamps[t]))
     # compute seasonality of num nodes over time: 
-    seasonal_value = estimate_seasons(n_nodes_list)
+    seasonal_value =1
+   # seasonal_value = estimate_seasons(n_nodes_list)
     if seasonal_value == 1:
         print('there was no seasonality for number of nodes found')
     else:
@@ -465,6 +501,37 @@ for dataset_name in names:
     print(f"std for average number of nodes per ts is {np.std(n_nodes_list)}")
     print(f"min/max number of nodes per ts is {np.min(n_nodes_list), np.max(n_nodes_list)}")
 
+    num_bars = 100
+    ts_discretized_mean, ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices = discretize_values(n_edges_list, num_bars)
+    plt.figure()
+    plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='mean value')
+    plt.scatter(mid_indices, ts_discretized_min, label ='min value')
+    plt.scatter(mid_indices, ts_discretized_max, label ='max value')
+    plt.xlabel('Timestep (bins)')
+    plt.ylabel('Number of Edges')
+    plt.legend()
+    plt.title('Number of Edges aggregated across multiple timesteps')
+    modified_dataset_name = dataset_name.replace('-', '_')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Navigate one folder up
+    parent_dir = os.path.dirname(current_dir)
+    save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_discretized_{dataset_name}.png"))
+    plt.savefig(save_path)
+
+    plt.figure()
+    mins = np.array(ts_discretized_min)
+    maxs = np.array(ts_discretized_max)
+    means = np.array(ts_discretized_mean)
+    plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean')
+    plt.errorbar(mid_indices, means, yerr=[means - mins, maxs - means], fmt='none', alpha=0.9, color='grey',capsize=1, capthick=1, elinewidth=1, label='Min-Max Range')
+    plt.xlabel('Start Indices')
+    plt.ylabel('Values')
+    plt.title('Discretized Mean, Min, Max Values')
+    plt.legend()
+    plt.show()
+    save_path2 = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_discretized_{dataset_name}2.png"))
+    plt.savefig(save_path2)
+
     plt.figure()
     plt.scatter(range(ts_all.num_timesteps), n_edges_list, s=0.2)
     plt.xlabel('timestep')
@@ -480,6 +547,15 @@ for dataset_name in names:
     save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_per_ts_{dataset_name}.png"))
     plt.savefig(save_path)
 
+    to_be_saved_dict = {}
+    to_be_saved_dict['num_edges'] = n_edges_list
+    to_be_saved_dict['num_nodes'] = n_nodes_list
+    parent_dir = os.path.dirname(current_dir)
+    save_path = (os.path.join(parent_dir, modified_dataset_name, f"numedges_{dataset_name}.json")) 
+    save_file = open(save_path, "w")
+    json.dump(to_be_saved_dict, save_file)
+    save_file.close()
+
     plt.figure()
     plt.scatter(range(ts_all.num_timesteps), n_nodes_list, s=0.2)
     plt.xlabel('timestep')
@@ -491,10 +567,10 @@ for dataset_name in names:
     
    
 
-    create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
-                         num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
-                         test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
-                         direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
-                         np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
-                         np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
-                         seasonal_value, collision_trainval, collision_valtest)
+    #create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
+     #                    num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
+     #                    test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
+     #                    direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
+     #                    np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
+      #                   np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
+      #                   seasonal_value, collision_trainval, collision_valtest)
