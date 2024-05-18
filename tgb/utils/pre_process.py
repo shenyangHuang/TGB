@@ -201,7 +201,7 @@ def csv_to_wikidata(
     fname: str,
 ) -> pd.DataFrame:
     r"""
-    used by tkgl-polecat
+    used by tkgl-wikidata and tkgl-smallpedia
     convert the raw .csv data to pandas dataframe and numpy array
     input .csv file format should be: timestamp, head, tail, relation type
     Args:
@@ -269,6 +269,58 @@ def csv_to_wikidata(
         feat_l,
         node_ids,
     )
+
+
+def csv_to_staticdata(
+    fname: str,
+    node_ids: dict,
+) -> pd.DataFrame:
+    r"""
+    used by tkgl-wikidata and tkgl-smallpedia
+    convert the raw .csv data to pandas dataframe and numpy array for static knowledge edges
+    input .csv file format should be: head, tail, relation type
+    Args:
+        fname: the path to the raw data
+        node_ids: dictionary of node names mapped to integer node ids
+    """
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    edge_type_ids = {}
+    out_dict = {}
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                src = row[0]
+                dst = row[1]
+                relation = row[2]
+                if src not in node_ids:
+                    node_ids[src] = len(node_ids)
+                if dst not in node_ids:
+                    node_ids[dst] = len(node_ids)
+                if relation not in edge_type_ids:
+                    edge_type_ids[relation] = len(edge_type_ids)
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i                
+                edge_type[idx - 1] = edge_type_ids[relation]
+                idx += 1
+
+    out_dict["head"] = u_list
+    out_dict["tail"] = i_list
+    out_dict["edge_type"] = edge_type
+    return out_dict, node_ids
+
 
 
 

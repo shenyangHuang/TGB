@@ -33,6 +33,7 @@ class PyGLinkPropPredDataset(Dataset):
         super().__init__(root, transform, pre_transform)
         self._node_feat = self.dataset.node_feat
         self._edge_type = None
+        self._static_data = None
 
         if self._node_feat is None:
             self._node_feat = None
@@ -181,6 +182,23 @@ class PyGLinkPropPredDataset(Dataset):
             ts: the timestamps of the edges
         """
         return self._ts
+    
+    @property
+    def static_data(self) -> torch.Tensor:
+        r"""
+        Returns the static data of the dataset for tkgl-wikidata and tkgl-smallpedia
+        Returns:
+            static_data: the static data of the dataset
+        """
+        if (self._static_data is None):
+            static_dict = {}
+            static_dict["head"] = torch.from_numpy(self.dataset.static_data["head"]).long()
+            static_dict["tail"] = torch.from_numpy(self.dataset.static_data["tail"]).long()
+            static_dict["edge_type"] = torch.from_numpy(self.dataset.static_data["edge_type"]).long()
+            self._static_data = static_dict
+            return self._static_data
+        else:
+            return self._static_data 
     
     @property
     def edge_type(self) -> torch.Tensor:
