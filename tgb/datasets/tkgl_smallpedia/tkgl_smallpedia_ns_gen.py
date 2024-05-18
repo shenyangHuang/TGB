@@ -10,8 +10,8 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 100000
-    neg_sample_strategy = "dst-time-filtered"
+    num_neg_e_per_pos = -1 #10000
+    neg_sample_strategy = "time-filtered" #"dst-time-filtered"
     rnd_seed = 42
 
 

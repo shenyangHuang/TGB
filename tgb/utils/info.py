@@ -102,7 +102,7 @@ DATA_NS_STRATEGY_DICT = {
     "tkgl-polecat": "time-filtered",
     "tkgl-yago": "time-filtered",
     "tkgl-wikidata": "dst-time-filtered",
-    "tkgl-smallpedia": "dst-time-filtered",
+    "tkgl-smallpedia": "time-filtered",
     "tkgl-icews": "time-filtered",
     "thgl-myket": "node-type-filtered",
     "thgl-github": "node-type-filtered",

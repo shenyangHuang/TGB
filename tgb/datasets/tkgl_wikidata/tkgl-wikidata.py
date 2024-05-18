@@ -195,7 +195,8 @@ def main():
 
     inputfile = "tkgl-wikidata_edgelist.csv"
     outname = "tkgl-smallpedia_edgelist.csv"
-    node_dict = extract_subset(inputfile, outname, start_year=2000)
+    start_year = 2015
+    node_dict = extract_subset(inputfile, outname, start_year=start_year)
 
     inputfile = "tkgl-wikidata_static_edgelist.csv"
     outname = "tkgl-smallpedia_static_edgelist.csv"
