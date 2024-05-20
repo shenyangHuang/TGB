@@ -197,7 +197,7 @@ def get_args_timetraveler(args=None):
     parser.add_argument('--Zita', default=0.9, type=float, help='attenuation factor of entropy regular term.')
 
     # reward shaping params
-    parser.add_argument('--reward_shaping', default=False, help='whether to use reward shaping.')
+    parser.add_argument('--reward_shaping', default=True, help='whether to use reward shaping.')
     parser.add_argument('--time_span', default=1, type=int, help='24 for ICEWS, 1 for WIKI and YAGO')
     parser.add_argument('--alphas_pkl', default='dirchlet_alphas.pkl', type=str,
                         help='the file storing the alpha parameters of the Dirichlet distribution.')
@@ -597,9 +597,9 @@ def group_by(data: np.array, key_idx: int) -> dict:
 def tkg_granularity_lookup(dataset_name, ts_distmean):
     """ lookup the granularity of the dataset, and return the corresponding granularity
     """
-    if 'icews' in dataset_name or 'polecat' in dataset_name:
+    if 'icews' or 'polecat' in dataset_name:
         return 86400
-    elif 'wiki' in dataset_name or 'yago' in dataset_name:
+    elif 'wiki' or 'yago' in dataset_name:
         return 31536000
     else:
         return ts_distmean
@@ -616,12 +616,9 @@ def reformat_ts(timestamps, dataset_name='tkgl'):
     ts_min = np.min(all_ts)
     if 'tkgl' in dataset_name:
         ts_distmax, ts_distmin, ts_distmean = compute_maxminmean_distances(all_ts)
-        if ts_distmean != ts_distmin:
-            ts_dist = tkg_granularity_lookup(dataset_name, ts_distmean)
-            if ts_dist - ts_distmean > 0.1*ts_distmean:
-                print('PROBLEM: the distances are somehwat off from the granularity of the dataset. using original mean distance')
-                ts_dist = ts_distmean
-        else:
+        ts_dist = tkg_granularity_lookup(dataset_name, ts_distmean)
+        if ts_dist - ts_distmean > 0.1*ts_distmean:
+            print('PROBLEM: the distances are somehwat off from the granularity of the dataset. using original mean distance')
             ts_dist = ts_distmean
     else:
         ts_dist = compute_min_distance(all_ts) # all_ts[1] - all_ts[0]
