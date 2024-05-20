@@ -114,9 +114,10 @@ def write2csv(outname: str,
                 writer.writerow(row)
 
 
-def extract_subset(fname, outname, start_year=2000):
+def extract_subset(fname, outname, start_year=2000, end_year=2024):
     node_dict = {}
     first_row = True
+    rel_type = {}
     r"""
     ts,head,tail,relation_type
     0,Q331755,Q1294765,P39
@@ -135,13 +136,16 @@ def extract_subset(fname, outname, start_year=2000):
                 head = row[1]
                 tail = row[2]
                 relation_type = row[3]
-                if (ts >= start_year):
+                if (ts >= start_year and ts <= end_year):
                     if head not in node_dict:
                         node_dict[head] = 1
                     if tail not in node_dict:
                         node_dict[tail] = 1
                     row = [ts, head, tail, relation_type]
+                    if (relation_type not in rel_type):
+                        rel_type[relation_type] = 1
                     writer.writerow(row)
+    print ("there are ",len(rel_type), " relation types")
     return node_dict
 
 
@@ -156,6 +160,8 @@ def extract_static_subset(fname, outname, node_dict):
     Q31,Q1088364,P1344
     Q31,Q3247091,P1151
     """
+    rel_type = {}
+    full_node = {}
     with open(outname, 'w') as f:
         writer = csv.writer(f, delimiter =',')
         writer.writerow(['head', 'tail', 'relation_type'])
@@ -168,9 +174,65 @@ def extract_static_subset(fname, outname, node_dict):
                 head = row[0]
                 tail = row[1]
                 relation_type = row[2]
-                if (head in node_dict) or (tail in node_dict):
+                if (head in node_dict) and (tail in node_dict): #need to check
                     row = [head, tail, relation_type]
                     writer.writerow(row)
+                    if (relation_type not in rel_type):
+                        rel_type[relation_type] = 1
+                    else:
+                        rel_type[relation_type] += 1
+                    if (head not in full_node):
+                        full_node[head] = 1
+                    if (tail not in full_node):
+                        full_node[tail] = 1
+    print ("there are ",len(rel_type), " relation types")
+    print ("there are ",len(full_node), " nodes in static edgelist")
+    return rel_type
+
+
+
+def subset_static_edges(fname, outname, rel_type, topk=10):
+    #* select edges based on frequency
+    import operator
+    sorted_x = sorted(rel_type.items(), key=operator.itemgetter(1))
+    sorted_x = sorted_x[-topk:]
+    rel_kept = {}
+    for (u,v) in sorted_x:
+        rel_kept[u] = 1
+        print (u,v)
+
+    kept_nodes = {}
+    first_row = True
+
+    # rel_kept = {"P17":1, "P27":1, "P495":1, "P19": 1}
+
+
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['head', 'tail', 'relation_type'])
+        with open(fname, 'r') as f:
+            reader = csv.reader(f, delimiter =',')
+            for row in reader: 
+                if first_row:
+                    first_row = False
+                    continue
+                head = row[0]
+                tail = row[1]
+                relation_type = row[2]
+                if (relation_type in rel_kept):
+                    row = [head, tail, relation_type]
+                    if (head not in kept_nodes):
+                        kept_nodes[head] = 1
+                    if (tail not in kept_nodes):
+                        kept_nodes[tail] = 1
+                    writer.writerow(row)
+    print ("there are ",len(kept_nodes), " nodes in static edgelist")
+                
+
+
+
+
+
 
 def main():
 
@@ -195,12 +257,21 @@ def main():
 
     inputfile = "tkgl-wikidata_edgelist.csv"
     outname = "tkgl-smallpedia_edgelist.csv"
-    start_year = 2015
-    node_dict = extract_subset(inputfile, outname, start_year=start_year)
+    # start_year = 2015
+    start_year=1700
+    end_year=1800
+    node_dict = extract_subset(inputfile, outname, start_year=start_year, end_year=end_year)
+    print ("there are ",len(node_dict), " nodes")
 
     inputfile = "tkgl-wikidata_static_edgelist.csv"
     outname = "tkgl-smallpedia_static_edgelist.csv"
-    extract_static_subset(inputfile, outname, node_dict)
+    rel_type = extract_static_subset(inputfile, outname, node_dict)
+
+
+    # inputfile = "tkgl-smallpedia_static_edgelist.csv"
+    # outname = "tkgl-smallpedia_static_edgelist_top10.csv"
+    # topk=10
+    # subset_static_edges(inputfile, outname, rel_type, topk=topk)
 
 
 
