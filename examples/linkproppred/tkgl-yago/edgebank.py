@@ -165,8 +165,8 @@ end_val = timeit.default_timer()
 
 print(f"INFO: val: Evaluation Setting: >>> ONE-VS--ALL <<< ")
 print(f"\tval: {metric}: {perf_metric_val: .4f}")
-test_time = timeit.default_timer() - start_val
-print(f"\tval: Elapsed Time (s): {test_time: .4f}")
+val_time = timeit.default_timer() - start_val
+print(f"\tval: Elapsed Time (s): {val_time: .4f}")
 
 
 
@@ -180,7 +180,7 @@ start_test = timeit.default_timer()
 perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
 end_test = timeit.default_timer()
 
-print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-ALL <<< ")
+print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
 print(f"\tTest: {metric}: {perf_metric_test: .4f}")
 test_time = timeit.default_timer() - start_test
 print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
@@ -193,6 +193,5 @@ save_results({'model': MODEL_NAME,
               metric: perf_metric_test,
               'val_mrr': perf_metric_val,
               'test_time': test_time,
-              'tot_train_val_time': 'NA'
-              }, 
+              'tot_train_val_time': test_time+val_time              }, 
     results_filename)
