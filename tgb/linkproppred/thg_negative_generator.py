@@ -61,7 +61,6 @@ class THGNegativeEdgeGenerator(object):
 
         assert strategy in [
             "node-type-filtered",
-            "time-filtered"
         ], "The supported strategies are `node-type-filtered`"
         self.strategy = strategy
         self.edge_data = edge_data
@@ -125,9 +124,6 @@ class THGNegativeEdgeGenerator(object):
 
         if self.strategy == "node-type-filtered":
             self.generate_negative_samples_nt(pos_edges, split_mode, filename)
-        elif self.strategy == "time-filtered":
-            self.generate_negative_samples_ftr(pos_edges, split_mode, filename)
-
         else:
             raise ValueError("Unsupported negative sample generation strategy!")
 
@@ -212,66 +208,5 @@ class THGNegativeEdgeGenerator(object):
 
 
 
-    def generate_negative_samples_ftr(self, 
-                                      data: TemporalData, 
-                                      split_mode: str, 
-                                      filename: str,
-                                      ) -> None:
-        r"""
-        now we consider (s, d, t, edge_type) as a unique edge
-        Generate negative samples based on the random strategy:
-            - for each positive edge, sample a batch of negative edges from all possible edges with the same source node
-            - filter actual positive edges at the same timestamp with the same edge type
-        
-        Parameters:
-            data: an object containing positive edges information
-            split_mode: specifies whether to generate negative edges for 'validation' or 'test' splits
-            filename: name of the file containing the generated negative edges
-        """
-        print(
-            f"INFO: Negative Sampling Strategy: {self.strategy}, Data Split: {split_mode}"
-        )
-        assert split_mode in [
-            "val",
-            "test",
-        ], "Invalid split-mode! It should be `val` or `test`!"
 
-        if os.path.exists(filename):
-            print(
-                f"INFO: negative samples for '{split_mode}' evaluation are already generated!"
-            )
-        else:
-            print(f"INFO: Generating negative samples for '{split_mode}' evaluation!")
-            # retrieve the information from the batch
-            pos_src, pos_dst, pos_timestamp, edge_type = (
-                data.src.cpu().numpy(),
-                data.dst.cpu().numpy(),
-                data.t.cpu().numpy(),
-                data.edge_type.cpu().numpy(),
-            )
-            # generate a list of negative destinations for each positive edge
-            pos_edge_tqdm = tqdm(
-                zip(pos_src, pos_dst, pos_timestamp, edge_type), total=len(pos_src)
-            )
-
-            edge_t_dict = {} # {(t, u, edge_type): {v_1, v_2, ..} }
-            #! iterate once to put all edges into a dictionary for reference
-            for (
-                pos_s,
-                pos_d,
-                pos_t,
-                edge_type,
-            ) in pos_edge_tqdm:
-                if (pos_t, pos_s, edge_type) not in edge_t_dict:
-                    edge_t_dict[(pos_t, pos_s, edge_type)] = {pos_d:1}
-                else:
-                    edge_t_dict[(pos_t, pos_s, edge_type)][pos_d] = 1
-
-            conflict_dict = {}
-            for key in edge_t_dict:
-                conflict_dict[key] = np.array(list(edge_t_dict[key].keys()))
-            
-            print ("conflict sets for ns samples for ", len(conflict_dict), " positive edges are generated")
-            # save the generated evaluation set to disk
-            save_pkl(conflict_dict, filename)
 

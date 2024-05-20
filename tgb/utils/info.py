@@ -105,7 +105,7 @@ DATA_NS_STRATEGY_DICT = {
     "tkgl-smallpedia": "time-filtered",
     "tkgl-icews": "time-filtered",
     "thgl-myket": "node-type-filtered",
-    "thgl-github": "time-filtered", #"node-type-filtered",
+    "thgl-github": "node-type-filtered",
     "thgl-forum": "node-type-filtered",
 }
 
