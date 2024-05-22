@@ -60,3 +60,4 @@ zipp==3.15.0
 ray
 dgl==2.1.0
 chardet
+seasonal==0.3.1
