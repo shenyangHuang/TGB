@@ -245,6 +245,9 @@ class RecurrentRGCNREGCN(nn.Module):
         self.dynamic_emb = torch.nn.Parameter(torch.Tensor(num_ents, h_dim), requires_grad=True).float()
         torch.nn.init.normal_(self.dynamic_emb)
 
+        self.static_zero = torch.nn.Parameter(torch.Tensor(num_ents, h_dim), requires_grad=True).float()
+        torch.nn.init.normal_(self.static_zero)
+
         if self.use_static:
             self.words_emb = torch.nn.Parameter(torch.Tensor(self.num_words, h_dim), requires_grad=True).float()
             torch.nn.init.xavier_normal_(self.words_emb)
@@ -289,7 +292,7 @@ class RecurrentRGCNREGCN(nn.Module):
     def forward(self, g_list, static_graph, use_cuda):
         gate_list = []
         degree_list = []
-
+        # a = True
         if self.use_static:
             static_graph = static_graph.to(self.gpu)
             static_graph.ndata['h'] = torch.cat((self.dynamic_emb, self.words_emb), dim=0)  # 演化得到的表示，和wordemb满足静态图约束
@@ -297,10 +300,12 @@ class RecurrentRGCNREGCN(nn.Module):
             static_emb = static_graph.ndata.pop('h')[:self.num_ents, :]
             static_emb = F.normalize(static_emb) if self.layer_norm else static_emb
             self.h = static_emb
+            a = torch.isnan(F.normalize(static_emb)).any() or torch.isinf(static_emb).any()
+            if a ==True:
+                print("static_emb is nan")
         else:
             self.h = F.normalize(self.dynamic_emb) if self.layer_norm else self.dynamic_emb[:, :]
             static_emb = None
-
         history_embs = []
 
         for i, g in enumerate(g_list):
@@ -356,7 +361,13 @@ class RecurrentRGCNREGCN(nn.Module):
                 score = self.decoder_ob.forward(embedding, r_emb, all_triples, mode="test")
             # score_rel = self.rdecoder.forward(embedding, r_emb, all_triples, mode="test")
             return score, perf_list
-
+        
+    def get_mask_nonzero(self, static_embedding):
+        """ Each element of this resulting tensor will be True if the sum of the corresponding row in 
+        static_emb is not zero, and False otherwise
+        """
+        mask = torch.sum(static_embedding, dim=1) != 0
+        return mask
 
     def get_loss(self, glist, triples, static_graph, use_cuda):
         """
@@ -388,12 +399,26 @@ class RecurrentRGCNREGCN(nn.Module):
                 for time_step, evolve_emb in enumerate(evolve_embs):
                     step = (self.angle * math.pi / 180) * (time_step + 1)
                     if self.layer_norm:
+                        a= torch.isnan(F.normalize(evolve_emb)).any() or torch.isinf(evolve_emb).any()
+                        if a ==True:
+                            print("evolve_emb is nan")
                         sim_matrix = torch.sum(static_emb * F.normalize(evolve_emb), dim=1)
+                        a = torch.isnan(sim_matrix).any() or torch.isinf(sim_matrix).any()
+                        if a ==True:
+                            print("sim_matrix is nan")
                     else:
                         sim_matrix = torch.sum(static_emb * evolve_emb, dim=1)
                         c = torch.norm(static_emb, p=2, dim=1) * torch.norm(evolve_emb, p=2, dim=1)
-                        sim_matrix = sim_matrix / c
+                        non_zero_mask = c != 0
+
+                        # Initialize b_sim_matrix with zeros (or another appropriate value)
+                        sim_matrix = torch.zeros_like(sim_matrix)
+
+                        # Perform division only where c is not zero
+                        sim_matrix[non_zero_mask] = sim_matrix[non_zero_mask] / c[non_zero_mask]
+                        # sim_matrix = sim_matrix / c
                     mask = (math.cos(step) - sim_matrix) > 0
+                    # mask = self.get_mask_nonzero(static_emb) #modified! to only consider non-zero rows
                     loss_static += self.weight * torch.sum(torch.masked_select(math.cos(step) - sim_matrix, mask))
             elif self.discount == 0:
                 for time_step, evolve_emb in enumerate(evolve_embs):
@@ -406,4 +431,5 @@ class RecurrentRGCNREGCN(nn.Module):
                         sim_matrix = sim_matrix / c
                     mask = (math.cos(step) - sim_matrix) > 0
                     loss_static += self.weight * torch.sum(torch.masked_select(math.cos(step) - sim_matrix, mask))
+
         return loss_ent, loss_rel, loss_static

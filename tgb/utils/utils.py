@@ -378,11 +378,12 @@ def get_args_regcn():
                         help="save model accordding to the relation evalution")
 
     # configuration for encoder RGCN stat
+
     parser.add_argument("--weight", type=float, default=0.5,
                         help="weight of static constraint")
     parser.add_argument("--task-weight", type=float, default=0.7,
                         help="weight of entity prediction task")
-    parser.add_argument("--discount", type=float, default=1,
+    parser.add_argument("--discount", type=float, default=1.0,
                         help="discount of weight of static constraint")
     parser.add_argument("--angle", type=int, default=10,
                         help="evolution speed")
@@ -522,7 +523,7 @@ def r2e(triplets, num_rels):
         idx += len(r_to_e[r])
     return uniq_r, r_len, e_idx
 
-def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
+def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu, mode='dyn'):
     """
     https://github.com/Lee-zix/CEN/blob/main/rgcn/utils.py
     :param node_id: node id in the large graph
@@ -540,10 +541,15 @@ def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu):
         return norm
 
     src, rel, dst = triples.transpose()
+    if mode =='static':
+        src, dst = np.concatenate((src, dst)), np.concatenate((dst, src))
+        rel = np.concatenate((rel, rel + num_rels))
     g = dgl.DGLGraph()
     g.add_nodes(num_nodes)
+    #g.ndata['original_id'] = np.unique(np.concatenate((np.unique(triples[:,0]), np.unique(triples[:,2]))))
     g.add_edges(src, dst)
     norm = comp_deg_norm(g)
+    #node_id =torch.arange(0, g.num_nodes(), dtype=torch.long).view(-1, 1) #updated to deal with the fact that ot only the first k nodes of our graph have static infos
     node_id = torch.arange(0, num_nodes, dtype=torch.long).view(-1, 1)
     g.ndata.update({'id': node_id, 'norm': norm.view(-1, 1)})
     g.apply_edges(lambda edges: {'norm': edges.dst['norm'] * edges.src['norm']})
