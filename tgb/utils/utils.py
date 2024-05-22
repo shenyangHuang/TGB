@@ -429,6 +429,8 @@ def get_args_regcn():
     # configuration for evaluating
     parser.add_argument("--evaluate-every", type=int, default=1,
                         help="perform evaluation every n epochs")
+    parser.add_argument("--log-per-rel", action='store_true', default=False,
+                        help="log mrr per relation in json")
 
     # configuration for decoder
     parser.add_argument("--decoder", type=str, default="convtranse",

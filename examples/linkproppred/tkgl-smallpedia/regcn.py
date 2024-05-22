@@ -22,7 +22,7 @@ from tgb_modules.rrgcn import RecurrentRGCNREGCN
 from tgb.utils.utils import set_random_seed, get_args_regcn, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from torch import autograd
+import json
 
 def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, static_graph, mode, split_mode):
     """
@@ -59,9 +59,11 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
     model.eval()
     input_list = [snap for snap in history_list[-args.test_history_len:]] 
     perf_list_all = []
+    perf_per_rel = {}
+    for rel in range(num_rels):
+        perf_per_rel[rel] = []
+
     for time_idx, test_snap in enumerate(tqdm(test_list)):
-        if time_idx == 10:
-            print(time_idx)
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]    
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
         timesteps_batch =timesteps_to_eval[time_idx]*np.ones(len(test_triples_input[:,0]))
@@ -74,34 +76,26 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
                                     evaluator, METRIC)  # TODO:  num_rels, static_graph different!
 
         perf_list_all.extend(perf_list)
+        if mode == "test":
+            if args.log_per_rel:
+                for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
+                    perf_per_rel[rel].append(score)
         # reconstruct history graph list
         input_list.pop(0)
         input_list.append(test_snap)
         idx += 1
-    
+
+    if mode == "test":
+        if args.log_per_rel:   
+            for rel in range(num_rels):
+                if len(perf_per_rel[rel]) > 0:
+                    perf_per_rel[rel] = float(np.mean(perf_per_rel[rel]))
+                else:
+                    perf_per_rel.pop(rel)
     mrr = np.mean(perf_list_all) 
-    return mrr
+    return mrr, perf_per_rel
 
-def ensure_no_conflict(all_static_quads, test_quads):
-    """ ensure that the static graph does not contain any triples that are similar to the test triples 
-    we make sure that not the same subject, relation, and object are in the static graph
-    :param all_static_quads: all static quads, np.array[sub, rel, obj]
-    :param test_auds: test triples, np.array[sub, rel, obj, timestep]
-    """
-    test_set = set()
-    for i in range(test_quads.shape[0]):
-        test_set.add((test_quads[i][0],  test_quads[i][1], test_quads[i][2]))
-    all_static_quads_conflictfree = []
-    conflicts = []
-    for i in range(all_static_quads.shape[0]):
-        if (all_static_quads[i][0], all_static_quads[i][1], all_static_quads[i][2]) not in test_set:
-            all_static_quads_conflictfree.append(all_static_quads[i])
-        else:
-            conflicts.append(all_static_quads[i])
 
-    print('we found {} conflicts where the same subject, relation and object are in the test set. we remove them'.format(len(conflicts)))
-
-    return np.array(all_static_quads_conflictfree)
 
 def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=None):
     # load configuration for grid search the best configuration
@@ -121,46 +115,19 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         print('INFO: Create directory {}'.format(save_model_dir))
     model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}'
     model_state_file = save_model_dir+model_name
-
+    perf_per_rel = {}
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
 
 
-    if args.add_static_graph:
-        static_data = dataset.static_data
-        static_head = static_data["head"].astype(int)
-        static_tail = static_data["tail"].astype(int)
-        static_edge_type = static_data["edge_type"].astype(int)
-        print ('static edges processed')
-        print ("static data has ", static_head.shape[0], " edges")
-        all_static_triples = np.stack((static_head, static_edge_type, static_tail), axis=1)
-        static_triples = ensure_no_conflict(all_static_triples, test_data)
-
-        # Get unique values from column 2
-        unique_values = np.unique(static_triples[:, 2])
-
-        # Map values from 0 to len(unique_values)
-        mapped_values = np.arange(len(unique_values))
-
-        # Create a mapping dictionary
-        value_map = dict(zip(unique_values, mapped_values))
-
-        # Map the values in column 2 using the dictionary
-        mapped_column_2 = np.vectorize(value_map.get)(static_triples[:, 2])
-
-        # Update static_triples with the mapped values
-        static_triples[:, 2] = mapped_column_2
-        # static_triples = np.array(_read_triplets_as_list("../data/" + args.dataset + "/e-w-graph.txt", {}, {}, load_time=False))
-        num_static_rels = len(np.unique(static_triples[:, 1]))
-        num_words = len(np.unique(static_triples[:, 2]))
-        static_triples[:, 2] = static_triples[:, 2] + num_nodes # we do not do this because we do have the same node ids in temporal an static graph
-        # unique_static_nodes = np.unique(np.concatenate((np.unique(static_head), np.unique(static_tail))))
-        # static_node_id = torch.from_numpy(np.arange(len(unique_static_nodes))).long().cuda(args.gpu) 
-        # static_node_id = unique_static_nodes
-        # print(f"we have {len(unique_static_nodes)} static nodes")
-        static_node_id = torch.from_numpy(np.arange(num_words + num_nodes)).view(-1, 1).long().cuda(args.gpu) \
-             if use_cuda else torch.from_numpy(np.arange(num_words + num_nodes)).view(-1, 1).long()
-    else:
-        num_static_rels, num_words, static_triples, static_graph = 0, 0, [], None
+    # if args.add_static_graph:
+    #     static_triples = np.array(_read_triplets_as_list("../data/" + args.dataset + "/e-w-graph.txt", {}, {}, load_time=False))
+    #     num_static_rels = len(np.unique(static_triples[:, 1]))
+    #     num_words = len(np.unique(static_triples[:, 2]))
+    #     static_triples[:, 2] = static_triples[:, 2] + num_nodes 
+    #     static_node_id = torch.from_numpy(np.arange(num_words + data.num_nodes)).view(-1, 1).long().cuda(args.gpu) \
+    #         if use_cuda else torch.from_numpy(np.arange(num_words + data.num_nodes)).view(-1, 1).long()
+    # else:
+    num_static_rels, num_words, static_triples, static_graph = 0, 0, [], None
 
     # create stat
     model = RecurrentRGCNREGCN(args.decoder, #TODO: this has slightly different args than CEN
@@ -197,14 +164,14 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         torch.cuda.set_device(args.gpu)
         model.cuda()
 
-    if args.add_static_graph: # TODO: what to do about this part: 
-        static_graph = build_sub_graph(len(static_node_id), num_static_rels, static_triples, use_cuda, args.gpu, mode='static')
+    # if args.add_static_graph: # TODO: what to do about this part: 
+    #     static_graph = build_sub_graph(len(static_node_id), num_static_rels, static_triples, use_cuda, args.gpu)
 
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     if args.test and os.path.exists(model_state_file):
-        mrr = test(model, 
+        mrr, perf_per_rel = test(model, 
                     train_list+valid_list, 
                     test_list, 
                     num_rels, 
@@ -214,15 +181,13 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                     static_graph, 
                     "test", 
                     "test")
-        return mrr
+        return mrr, perf_per_rel
     elif args.test and not os.path.exists(model_state_file):
         print("--------------{} not exist, Change mode to train and generate stat for testing----------------\n".format(model_state_file))
-        return 0
+        return 0, 0
     else:
         print("----------------------------------------start training----------------------------------------\n")
         best_mrr = 0
-        
-        # with autograd.detect_anomaly():
         for epoch in range(args.n_epochs):
 
             model.train()
@@ -243,7 +208,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                 history_glist = [build_sub_graph(num_nodes, num_rels, snap, use_cuda, args.gpu) for snap in input_list]
                 output = [torch.from_numpy(_).long().cuda() for _ in output] if use_cuda else [torch.from_numpy(_).long() for _ in output]
                 loss_e, loss_r, loss_static = model.get_loss(history_glist, output[0], static_graph, use_cuda)
-                loss = args.task_weight*loss_e + (1-args.task_weight)*loss_r  + loss_static
+                loss = args.task_weight*loss_e + (1-args.task_weight)*loss_r + loss_static
 
                 losses.append(loss.item())
 
@@ -253,7 +218,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                 optimizer.zero_grad()
 
             print("Epoch {:04d} | Ave Loss: {:.4f} | Best MRR {:.4f} | Model {} "
-                .format(epoch, np.mean(losses),  best_mrr, model_name))
+                  .format(epoch, np.mean(losses),  best_mrr, model_name))
             
             #! checking GPU usage
             free_mem, total_mem = torch.cuda.mem_get_info()
@@ -265,7 +230,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
 
             # validation
             if epoch and epoch % args.evaluate_every == 0:
-                mrr = test(model, train_list, 
+                mrr,perf_per_rel = test(model, train_list, 
                             valid_list, 
                             num_rels, 
                             num_nodes, 
@@ -291,7 +256,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         #         static_graph, 
         #         mode="test", split_mode='test')
 
-        return best_mrr
+        return best_mrr, perf_per_rel
 # ==================
 # ==================
 # ==================
@@ -308,7 +273,8 @@ set_random_seed(SEED)
 DATA=args.dataset
 MODEL_NAME = 'REGCN'
 
-print("the static graph args is: ", args.add_static_graph)
+print("logging mrrs per relation: ", args.log_per_rel)
+
 # load data
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
 
@@ -352,11 +318,11 @@ else:
     start_train = timeit.default_timer()
     if args.test == False:
         print('start training')
-        val_mrr = run_experiment(args)
+        val_mrr, perf_per_rel = run_experiment(args)
     start_test = timeit.default_timer()
     args.test = True
     print('start testing')
-    test_mrr = run_experiment(args)
+    test_mrr, perf_per_rel = run_experiment(args)
 
 
 test_time = timeit.default_timer() - start_test
@@ -385,5 +351,10 @@ save_results({'model': MODEL_NAME,
               'tot_train_val_time': all_time
               }, 
     results_filename)
+
+if args.log_per_rel:
+    results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results_per_rel.json'
+    with open(results_filename, 'w') as json_file:
+        json.dump(perf_per_rel, json_file)
 
 sys.exit()

@@ -22,7 +22,7 @@ from tgb_modules.rrgcn import RecurrentRGCNREGCN
 from tgb.utils.utils import set_random_seed, get_args_regcn, split_by_time, build_sub_graph, save_results, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-
+import json
 
 def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, static_graph, mode, split_mode):
     """
@@ -59,9 +59,11 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
     model.eval()
     input_list = [snap for snap in history_list[-args.test_history_len:]] 
     perf_list_all = []
+    perf_per_rel = {}
+    for rel in range(num_rels):
+        perf_per_rel[rel] = []
+
     for time_idx, test_snap in enumerate(tqdm(test_list)):
-        if time_idx == 10:
-            print(time_idx)
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]    
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
         timesteps_batch =timesteps_to_eval[time_idx]*np.ones(len(test_triples_input[:,0]))
@@ -74,13 +76,24 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
                                     evaluator, METRIC)  # TODO:  num_rels, static_graph different!
 
         perf_list_all.extend(perf_list)
+        if mode == "test":
+            if args.log_per_rel:
+                for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
+                    perf_per_rel[rel].append(score)
         # reconstruct history graph list
         input_list.pop(0)
         input_list.append(test_snap)
         idx += 1
-    
+
+    if mode == "test":
+        if args.log_per_rel:   
+            for rel in range(num_rels):
+                if len(perf_per_rel[rel]) > 0:
+                    perf_per_rel[rel] = float(np.mean(perf_per_rel[rel]))
+                else:
+                    perf_per_rel.pop(rel)
     mrr = np.mean(perf_list_all) 
-    return mrr
+    return mrr, perf_per_rel
 
 
 
@@ -102,10 +115,10 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         print('INFO: Create directory {}'.format(save_model_dir))
     model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}'
     model_state_file = save_model_dir+model_name
-
+    perf_per_rel = {}
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
 
-# TODO: what to do about this part: 
+
     # if args.add_static_graph:
     #     static_triples = np.array(_read_triplets_as_list("../data/" + args.dataset + "/e-w-graph.txt", {}, {}, load_time=False))
     #     num_static_rels = len(np.unique(static_triples[:, 1]))
@@ -158,7 +171,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     if args.test and os.path.exists(model_state_file):
-        mrr = test(model, 
+        mrr, perf_per_rel = test(model, 
                     train_list+valid_list, 
                     test_list, 
                     num_rels, 
@@ -168,10 +181,10 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                     static_graph, 
                     "test", 
                     "test")
-        return mrr
+        return mrr, perf_per_rel
     elif args.test and not os.path.exists(model_state_file):
         print("--------------{} not exist, Change mode to train and generate stat for testing----------------\n".format(model_state_file))
-        return 0
+        return 0, 0
     else:
         print("----------------------------------------start training----------------------------------------\n")
         best_mrr = 0
@@ -217,7 +230,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
 
             # validation
             if epoch and epoch % args.evaluate_every == 0:
-                mrr = test(model, train_list, 
+                mrr,perf_per_rel = test(model, train_list, 
                             valid_list, 
                             num_rels, 
                             num_nodes, 
@@ -243,7 +256,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
         #         static_graph, 
         #         mode="test", split_mode='test')
 
-        return best_mrr
+        return best_mrr, perf_per_rel
 # ==================
 # ==================
 # ==================
@@ -260,6 +273,7 @@ set_random_seed(SEED)
 DATA=args.dataset
 MODEL_NAME = 'REGCN'
 
+print("logging mrrs per relation: ", args.log_per_rel)
 
 # load data
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
@@ -304,11 +318,11 @@ else:
     start_train = timeit.default_timer()
     if args.test == False:
         print('start training')
-        val_mrr = run_experiment(args)
+        val_mrr, perf_per_rel = run_experiment(args)
     start_test = timeit.default_timer()
     args.test = True
     print('start testing')
-    test_mrr = run_experiment(args)
+    test_mrr, perf_per_rel = run_experiment(args)
 
 
 test_time = timeit.default_timer() - start_test
@@ -337,5 +351,10 @@ save_results({'model': MODEL_NAME,
               'tot_train_val_time': all_time
               }, 
     results_filename)
+
+if args.log_per_rel:
+    results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results_per_rel.json'
+    with open(results_filename, 'w') as json_file:
+        json.dump(perf_per_rel, json_file)
 
 sys.exit()

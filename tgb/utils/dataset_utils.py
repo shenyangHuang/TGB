@@ -447,10 +447,11 @@ def read_dict_compute_mrr_per_rel(perrel_results_path, model_name, dataset_name,
             values = [float(value.strip('[]')) for value in parts[1:]]
             # Add the key-value pair to the dictionary
             if key in results_per_rel_dict.keys():
-                print(f"Key {key} already exists in the dictionary!!! might have duplicate entries in results csv")
-            results_per_rel_dict[key] = values
-            all_mrrs.extend(values)
-            mrr_per_rel[key] = np.mean(values)
+                print(f"Key {key} already exists in the dictionary!!! might have duplicate entries in results csv - skipping")
+            else:
+                results_per_rel_dict[key] = values
+                all_mrrs.extend(values)
+                mrr_per_rel[key] = np.mean(values)
 
     if len(list(results_per_rel_dict.keys())) != num_rels:
         print("we do not have entries for each rel in the results csv file. only num enties: ", len(list(results_per_rel_dict.keys())))
