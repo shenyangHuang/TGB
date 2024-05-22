@@ -6,6 +6,8 @@ import os.path as osp
 from pathlib import Path
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
+import json
+
 ## imports
 
 
@@ -17,338 +19,15 @@ from datetime import datetime
 #internal imports 
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import  reformat_ts, get_original_ts
+import tgb.utils.dataset_utils as du
 
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
-def t2s(s,r,o):
-    return str(s) + " " + str(r) + " " + str(o)
-
-class TripleSet:
-
-    def __init__(self):
-        self.sub_rel_2_obj = {}
-        self.obj_rel_2_sub = {}
-        self.t_2_triple = {}
-        self.triples = []
-        
-        self.timestep_lists = []
-        self.counter_s = 0
-        self.max_ts = 0
-        self.min_ts = 1000
-        self.num_timesteps = 0
-        self.num_triples = 0
-
-    def add_triples(self, data, num_rels, timestep_range):
-        t_min = None
-        t_max = None
-        count = 0
-        self.t_2_triple = {}
-        for t in range(timestep_range):
-            self.t_2_triple[t] = []
-
-        for line in data:
-            s = line[0]
-            r = line[1] 
-            o = line[2]
-            t = line[3]
-            
-
-            if r >= num_rels:
-                self.index_triple(self.obj_rel_2_sub, s,r-num_rels,o,t)
-            else:  
-                self.index_triple(self.sub_rel_2_obj, s,r,o,t)
-                self.index_timestamp(self.t_2_triple, s, r, o, t)
-                self.triples.append([s,r,o,t]) 
-            
-            if t_min == None:
-                t_min = t
-                t_max = t
-            if t < t_min: t_min = t
-            if t > t_max: t_max = t
-            count += 1
-
-        # print(counter_s)
-        print(">>> read " + str(count) + " triples from time " + str(t_max) + " to " + str(t_min))
-        if t_min < self.min_ts:
-            self.min_ts = t_min
-        if t_max > self.max_ts:
-            self.max_ts = t_max
-        
-
-    def compute_stat(self):
-        self.timestep_lists = self.create_timestep_lists(self.sub_rel_2_obj)
-        self.num_timesteps = 1+ self.max_ts - self.min_ts
-        self.num_triples = len(self.triples)
-
-    def create_timestep_lists(self, x_y_2_z):
-        timestep_lists = list(self.flatten_dict(x_y_2_z))
-        return timestep_lists
-
-    def flatten_dict(self, dictionary):
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                yield from self.flatten_dict(value)
-            else:
-                yield value
-
-    def index_triple(self, x_y_2_z, x, y, z, t):
-        if x not in x_y_2_z:
-            x_y_2_z[x] = {}
-        if y not in x_y_2_z[x]:
-            x_y_2_z[x][y] = {}
-        if z not in x_y_2_z[x][y]:
-            x_y_2_z[x][y][z] = []
-            # counter +=1
-        if t not in x_y_2_z[x][y][z]:
-            x_y_2_z[x][y][z].append(t)
-        # return counter
-
-    def index_timestamp(self, t_2_triple, s, r, o, t):
-        if t not in t_2_triple:
-            t_2_triple[t] = []
-        t_2_triple[t].append([s,r,o])
-
-    def get_latest_ts(self, s, r, o, t):
-        closest = -1
-        if s in self.sub_rel_2_obj:
-            if r in self.sub_rel_2_obj[s]:
-                if o in self.sub_rel_2_obj[s][r]:
-                    ts = self.sub_rel_2_obj[s][r][o]
-                    for k in ts:
-                        if k < t and k > closest:
-                            closest = k
-        return closest
-
-    def count(self, e):
-        return len(list(filter(lambda x : x[0] == e or x[2] == e, self.triples)))
-
-    def show(self, num=100):
-        count = 0
-        len_sum = 0
-        for s in self.sub_rel_2_obj:
-            for r in self.sub_rel_2_obj[s]:
-                for o in self.sub_rel_2_obj[s][r]:
-                    ts = self.sub_rel_2_obj[s][r][o]
-                    print(t2s(s,r,o) + ": " + str(len(ts)))
-                    len_sum += len(ts)
-                    count +=1
-                    if count > num:
-                        return
-        # print("mean length: " + str(len_sum / count))
-    
-    def unique_nodes(self, snapshot):
-        """
-            Returns the set of unique nodes in a snapshot."""
-        return   set([x[0] for x in snapshot] + [x[2] for x in snapshot])
-
-def max_consecutive_numbers(lst):
-    max_count = 0
-    current_count = 1
-    
-    for i in range(1, len(lst)):
-        if lst[i] == lst[i-1] + 1:
-            current_count += 1
-        else:
-            max_count = max(max_count, current_count)
-            current_count = 1
-    
-    return max(max_count, current_count)
 
 
-def extend_features(self, seasonal_markers_dict, all_features, timesteps_of_interest):
-    """ dict with key: timestep, values: all the extended features.
-    """
-
-    extended_features = {}
-    for ts in timesteps_of_interest:
-        index = self._timestep_indexer[ts]
-        features_ts = [all_features[feat][index] for feat in range(len(all_features))]
-        features_ts.append(seasonal_markers_dict[ts])
-        extended_features[ts] = features_ts
-    
-    return extended_features
-
-def extract_timeseries_from_graphs(self, graph_dict):
-    """ extracts multivariate timeseries from quadruples based on graph params
-
-    :param graph_dict: dict, with keys: timestep, values: triples; training quadruples.
-
-    """
-    num_nodes = []
-    num_triples = []
-    max_deg = []
-    mean_deg = []
-    mean_deg_c = [] 
-    max_deg_c = [] 
-    min_deg_c = [] 
-    density = []
-
-    for ts, triples_snap in graph_dict.items():
-
-        # create graph for that timestep
-        e_list_ts = [(triples_snap[line][0], triples_snap[line][2]) for line in range(len(triples_snap))]
-        G = nx.MultiGraph()
-        G.add_nodes_from(graph_dict[ts][:][ 0])
-        G.add_nodes_from(graph_dict[ts][:][2])
-        G.add_edges_from(e_list_ts)  # default edge data=1
-
-        # extract relevant parameters and append to list
-        num_nodes.append(G.number_of_nodes())
-        num_triples.append(G.number_of_edges())
-
-        # degree
-        deg_list = list(dict(G.degree(G.nodes)).values())
-        max_deg.append(np.max(deg_list))
-        mean_deg.append(np.mean(deg_list))
-        
-        # degree centrality
-        deg_clist = list(dict(nx.degree_centrality(G)).values())
-        mean_deg_c.append(np.mean(deg_clist))
-        max_deg_c.append(np.max(deg_clist))
-        min_deg_c.append(np.min(deg_clist))
-        
-        density.append(nx.density(G))
-
-    return [num_triples, num_nodes, max_deg, mean_deg, mean_deg_c, max_deg_c, min_deg_c, density]
-
-def discretize_values(num_nodes_per_timestep, k):
-    """
-    Discretize the values of a time series into k bins and return the mean value of each bin.
-    """
-    # Calculate the number of elements per bin
-    elements_per_bin = len(num_nodes_per_timestep) // k
-    
-    # Create an empty list to store the mean values of each bin
-    means = []
-    ts_discretized_min = []
-    ts_discretized_max = []
-    
-    # Iterate over the bins
-    start_indices =[]
-    end_indices = []
-    mid_indices = []
-    for i in range(k):
-        # Calculate the start and end indices of the current bin
-        start_index = i * elements_per_bin
-        end_index = (i + 1) * elements_per_bin
-        
-        # Extract the elements of the current bin
-        bin_values = num_nodes_per_timestep[start_index:end_index]
-        
-        # Calculate the mean of the bin values and append it to the list
-        bin_mean = np.mean(bin_values)
-        means.append(bin_mean)
-        ts_discretized_min.append(min(bin_values))
-        ts_discretized_max.append(max(bin_values))
-        start_indices.append(start_index)
-        end_indices.append(end_index)
-        mid_indices.append((start_index + end_index) // 2)
-    
-    return means,ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices
-
-def estimate_seasons(train_data):
-    """ Estimate seasonal effects in a series.
-            
-    Estimate the major period of the data by testing seasonal differences for various period lengths and returning 
-    the seasonal offsets that best predict out-of-sample variation.   
-        
-    First, a range of likely periods is estimated via periodogram averaging. Next, a time-domain period 
-    estimator chooses the best integer period based on cross-validated residual errors. It also tests
-    the strength of the seasonal effect using the R^2 of the leave-one-out cross-validation.
-
-    :param data: list, data to be analysed, time-series;
-    :return: NBseason int. if no season found: 1; else: seasonality that was discovered (e.g. if seven and 
-            time granularity is daily: weekly seasonality)
-    """
-    seasons, trended = seasonal.fit_seasons(train_data)
-    
-    if seasons is None:
-        Nbseason = int(1)
-    else: 
-        Nbseason = len(seasons)
-        
-    return Nbseason
-
-
-# create a dictionary with all the stats and save to json and csv
-def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num_val_quads, num_test_quads, num_all_quads,
-                         num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_timesteps,
-                         test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
-                         direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
-                         mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
-                         mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
-                         seasonal_value, collision_trainval, collision_valtest):
-    if  'tkgl' in dataset_name:
-        num_train_quads = int(num_train_quads/2)
-        num_val_quads = int(num_val_quads/2)
-        num_test_quads = int(num_test_quads/2)
-        num_all_quads = int(num_all_quads/2)
-
-    stats_dict = {
-        "dataset_name": dataset_name,
-        "num_rels": num_rels,
-        "num_nodes": num_nodes,
-        "num_train_quads": num_train_quads,
-        "num_val_quads": num_val_quads,
-        "num_test_quads": num_test_quads,
-        "num_all_quads": num_all_quads,
-        "test_ind_nodes": test_ind_nodes,
-        "test_ind_nodes_perc": test_ind_nodes_perc,
-        "val_ind_nodes": val_ind_nodes,
-        "val_ind_nodes_perc": val_ind_nodes_perc,
-        "num_train_timesteps": num_train_timesteps,
-        "num_val_timesteps": num_val_timesteps,
-        "num_test_timesteps": num_test_timesteps,
-        "num_all_timesteps": num_all_timesteps,
-        "direct_recurrency_degree": direct_recurrency_degree,
-        "recurrency_degree": recurrency_degree,
-        "consecutiveness_degree": consecutiveness_degree,
-        "mean_edge_per_ts": mean_edge_per_ts,
-        "std_edge_per_ts": std_edge_per_ts,
-        "min_edge_per_ts": min_edge_per_ts,
-        "max_edge_per_ts": max_edge_per_ts,
-        "mean_node_per_ts": mean_node_per_ts,
-        "std_node_per_ts": std_node_per_ts,
-        "min_node_per_ts": min_node_per_ts,
-        "max_node_per_ts": max_node_per_ts,
-        "seasonal_value": seasonal_value,
-        "collision_trainval": collision_trainval,
-        "collision_valtest": collision_valtest        
-        # "train_nodes": train_nodes
-    }
-
-    df = pd.DataFrame.from_dict(stats_dict, orient='index')
-
-    # save
-    # Get the current directory of the script
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Navigate one folder up
-    parent_dir = os.path.dirname(current_dir)
-
-    # Save stats_dict as CSV
-    modified_dataset_name = dataset_name.replace('-', '_')
-    save_path = (os.path.join(parent_dir, modified_dataset_name, "dataset_stats.csv"))
-    df.to_csv(save_path)
-
-    print("Stats saved to csv and json in folder: ", save_path)
-
-def num_nodes_not_in_train(train_data, test_data):
-    """ Calculate the number of nodes in the test set that are not in the train set.
-    :param train_data: np.array, training data
-    :param test_data: np.array, test data
-    :return: int, number of nodes in the test set that are not in the train set
-    """
-    train_nodes =np.unique(np.concatenate((np.unique(train_data[:,0]), np.unique(train_data[:,2]))))
-    test_nodes = np.unique(np.concatenate((np.unique(test_data[:,0]), np.unique(test_data[:,2]))))
-    num_nodes_not_in_train = len(np.setdiff1d(test_nodes, train_nodes))
-    return num_nodes_not_in_train
-
-
-
-names = [ 'thgl-github'] #'tkgl-polecat','tkgl-yago', 'tkgl-icews',, 'thgl-forum', 'tkgl-wikidata', 'thgl-myket'
+names = ['tkgl-smallpedia'] #'tkgl-polecat', 'thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -365,7 +44,11 @@ for dataset_name in names:
     num_nodes = dataset.num_nodes 
     timestamps_orig = dataset.full_data["timestamps"]
     timestamps = reformat_ts(timestamps_orig, dataset_name) # stepsize:1
-
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    modified_dataset_name = dataset_name.replace('-', '_')
+    csv_dir = os.path.join( parent_dir, modified_dataset_name)
+    np.savetxt(csv_dir +"/"+dataset_name+"timestamps.csv", timestamps,fmt='%i', delimiter=",")
     all_quads = np.stack((subjects, relations, objects, timestamps, timestamps_orig), axis=1)
     train_data = all_quads[dataset.train_mask]
     val_data = all_quads[dataset.val_mask]
@@ -386,8 +69,8 @@ for dataset_name in names:
     print(num_all_quads)
 
     # compute inductive nodes
-    test_ind_nodes = num_nodes_not_in_train(train_data, test_data)
-    val_ind_nodes = num_nodes_not_in_train(train_data, val_data)
+    test_ind_nodes = du.num_nodes_not_in_train(train_data, test_data)
+    val_ind_nodes = du.num_nodes_not_in_train(train_data, val_data)
     test_ind_nodes_perc = test_ind_nodes/num_nodes
     val_ind_nodes_perc = val_ind_nodes/num_nodes
 
@@ -398,16 +81,14 @@ for dataset_name in names:
     num_all_ts = num_train_timesteps + num_val_timesteps + num_test_timesteps
 
     # compute number on nodes in valid set or test set that have not been seen in train set
-
-
     # compute recurrency factor
     # compute average duration of facts
     timestep_range = 1+np.max(timestamps) - np.min(timestamps)
     all_possible_timestep_indices = [i for i in range(timestep_range)]
-    ts_all = TripleSet()
+    ts_all = du.TripleSet()
     ts_all.add_triples(all_quads, num_rels_without_inv, timestep_range)
     ts_all.compute_stat()
-    ts_test = TripleSet()
+    ts_test = du.TripleSet()
     ts_test.add_triples(test_data, num_rels_without_inv, timestep_range)
     ts_test.compute_stat()
 
@@ -437,7 +118,7 @@ for dataset_name in names:
     print(f"the maximum number of timesteps that a triple appears in is {np.max(lens)}")
 
     # Compute max consecutive timesteps per triple
-    results = [max_consecutive_numbers(inner_list) for inner_list in ts_all.timestep_lists]
+    results = [du.max_consecutive_numbers(inner_list) for inner_list in ts_all.timestep_lists]
     print(f"number of timesteps is {ts_all.num_timesteps}")
     print(f"number of total triples is {ts_all.num_triples}")
     print(f"number of distinct triples is {len(ts_all.timestep_lists)}")
@@ -479,7 +160,7 @@ for dataset_name in names:
                     no_nodes_datetime.append(datetime.utcfromtimestamp(all_possible_orig_timestamps[t]))
     # compute seasonality of num nodes over time: 
     seasonal_value =1
-   # seasonal_value = estimate_seasons(n_nodes_list)
+    seasonal_value = du.estimate_seasons(n_nodes_list)
     if seasonal_value == 1:
         print('there was no seasonality for number of nodes found')
     else:
@@ -500,38 +181,98 @@ for dataset_name in names:
     print(f"average number of nodes per ts is {np.mean(n_nodes_list)}")
     print(f"std for average number of nodes per ts is {np.std(n_nodes_list)}")
     print(f"min/max number of nodes per ts is {np.min(n_nodes_list), np.max(n_nodes_list)}")
+    colortgb = '#60ab84'
+    bars_list = [20, 50, 100]
+    for num_bars in bars_list:
+        if num_bars < 100:
+            capsize=1.5
+            capthick=1.5
+            elinewidth=1.5
+        else:
+            capsize=1 
+            capthick=1
+            elinewidth=1
+        ts_discretized_mean, ts_discretized_sum, ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices = du.discretize_values(n_edges_list, num_bars)
+        plt.figure()
+        # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='mean value', color =colortgb)
+        plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+        plt.scatter(mid_indices, ts_discretized_min, label ='min value')
+        plt.scatter(mid_indices, ts_discretized_max, label ='max value')
+        plt.xlabel('Timestep (bins)')
+        plt.ylabel('Number of Edges')
+        plt.legend()
+        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        modified_dataset_name = dataset_name.replace('-', '_')
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Navigate one folder up
+        parent_dir = os.path.dirname(current_dir)
+        figs_dir = os.path.join( parent_dir, modified_dataset_name, 'figs')
+        # Create the 'figs' directory if it doesn't exist
+        if not os.path.exists(figs_dir):
+            os.makedirs(figs_dir)
+        save_path = (os.path.join(figs_dir, f"num_edges_discretized_{num_bars}_{dataset_name}.png"))
+        plt.savefig(save_path, bbox_inches='tight')
+        save_path = (os.path.join(figs_dir, f"num_edges_discretized_{num_bars}_{dataset_name}.pdf"))
+        plt.savefig(save_path, bbox_inches='tight')
 
-    num_bars = 100
-    ts_discretized_mean, ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices = discretize_values(n_edges_list, num_bars)
-    plt.figure()
-    plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='mean value')
-    plt.scatter(mid_indices, ts_discretized_min, label ='min value')
-    plt.scatter(mid_indices, ts_discretized_max, label ='max value')
-    plt.xlabel('Timestep (bins)')
-    plt.ylabel('Number of Edges')
-    plt.legend()
-    plt.title('Number of Edges aggregated across multiple timesteps')
-    modified_dataset_name = dataset_name.replace('-', '_')
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Navigate one folder up
-    parent_dir = os.path.dirname(current_dir)
-    save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_discretized_{dataset_name}.png"))
-    plt.savefig(save_path)
+        plt.figure()
+        mins = np.array(ts_discretized_min)
+        maxs = np.array(ts_discretized_max)
+        means = np.array(ts_discretized_mean)
+        # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean', color =colortgb)
+        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+        plt.scatter(mid_indices, ts_discretized_mean, label ='mean value', color=colortgb)
+        plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
+        plt.xlabel('Timestep (bins)')
+        plt.ylabel('Number of Edges')
+        plt.legend()
+        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        plt.show()
+        save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2.png"))
+        plt.savefig(save_path2, bbox_inches='tight')
+        save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2.pdf"))
+        plt.savefig(save_path2, bbox_inches='tight')
 
-    plt.figure()
-    mins = np.array(ts_discretized_min)
-    maxs = np.array(ts_discretized_max)
-    means = np.array(ts_discretized_mean)
-    plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean')
-    plt.errorbar(mid_indices, means, yerr=[means - mins, maxs - means], fmt='none', alpha=0.9, color='grey',capsize=1, capthick=1, elinewidth=1, label='Min-Max Range')
-    plt.xlabel('Start Indices')
-    plt.ylabel('Values')
-    plt.title('Discretized Mean, Min, Max Values')
-    plt.legend()
-    plt.show()
-    save_path2 = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_discretized_{dataset_name}2.png"))
-    plt.savefig(save_path2)
+        plt.figure()
+        mins = np.array(ts_discretized_min)
+        maxs = np.array(ts_discretized_max)
+        means = np.array(ts_discretized_mean)
+        plt.bar(mid_indices, ts_discretized_sum, width=(len(n_edges_list) // num_bars), label='Sum', color =colortgb)
+        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+        # plt.errorbar(mid_indices, sums, yerr=[mins, maxs], fmt='none', alpha=0.9, color='grey',capsize=1.5, capthick=1.5, elinewidth=2, label='Min-Max Range')
+        plt.xlabel('Timestep (bins)')
+        plt.ylabel('Number of Edges')
+        plt.legend()
+        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        plt.show()
+        save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}3.png"))
+        plt.savefig(save_path2, bbox_inches='tight')
+        save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}3.pdf"))
+        plt.savefig(save_path2, bbox_inches='tight')
 
+        try:
+            plt.figure()
+            mins = np.array(ts_discretized_min)
+            maxs = np.array(ts_discretized_max)
+            means = np.array(ts_discretized_mean)
+            # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean', color =colortgb)
+            # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+            plt.scatter(mid_indices, ts_discretized_mean, label ='mean value', color=colortgb)
+            plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
+            plt.xlabel('Timestep (bins)')
+            plt.ylabel('Number of Edges')
+            plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+            plt.yscale('log')
+            plt.legend()
+            plt.show()
+            save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2log.png"))
+            plt.savefig(save_path2, bbox_inches='tight')
+            save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2log.pdf"))
+            plt.savefig(save_path2, bbox_inches='tight')
+        except:
+            print('Could not plot log scale')
+        plt.close('all')
+        
     plt.figure()
     plt.scatter(range(ts_all.num_timesteps), n_edges_list, s=0.2)
     plt.xlabel('timestep')
@@ -544,14 +285,14 @@ for dataset_name in names:
     parent_dir = os.path.dirname(current_dir)
     # Save stats_dict as CSV
     modified_dataset_name = dataset_name.replace('-', '_')
-    save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_edges_per_ts_{dataset_name}.png"))
-    plt.savefig(save_path)
+    save_path = (os.path.join(figs_dir,f"num_edges_per_ts_{dataset_name}.png"))
+    plt.savefig(save_path, bbox_inches='tight')
 
     to_be_saved_dict = {}
     to_be_saved_dict['num_edges'] = n_edges_list
     to_be_saved_dict['num_nodes'] = n_nodes_list
     parent_dir = os.path.dirname(current_dir)
-    save_path = (os.path.join(parent_dir, modified_dataset_name, f"numedges_{dataset_name}.json")) 
+    save_path = (os.path.join(figs_dir,f"numedges_{dataset_name}.json")) 
     save_file = open(save_path, "w")
     json.dump(to_be_saved_dict, save_file)
     save_file.close()
@@ -561,16 +302,16 @@ for dataset_name in names:
     plt.xlabel('timestep')
     plt.ylabel('number of nodes')
     plt.title(f'Number of nodes per timestep for {dataset_name}')
-    save_path = (os.path.join(parent_dir, modified_dataset_name, f"num_nodes_per_ts_{dataset_name}.png"))
-    plt.savefig(save_path)
-
+    save_path = (os.path.join(figs_dir,f"num_nodes_per_ts_{dataset_name}.png"))
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close('all')
     
    
 
-    #create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
-     #                    num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
-     #                    test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
-     #                    direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
-     #                    np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
-      #                   np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
-      #                   seasonal_value, collision_trainval, collision_valtest)
+    du.create_dict_and_save(dataset_name, num_rels_without_inv, num_nodes, num_train_quads, num_val_quads, num_test_quads, 
+                        num_all_quads, num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_ts,
+                        test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
+                        direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
+                        np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
+                        np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
+                        seasonal_value, collision_trainval, collision_valtest)
