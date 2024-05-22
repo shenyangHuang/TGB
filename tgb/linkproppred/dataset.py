@@ -33,6 +33,7 @@ from tgb.utils.pre_process import (
     csv_to_thg_data,
     csv_to_forum_data,
     csv_to_wikidata,
+    csv_to_staticdata,
 )
 from tgb.utils.utils import save_pkl, load_pkl
 from tgb.utils.utils import add_inverse_quadruples
@@ -89,8 +90,8 @@ class LinkPropPredDataset(object):
         if name == "tgbl-flight":
             self.meta_dict["nodefile"] = self.root + "/" + "airport_node_feat.csv"
 
-        if name == "tkgl-wikidata":
-            self.meta_dict["staticfile"] = self.root + "/" + "_static_edgelist.csv"
+        if name == "tkgl-wikidata" or name == "tkgl-smallpedia":
+            self.meta_dict["staticfile"] = self.root + "/" + self.name + "_static_edgelist.csv"
         
         if "thg" in name:
             self.meta_dict["nodeTypeFile"] = self.root + "/" + self.name + "_nodetype.csv"
@@ -115,11 +116,12 @@ class LinkPropPredDataset(object):
         # for tkg and thg
         self._edge_type = None
 
-        #tkgl-wikidata only
+        #tkgl-wikidata and tkgl-smallpedia only
         self._static_data = None
 
         # for thg only
         self._node_type = None
+        self._node_id = None
 
         self.download()
         # check if the root directory exists, if not create it
@@ -147,23 +149,15 @@ class LinkPropPredDataset(object):
                 raise ValueError(f"Dataset {self.name} negative sampling strategy not found.")
         elif ('thg' in self.name):
             #* need to find the smallest node id of all nodes (regardless of types)
+            
             min_node_idx = min(int(self._full_data["sources"].min()), int(self._full_data["destinations"].min()))
             max_node_idx = max(int(self._full_data["sources"].max()), int(self._full_data["destinations"].max()))
-            if self.name in DATA_NS_STRATEGY_DICT:
-                self.ns_sampler = THGNegativeEdgeSampler(
-                    dataset_name=self.name,
-                    first_node_id=min_node_idx,
-                    last_node_id=max_node_idx,
-                    node_type=self._node_type,
-                    strategy=DATA_NS_STRATEGY_DICT[self.name]
-                )
-            else:                
-                self.ns_sampler = THGNegativeEdgeSampler(
-                    dataset_name=self.name,
-                    first_node_id=min_node_idx,
-                    last_node_id=max_node_idx,
-                    node_type=self._node_type
-                )                
+            self.ns_sampler = THGNegativeEdgeSampler(
+                dataset_name=self.name,
+                first_node_id=min_node_idx,
+                last_node_id=max_node_idx,
+                node_type=self._node_type,
+            )
         else:
             self.ns_sampler = NegativeEdgeSampler(
                 dataset_name=self.name,
@@ -275,6 +269,7 @@ class LinkPropPredDataset(object):
 
         OUT_DF = self.root + "/" + "ml_{}.pkl".format(self.name)
         OUT_EDGE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_edge")
+        OUT_NODE_ID = self.root + "/" + "ml_{}.pkl".format(self.name + "_nodeid")
         if self.meta_dict["nodefile"] is not None:
             OUT_NODE_FEAT = self.root + "/" + "ml_{}.pkl".format(self.name + "_node")
         if self.meta_dict["nodeTypeFile"] is not None:
@@ -284,6 +279,9 @@ class LinkPropPredDataset(object):
             print("loading processed file")
             df = pd.read_pickle(OUT_DF)
             edge_feat = load_pkl(OUT_EDGE_FEAT)
+            if (self.name == "tkgl-wikidata") or (self.name == "tkgl-smallpedia"):
+                node_id = load_pkl(OUT_NODE_ID)
+                self._node_id = node_id
             if self.meta_dict["nodefile"] is not None:
                 node_feat = load_pkl(OUT_NODE_FEAT)
             if self.meta_dict["nodeTypeFile"] is not None:
@@ -314,6 +312,12 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_tkg_data(self.meta_dict["fname"])
             elif self.name == "tkgl-wikidata":
                 df, edge_feat, node_ids = csv_to_wikidata(self.meta_dict["fname"])
+                save_pkl(node_ids, OUT_NODE_ID)
+                self._node_id = node_ids
+            elif self.name == "tkgl-smallpedia":
+                df, edge_feat, node_ids = csv_to_wikidata(self.meta_dict["fname"])
+                save_pkl(node_ids, OUT_NODE_ID)
+                self._node_id = node_ids
             elif self.name == "thgl-myket":
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             elif self.name == "thgl-github":
@@ -333,6 +337,7 @@ class LinkPropPredDataset(object):
                 save_pkl(node_type, OUT_NODE_TYPE)
                 #? do not return node_type, simply set it
                 self._node_type = node_type
+            
 
         return df, edge_feat, node_feat
 
@@ -345,8 +350,7 @@ class LinkPropPredDataset(object):
         # check if path to file is valid
         df, edge_feat, node_feat = self.generate_processed_files()
 
-        #TODO for tkgl datasets, add inverse relations here
-        #! design choice, only stores the original edges not the inverse relations on disc
+        #* design choice, only stores the original edges not the inverse relations on disc
         if ("tkgl" in self.name):
             df = add_inverse_quadruples(df)
 
@@ -415,6 +419,25 @@ class LinkPropPredDataset(object):
 
         return train_mask, val_mask, test_mask
     
+    def preprocess_static_edges(self):
+        """
+        Pre-process the static edges of the dataset
+        """
+        if ("staticfile" in self.meta_dict):
+            OUT_DF = self.root + "/" + "ml_{}.pkl".format(self.name + "_static")
+            if (osp.exists(OUT_DF)) and (self.version_passed is True):
+                print("loading processed file")
+                static_dict = load_pkl(OUT_DF)
+                self._static_data = static_dict
+            else:
+                print("file not processed, generating processed file")
+                static_dict, node_ids =  csv_to_staticdata(self.meta_dict["staticfile"], self._node_id)
+                save_pkl(static_dict, OUT_DF)
+                self._static_data = static_dict
+        else:
+            print ("static edges are only for tkgl-wikidata and tkgl-smallpedia datasets")
+
+    
     @property
     def eval_metric(self) -> str:
         """
@@ -432,6 +455,7 @@ class LinkPropPredDataset(object):
             negative_sampler: NegativeEdgeSampler
         """
         return self.ns_sampler
+    
 
     def load_val_ns(self) -> None:
         r"""
@@ -522,6 +546,17 @@ class LinkPropPredDataset(object):
             edge_type: np.ndarray, [E, 1] or None if it is not a TKG or THG
         """
         return self._edge_type
+    
+    @property
+    def static_data(self) -> Optional[np.ndarray]:
+        r"""
+        Returns the static edges related to this dataset, applies for tkgl-wikidata and tkgl-smallpedia, edges are (src, dst, rel_type)
+        Returns:
+            df: pd.DataFrame {"head": np.ndarray, "tail": np.ndarray, "rel_type": np.ndarray}
+        """
+        if (self.name == "tkgl-wikidata") or (self.name == "tkgl-smallpedia"):
+            self.preprocess_static_edges()
+        return self._static_data
 
     @property
     def full_data(self) -> Dict[str, Any]:

@@ -10,8 +10,6 @@ Reference:
 
 import timeit
 import numpy as np
-from sklearn.metrics import average_precision_score, roc_auc_score
-from torch_geometric.loader import TemporalDataLoader
 from tqdm import tqdm
 import math
 import os
@@ -21,10 +19,8 @@ import sys
 import argparse
 
 # internal imports
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(tgb_modules_path)
 from tgb.linkproppred.evaluate import Evaluator
-from tgb_modules.edgebank_predictor import EdgeBankPredictor
+from modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
 from tgb.linkproppred.dataset import LinkPropPredDataset
 from tgb.utils.utils import save_results
@@ -44,20 +40,19 @@ def test(data, test_mask, neg_sampler, split_mode):
         neg_sampler: an object that gives the negative edges corresponding to each positive edge
         split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
     Returns:
-        perf_metric: the result of the performance evaluation
+        perf_metric: the result of the performance evaluaiton
     """
     num_batches = math.ceil(len(data['sources'][test_mask]) / BATCH_SIZE)
     perf_list = []
     for batch_idx in tqdm(range(num_batches)):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = min(start_idx + BATCH_SIZE, len(data['sources'][test_mask]))
-        pos_src, pos_dst, pos_t, pos_edge = (
+        pos_src, pos_dst, pos_t = (
             data['sources'][test_mask][start_idx: end_idx],
             data['destinations'][test_mask][start_idx: end_idx],
             data['timestamps'][test_mask][start_idx: end_idx],
-            data['edge_type'][test_mask][start_idx: end_idx],
         )
-        neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, pos_edge, split_mode=split_mode)
+        neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t, split_mode=split_mode)
         
         for idx, neg_batch in enumerate(neg_batch_list):
             query_src = np.array([int(pos_src[idx]) for _ in range(len(neg_batch) + 1)])
@@ -81,7 +76,7 @@ def test(data, test_mask, neg_sampler, split_mode):
 
 def get_args():
     parser = argparse.ArgumentParser('*** TGB: EdgeBank ***')
-    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='thgl-myket')
+    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tgbl-wiki')
     parser.add_argument('--bs', type=int, help='Batch size', default=200)
     parser.add_argument('--k_value', type=int, help='k_value for computing ranking metrics', default=10)
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
@@ -110,10 +105,9 @@ MEMORY_MODE = args.mem_mode # `unlimited` or `fixed_time_window`
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value
 TIME_WINDOW_RATIO = args.time_window_ratio
-DATA = args.data
+DATA = "tgbl-subreddit"
+
 MODEL_NAME = 'EdgeBank'
-
-
 
 # data loading with `numpy`
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
@@ -160,13 +154,13 @@ dataset.load_val_ns()
 
 # testing ...
 start_val = timeit.default_timer()
-perf_metric_val = test(data, val_mask, neg_sampler, split_mode='val')
+perf_metric_test = test(data, val_mask, neg_sampler, split_mode='val')
 end_val = timeit.default_timer()
 
-print(f"INFO: val: Evaluation Setting: >>> ONE-VS--ALL <<< ")
-print(f"\tval: {metric}: {perf_metric_val: .4f}")
-val_time = timeit.default_timer() - start_val
-print(f"\tval: Elapsed Time (s): {val_time: .4f}")
+print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+print(f"\tval: {metric}: {perf_metric_test: .4f}")
+test_time = timeit.default_timer() - start_val
+print(f"\tval: Elapsed Time (s): {test_time: .4f}")
 
 
 
@@ -180,7 +174,7 @@ start_test = timeit.default_timer()
 perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
 end_test = timeit.default_timer()
 
-print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
+print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
 print(f"\tTest: {metric}: {perf_metric_test: .4f}")
 test_time = timeit.default_timer() - start_test
 print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
@@ -191,7 +185,7 @@ save_results({'model': MODEL_NAME,
               'run': 1,
               'seed': SEED,
               metric: perf_metric_test,
-              'val_mrr': perf_metric_val,
               'test_time': test_time,
-              'tot_train_val_time': test_time+val_time              }, 
+              'tot_train_val_time': 'NA'
+              }, 
     results_filename)

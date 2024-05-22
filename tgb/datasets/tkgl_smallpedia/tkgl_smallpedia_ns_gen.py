@@ -1,5 +1,5 @@
 import time
-from tgb.linkproppred.thg_negative_generator import THGNegativeEdgeGenerator
+from tgb.linkproppred.tkg_negative_generator import TKGNegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
@@ -10,12 +10,12 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 1000
-    neg_sample_strategy = "node-type-filtered"
+    num_neg_e_per_pos = -1 #10000
+    neg_sample_strategy = "time-filtered" #"dst-time-filtered"
     rnd_seed = 42
 
 
-    name = "thgl-github"
+    name = "tkgl-smallpedia"
     dataset = PyGLinkPropPredDataset(name=name, root="datasets")
     train_mask = dataset.train_mask
     val_mask = dataset.val_mask
@@ -29,21 +29,21 @@ def main():
     data_splits['val'] = data[val_mask]
     data_splits['test'] = data[test_mask]
 
-    min_node_idx = min(int(data.src.min()), int(data.dst.min()))
-    max_node_idx = max(int(data.src.max()), int(data.dst.max()))
+    # Ensure to only sample actual destination nodes as negatives.
+    min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-    neg_sampler = THGNegativeEdgeGenerator(
+
+    neg_sampler = TKGNegativeEdgeGenerator(
         dataset_name=name,
-        first_node_id=min_node_idx,
-        last_node_id=max_node_idx,
-        node_type=dataset.node_type,
+        first_dst_id=min_dst_idx,
+        last_dst_id=max_dst_idx,
         num_neg_e=num_neg_e_per_pos,
         strategy=neg_sample_strategy,
         rnd_seed=rnd_seed,
+        partial_path=".",
         edge_data=data,
     )
 
-   
     # generate evaluation set
     partial_path = "."
     # generate validation negative edge set
