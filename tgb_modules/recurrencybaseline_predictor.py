@@ -104,8 +104,12 @@ def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_n
                                 # Find quadruples that match the rule (starting from the test query subject)
                                 # Find edges whose subject match the query subject and the relation matches
                                 # the relation in the rule body. np array with [[sub, obj, ts]]
-            if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                        
-                cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t)
+            if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                     
+                if len(neg_sample_el) < num_nodes-2:
+                    cands_subset = neg_sample_el + pos_sample_el
+                else:
+                    cands_subset = None
+                cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t, cands_subset)
                 if len(cands_dict_psi)>0:                
                     # predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
                     predictions_psi = create_scores_array(cands_dict_psi, num_nodes)
@@ -236,7 +240,7 @@ def quads_per_rel(quads):
         edges[rel] = quads[quads[:, 1] == rel]
     return edges
 
-def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t):
+def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t,cands_subset):
     """
     Get answer candidates from the walks that follow the rule.
     Add the confidence of the rule that leads to these candidates.
@@ -253,8 +257,12 @@ def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t)
         cands_dict (dict): keys: candidates, values: score for the candidates  """
 
     cands = set(rule_walks[:,0]) 
-
-    for cand in cands:
+    if len(cands_subset) > 0:
+        cands_subset = set(cands_subset)
+        cands_of_interest = cands.intersection(cands_subset)
+    else:
+        cands_of_interest = cands
+    for cand in cands_of_interest:
         cands_walks = rule_walks[rule_walks[:,0] == cand] 
         score = score_psi(cands_walks, test_query_ts, lmbda, sum_delta_t).astype(np.float64)
         cands_dict[cand] = score
