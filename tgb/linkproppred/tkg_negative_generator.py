@@ -311,30 +311,24 @@ class TKGNegativeEdgeGenerator(object):
                 #* generate based on # of ns samples
                 conflict_set = np.array(list(edge_t_dict[(pos_t, pos_s, edge_type)].keys()))
                 dst_set = self.dst_dict[edge_type]  #dst_set contains conflict set
-                sample_num = self.num_neg_e + len(conflict_set)
+                sample_num = self.num_neg_e
                 filtered_dst_set = np.setdiff1d(dst_set, conflict_set) #more efficient
-                # filtered_dst_set = np.setxor1d(dst_set, conflict_set) 
                 dst_sampled = None
                 all_dst = np.arange(min_dst_idx, max_dst_idx+1)
                 if len(filtered_dst_set) < (sample_num):
-                    # #* collision check for the random samples with the dst set are not checked
-                    # rng = np.random.default_rng()
-                    # dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
-
                     #* with collision check
                     filtered_sample_set = np.setdiff1d(all_dst, filtered_dst_set)
-                    # filtered_sample_set = np.setxor1d(all_dst, filtered_dst_set)
                     dst_sampled = np.random.choice(filtered_sample_set, sample_num, replace=False)
-
-                    #* rejection sampling, too slow for large sample size
-                    # while np.intersect1d(dst_set, dst_sampled).shape[0] != 0:
-                    #     dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
-                    #     #dst_sampled = np.random.choice(np.arange(min_dst_idx, max_dst_idx+1), sample_num, replace=False)
                     # #* remove the conflict set from dst set
                     dst_sampled[0:len(filtered_dst_set)] = filtered_dst_set[:]
                 else:
                     # dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
                     dst_sampled = np.random.choice(filtered_dst_set, sample_num, replace=False)
+                
+
+                if (dst_sampled.shape[0] > sample_num):
+                    print ("I am the bug that Julia worries about")
+                    print ("dst_sampled shape is ", dst_sampled.shape)
                 out_dict[(pos_t, pos_s, edge_type)] = dst_sampled
             
             print ("negative samples for ", len(out_dict), " positive edges are generated")
