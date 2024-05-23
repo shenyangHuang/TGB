@@ -108,7 +108,7 @@ def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_n
                 if len(neg_sample_el) < num_nodes-2:
                     cands_subset = neg_sample_el + pos_sample_el
                 else:
-                    cands_subset = None
+                    cands_subset = []
                 cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t, cands_subset)
                 if len(cands_dict_psi)>0:                
                     # predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
