@@ -223,7 +223,7 @@ for dataset_name in names:
         plt.figure(figsize=(8, 8))
         plt.pie(plot_names.values(), labels=plot_names.keys(), autopct='%1.f%%', startangle=140, 
         colors=repeated_colors)
-        plt.title(f'Pie Chart of Top {k} Relations and "Others"')
+        #plt.title(f'Pie Chart of Top {k} Relations and "Others"')
         plt.axis('equal')  
         save_path = (os.path.join(figs_dir, f"rel_pie_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
@@ -233,7 +233,7 @@ for dataset_name in names:
         plt.bar(rels_occurences.keys(), rels_occurences.values(), color=colortgb)
         plt.xlabel('Relation')
         plt.ylabel('Number of Triples')
-        plt.title('Number of Triples per Relation')
+        #plt.title('Number of Triples per Relation')
         save_path = (os.path.join(figs_dir, f"rel_tripperrel_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 
@@ -250,7 +250,7 @@ for dataset_name in names:
         plt.errorbar(statistics_dict_prominent.keys(), maxs,  yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
         plt.xlabel('Relation')
         plt.ylabel('Mean Number of Occurences of [subject, object]') 
-        plt.title('Mean Number of Occurences of [subject, object] per Relation')
+        #plt.title('Mean Number of Occurences of [subject, object] per Relation')
         plt.legend()
         #plt.yscale('log')
         save_path = (os.path.join(figs_dir, f"rel_mean_occurences_{dataset_name}.png"))
@@ -261,7 +261,7 @@ for dataset_name in names:
         plt.bar(['Low Occurence', 'High Occurence'], [len(low_occurences), len(high_occurences)], color=colortgb)
         plt.xlabel('Occurence Category')
         plt.ylabel('Number of Relations')
-        plt.title('Number of Relations in Low and High Occurence Categories')
+        #plt.title('Number of Relations in Low and High Occurence Categories')
         save_path = (os.path.join(figs_dir, f"rel_occurence_categories_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 
@@ -270,7 +270,7 @@ for dataset_name in names:
         plt.bar(['Low Occurence', 'High Occurence'], [sum([num_oc for num_oc in low_occurences.values()]), sum([num_oc for num_oc in high_occurences.values()]),], color=colortgb)
         plt.xlabel('Occurence Category')
         plt.ylabel('Number of Triples')
-        plt.title('Number of Triples in Low and High Occurence Categories')
+        #plt.title('Number of Triples in Low and High Occurence Categories')
         save_path = (os.path.join(figs_dir, f"rel_occurence_triples_categories_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 
