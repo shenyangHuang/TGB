@@ -10,9 +10,9 @@ import sys
 import argparse
 
 # internal imports
-from modules.nodebank import NodeBank
+from tgb_modules.nodebank import NodeBank
 from tgb.linkproppred.evaluate import Evaluator
-from modules.edgebank_predictor import EdgeBankPredictor
+from tgb_modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
 from tgb.nodeproppred.dataset import NodePropPredDataset
 
@@ -31,7 +31,7 @@ def count_nodes(data, test_mask, nodebank):
         neg_sampler: an object that gives the negative edges corresponding to each positive edge
         split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
     Returns:
-        perf_metric: the result of the performance evaluaiton
+        perf_metric: the result of the performance evaluation
     """
     node_dict_new = {}
     node_dict = {}

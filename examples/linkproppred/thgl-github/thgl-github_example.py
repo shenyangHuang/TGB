@@ -1,4 +1,11 @@
 import numpy as np
+
+import os
+import os.path as osp
+from pathlib import Path
+import sys
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 from tgb.linkproppred.evaluate import Evaluator
 from torch_geometric.loader import TemporalDataLoader

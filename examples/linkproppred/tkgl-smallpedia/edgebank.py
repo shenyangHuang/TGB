@@ -81,7 +81,7 @@ def test(data, test_mask, neg_sampler, split_mode):
 
 def get_args():
     parser = argparse.ArgumentParser('*** TGB: EdgeBank ***')
-    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tkgl-icews')
+    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tkgl-smallpedia')
     parser.add_argument('--bs', type=int, help='Batch size', default=200)
     parser.add_argument('--k_value', type=int, help='k_value for computing ranking metrics', default=10)
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
@@ -110,7 +110,7 @@ MEMORY_MODE = args.mem_mode # `unlimited` or `fixed_time_window`
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value
 TIME_WINDOW_RATIO = args.time_window_ratio
-DATA = "tkgl-smallpedia" #args.data
+DATA = args.data
 MODEL_NAME = 'EdgeBank'
 
 

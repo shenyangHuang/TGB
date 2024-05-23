@@ -26,13 +26,13 @@ from torch_geometric.nn import TransformerConv
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
 from tgb.linkproppred.evaluate import Evaluator
-from modules.decoder import LinkPredictor
-from modules.emb_module import GraphAttentionEmbedding
-from modules.msg_func import IdentityMessage
-from modules.msg_agg import LastAggregator
-from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import TGNMemory
-from modules.early_stopping import  EarlyStopMonitor
+from tgb_modules.decoder import LinkPredictor
+from tgb_modules.emb_module import GraphAttentionEmbedding
+from tgb_modules.msg_func import IdentityMessage
+from tgb_modules.msg_agg import LastAggregator
+from tgb_modules.neighbor_loader import LastNeighborLoader
+from tgb_modules.memory_module import TGNMemory
+from tgb_modules.early_stopping import  EarlyStopMonitor
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 
@@ -118,7 +118,7 @@ def test(loader, neg_sampler, split_mode):
         neg_sampler: an object that gives the negative edges corresponding to each positive edge
         split_mode: specifies whether it is the 'validation' or 'test' set to correctly load the negatives
     Returns:
-        perf_metric: the result of the performance evaluaiton
+        perf_metric: the result of the performance evaluation
     """
     model['memory'].eval()
     model['gnn'].eval()
@@ -231,7 +231,7 @@ test_loader = TemporalDataLoader(test_data, batch_size=BATCH_SIZE)
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-# neighhorhood sampler
+# neighborhood sampler
 neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
 
 # define the model end-to-end
