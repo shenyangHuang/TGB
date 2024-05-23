@@ -14,6 +14,7 @@ import numpy as np
 import torch
 import random
 from tqdm import tqdm
+import json
 # internal imports
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
@@ -58,6 +59,11 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
 
     input_list = [snap for snap in history_list[-history_len:]] 
     perf_list_all = []
+
+    perf_per_rel = {}
+    for rel in range(num_rels):
+        perf_per_rel[rel] = []
+
     for time_idx, test_snap in enumerate(tqdm(test_list)):
         history_glist = [build_sub_graph(num_nodes, num_rels, g, use_cuda, args.gpu) for g in input_list]    
         test_triples_input = torch.LongTensor(test_snap).cuda() if use_cuda else torch.LongTensor(test_snap)
@@ -71,13 +77,23 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
                                     evaluator, METRIC) 
 
         perf_list_all.extend(perf_list)
+        if split_mode == "test":
+            if args.log_per_rel:
+                for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
+                    perf_per_rel[rel].append(score)
         # reconstruct history graph list
         input_list.pop(0)
         input_list.append(test_snap)
         idx += 1
-    
+    if split_mode == "test":
+        if args.log_per_rel:   
+            for rel in range(num_rels):
+                if len(perf_per_rel[rel]) > 0:
+                    perf_per_rel[rel] = float(np.mean(perf_per_rel[rel]))
+                else:
+                    perf_per_rel.pop(rel)
     mrr = np.mean(perf_list_all) 
-    return mrr
+    return mrr, perf_per_rel
 
 
 
@@ -102,11 +118,12 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         print('INFO: Create directory {}'.format(save_model_dir))
     test_model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.test_history_len}'
     test_state_file = save_model_dir+test_model_name
-
+    perf_per_rel ={}
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
     # create stat
+
     model = RecurrentRGCNCEN(args.decoder,
-                          args.encoder,
+                            args.encoder,
                             num_nodes,
                             num_rels,
                             args.n_hidden,
@@ -126,7 +143,6 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                             relation_prediction=args.relation_prediction,
                             use_cuda=use_cuda,
                             gpu = args.gpu)
-
     if use_cuda:
         torch.cuda.set_device(args.gpu)
         model.cuda()
@@ -136,14 +152,14 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
     
     if trainvalidtest_id == 1:  # normal test on validation set  Note that mode=test
         if os.path.exists(test_state_file):
-            mrr = test(model, args.test_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+            mrr, _ = test(model, args.test_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                         test_state_file, "test", split_mode="val")      
         else:
             print('Cannot do testing because model does not exist: ', test_state_file)
             mrr = 0
     elif trainvalidtest_id == 2: # normal test on test set
         if os.path.exists(test_state_file):
-            mrr = test(model, args.test_history_len, train_list+valid_list, test_list, num_rels, num_nodes, use_cuda, 
+            mrr, perf_per_rel = test(model, args.test_history_len, train_list+valid_list, test_list, num_rels, num_nodes, use_cuda, 
                         test_state_file, "test", split_mode="test")
         else:
             print('Cannot do testing because model does not exist: ', test_state_file)
@@ -199,7 +215,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
             # validation        
             if epoch % args.evaluate_every == 0:
-                mrr = test(model, args.start_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                mrr, _ = test(model, args.start_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                                 model_state_file, mode="train", split_mode= "val")
 
                 if mrr< best_mrr:
@@ -221,7 +237,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         model.load_state_dict(init_checkpoint['state_dict'])
         test_history_len = args.start_history_len
 
-        mrr = test(model, 
+        mrr, _ = test(model, 
                     args.start_history_len,
                     train_list,
                     valid_list, 
@@ -293,7 +309,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
                 # validation
                 if epoch % args.evaluate_every == 0:
-                    mrr = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                    mrr, _ = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                                 model_state_file, mode="train", split_mode= "val")
                     
                     if mrr< best_mrr:
@@ -303,7 +319,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                         best_mrr = mrr
                         best_epoch = epoch
                         torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)  
-            mrr = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+            mrr, _ = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                         model_state_file, mode="test", split_mode= "val")
             ks_idx += 1
             if mrr.item() < max(best_mrr_list):
@@ -313,7 +329,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             else:
                 best_mrr_list.append(mrr.item())
         
-    return mrr, test_history_len
+    return mrr, test_history_len, perf_per_rel
 
 
 
@@ -325,7 +341,7 @@ start_overall = timeit.default_timer()
 
 # set hyperparameters
 args, _ = get_args_cen()
-args.dataset = 'tkgl-icews'
+args.dataset = 'tkgl-smallpedia'
 
 SEED = args.seed  # set the random seed for consistency
 set_random_seed(SEED)
@@ -333,6 +349,8 @@ set_random_seed(SEED)
 DATA=args.dataset
 MODEL_NAME = 'CEN'
 
+print("logging mrrs per relation: ", args.log_per_rel)
+print("do train? do only test no validation?: ", args.trainflag, args.test_only)
 
 # load data
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
@@ -377,7 +395,7 @@ else:
     if args.trainflag:
         print('running pretrain and train')
         # pretrain
-        mrr, _ = run_experiment(args, trainvalidtest_id=-1)
+        mrr, _, _ = run_experiment(args, trainvalidtest_id=-1)
         # train
         mrr, args.test_history_len = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
         # the best history len (for valid mrr)
@@ -386,14 +404,14 @@ else:
         if args.test_history_len_2 != args.test_history_len:
             args.test_history_len = args.test_history_len_2 # hyperparameter value as given in original paper 
         
-
-    print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
-    # test on val set
-    val_mrr, _ = run_experiment(args, trainvalidtest_id=1)
+    if args.test_only == False:
+        print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
+        # test on val set
+        val_mrr, _, _ = run_experiment(args, trainvalidtest_id=1)
 
     # test on test set
     start_test = timeit.default_timer()
-    test_mrr, _ = run_experiment(args, trainvalidtest_id=2)
+    test_mrr, _, perf_per_rel = run_experiment(args, trainvalidtest_id=2)
 
 test_time = timeit.default_timer() - start_test
 all_time = timeit.default_timer() - start_train
@@ -422,5 +440,11 @@ save_results({'model': MODEL_NAME,
               'tot_train_val_time': all_time
               }, 
     results_filename)
+
+if args.log_per_rel:
+    results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results_per_rel.json'
+    with open(results_filename, 'w') as json_file:
+        json.dump(perf_per_rel, json_file)
+
 
 sys.exit()

@@ -76,7 +76,7 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
                                     evaluator, METRIC)  # TODO:  num_rels, static_graph different!
 
         perf_list_all.extend(perf_list)
-        if mode == "test":
+        if split_mode == "test":
             if args.log_per_rel:
                 for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
                     perf_per_rel[rel].append(score)
@@ -85,7 +85,7 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
         input_list.append(test_snap)
         idx += 1
 
-    if mode == "test":
+    if split_mode == "test":
         if args.log_per_rel:   
             for rel in range(num_rels):
                 if len(perf_per_rel[rel]) > 0:

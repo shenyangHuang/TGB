@@ -89,6 +89,8 @@ def test(best_config, all_relations,test_data_prel, all_data_prel, neg_sampler, 
     ## loop through relations and apply baselines
     
     for rel in all_relations:
+        if rel < 602:
+            continue
         start =  timeit.default_timer()
         if rel in test_data_prel.keys():
             lmbda_psi = best_config[str(rel)]['lmbda_psi'][0]
