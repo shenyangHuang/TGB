@@ -24,13 +24,13 @@ from torch_geometric.loader import TemporalDataLoader
 # internal imports
 from tgb.utils.utils import get_args, set_random_seed, save_results
 from tgb.linkproppred.evaluate import Evaluator
-from modules.decoder import LinkPredictor
-from modules.emb_module import GraphAttentionEmbedding
-from modules.msg_func import IdentityMessage
-from modules.msg_agg import LastAggregator
-from modules.neighbor_loader import LastNeighborLoader
-from modules.memory_module import DyRepMemory
-from modules.early_stopping import  EarlyStopMonitor
+from tgb_modules.decoder import LinkPredictor
+from tgb_modules.emb_module import GraphAttentionEmbedding
+from tgb_modules.msg_func import IdentityMessage
+from tgb_modules.msg_agg import LastAggregator
+from tgb_modules.neighbor_loader import LastNeighborLoader
+from tgb_modules.memory_module import DyRepMemory
+from tgb_modules.early_stopping import  EarlyStopMonitor
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
 

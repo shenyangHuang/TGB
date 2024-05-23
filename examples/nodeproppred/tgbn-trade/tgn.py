@@ -12,8 +12,8 @@ from torch_geometric.nn.models.tgn import (
     LastNeighborLoader,
 )
 
-from modules.decoder import NodePredictor
-from modules.emb_module import GraphAttentionEmbedding
+from tgb_modules.decoder import NodePredictor
+from tgb_modules.emb_module import GraphAttentionEmbedding
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
 from tgb.nodeproppred.evaluate import Evaluator
 from tgb.utils.utils import set_random_seed

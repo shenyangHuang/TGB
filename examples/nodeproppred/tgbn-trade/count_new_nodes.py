@@ -10,9 +10,9 @@ import sys
 import argparse
 
 # internal imports
-from modules.nodebank import NodeBank
+from tgb_modules.nodebank import NodeBank
 from tgb.linkproppred.evaluate import Evaluator
-from modules.edgebank_predictor import EdgeBankPredictor
+from tgb_modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
 from tgb.nodeproppred.dataset import NodePropPredDataset
 

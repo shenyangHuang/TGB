@@ -33,7 +33,7 @@ packaging==23.1
 pandas==1.5.3
 Pillow==9.4.0
 psutil==5.9.4
-pyg-lib==0.2.0+pt20cu117
+#pyg-lib #==0.2.0+pt20cu117
 pyparsing==3.0.9
 python-dateutil==2.8.2
 pytz==2023.2
@@ -42,20 +42,24 @@ scikit-learn==1.2.2
 scipy==1.10.1
 six==1.16.0
 sympy==1.11.1
--e git+ssh://git@github.com/shenyangHuang/TGB.git@8d116181b619e74d482d1ea3dd289fd4c669c78a#egg=tgb
+# -e git+ssh://git@github.com/shenyangHuang/TGB.git@8d116181b619e74d482d1ea3dd289fd4c669c78a#egg=tgb
 threadpoolctl==3.1.0
 torch==2.0.0
-torch-cluster==1.6.1+pt20cu117
+# torch-cluster==1.6.1+pt20cu117
 torch-geometric==2.3.0
-torch-scatter==2.1.1+pt20cu117
-torch-sparse==0.6.17+pt20cu117
-torch-spline-conv==1.2.2+pt20cu117
-torchaudio==2.0.1
-torchvision==0.15.1
+# torch-scatter==2.1.1+pt20cu117
+# torch-sparse==0.6.17+pt20cu117
+# torch-spline-conv==1.2.2+pt20cu117
+# torchaudio==2.0.1
+# torchvision==0.15.1
 tqdm==4.65.0
 triton==2.0.0
 typing_extensions==4.5.0
 urllib3==1.26.15
 zipp==3.15.0
+ray
+dgl==2.1.0
+chardet
+seasonal==0.3.1
 torchmetrics==0.11.0
 pybind11==2.11.1
