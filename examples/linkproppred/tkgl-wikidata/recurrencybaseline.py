@@ -28,7 +28,8 @@ sys.path.append(tgb_modules_path)
 from tgb_modules.recurrencybaseline_predictor import baseline_predict, baseline_predict_remote
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import set_random_seed,  save_results, create_basis_dict, group_by, reformat_ts
+from tgb.utils.utils import set_random_seed,  save_results 
+from tgb_modules.tkg_utils import create_basis_dict, group_by, reformat_ts
 
 def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
             perf_list_all, hits_list_all, window, neg_sampler, split_mode):
@@ -89,8 +90,6 @@ def test(best_config, all_relations,test_data_prel, all_data_prel, neg_sampler, 
     ## loop through relations and apply baselines
     
     for rel in all_relations:
-        if rel < 602:
-            continue
         start =  timeit.default_timer()
         if rel in test_data_prel.keys():
             lmbda_psi = best_config[str(rel)]['lmbda_psi'][0]

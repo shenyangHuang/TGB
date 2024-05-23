@@ -3,7 +3,7 @@ import numpy as np
 import sys
 import os
 import os.path as osp
-from pathlib import Path
+
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
 import json
@@ -13,13 +13,8 @@ import numpy as np
 import seasonal
 
 import pandas as pd
-from datetime import datetime
-#internal imports 
-from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import  reformat_ts, get_original_ts
-
 import networkx as nx
-import matplotlib.pyplot as plt
+
 
 def t2s(s,r,o):
     return str(s) + " " + str(r) + " " + str(o)

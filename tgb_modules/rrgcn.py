@@ -245,8 +245,6 @@ class RecurrentRGCNREGCN(nn.Module):
         self.dynamic_emb = torch.nn.Parameter(torch.Tensor(num_ents, h_dim), requires_grad=True).float()
         torch.nn.init.normal_(self.dynamic_emb)
 
-        self.static_zero = torch.nn.Parameter(torch.Tensor(num_ents, h_dim), requires_grad=True).float()
-        torch.nn.init.normal_(self.static_zero)
 
         if self.use_static:
             self.words_emb = torch.nn.Parameter(torch.Tensor(self.num_words, h_dim), requires_grad=True).float()

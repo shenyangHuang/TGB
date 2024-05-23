@@ -1,33 +1,23 @@
-import numpy as np
 
+## imports
+import numpy as np
 import sys
 import os
 import os.path as osp
 from pathlib import Path
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
-import json
-
-## imports
-
-
+import matplotlib.pyplot as plt
 import numpy as np
-import seasonal
-
 import pandas as pd
-from datetime import datetime
+
 #internal imports 
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import  reformat_ts, get_original_ts
-import tgb.utils.dataset_utils as du
-
-import networkx as nx
-import matplotlib.pyplot as plt
-
-
+from tgb_modules.tkg_utils import  reformat_ts
+import tgb.datasets.dataset_scripts.dataset_utils as du
 
 # specify params
-names = ['tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' , 'tkgl-wikidata'] #'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = [ 'tkgl-wikidata'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 colortgb = '#60ab84'
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
