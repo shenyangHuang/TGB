@@ -16,16 +16,14 @@ import argparse
 import numpy as np
 import json
 from joblib import Parallel, delayed
-
-
 import itertools
 
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb_modules.tlogic_learn_modules import Temporal_Walk, Rule_Learner, store_edges
 import tgb_modules.tlogic_apply_modules as ra
-from tgb.utils.utils import set_random_seed,  save_results,  reformat_ts, get_inv_relation_id, create_scores_array
-
+from tgb.utils.utils import set_random_seed,  save_results
+from tgb_modules.tkg_utils import reformat_ts, get_inv_relation_id, create_scores_array
 
 def learn_rules(i, num_relations):
     """

@@ -19,7 +19,8 @@ from tqdm import tqdm
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
 from tgb_modules.rrgcn import RecurrentRGCNREGCN
-from tgb.utils.utils import set_random_seed, get_args_regcn, split_by_time, build_sub_graph, save_results, reformat_ts
+from tgb.utils.utils import set_random_seed, split_by_time, save_results
+from tgb_modules.tkg_utils import get_args_regcn, build_sub_graph, reformat_ts
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 import json

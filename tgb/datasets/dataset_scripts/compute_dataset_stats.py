@@ -3,23 +3,17 @@ import numpy as np
 import sys
 import os
 import os.path as osp
-from pathlib import Path
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
 import json
 
 ## imports
-
-
 import numpy as np
-import seasonal
-
-import pandas as pd
 from datetime import datetime
 #internal imports 
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import  reformat_ts, get_original_ts
-import tgb.utils.dataset_utils as du
+from tgb_modules.tkg_utils import  reformat_ts, get_original_ts
+import tgb.datasets.dataset_scripts.dataset_utils as du
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -201,7 +195,7 @@ for dataset_name in names:
         plt.xlabel('Timestep (bins)')
         plt.ylabel('Number of Edges')
         plt.legend()
-        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         modified_dataset_name = dataset_name.replace('-', '_')
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # Navigate one folder up
@@ -226,7 +220,7 @@ for dataset_name in names:
         plt.xlabel('Timestep (bins)')
         plt.ylabel('Number of Edges')
         plt.legend()
-        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         plt.show()
         save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2.png"))
         plt.savefig(save_path2, bbox_inches='tight')
@@ -243,7 +237,7 @@ for dataset_name in names:
         plt.xlabel('Timestep (bins)')
         plt.ylabel('Number of Edges')
         plt.legend()
-        plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+        #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         plt.show()
         save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}3.png"))
         plt.savefig(save_path2, bbox_inches='tight')
@@ -261,7 +255,7 @@ for dataset_name in names:
             plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
             plt.xlabel('Timestep (bins)')
             plt.ylabel('Number of Edges')
-            plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
+            #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
             plt.yscale('log')
             plt.legend()
             plt.show()
@@ -277,7 +271,7 @@ for dataset_name in names:
     plt.scatter(range(ts_all.num_timesteps), n_edges_list, s=0.2)
     plt.xlabel('timestep')
     plt.ylabel('number of triples')
-    plt.title(f'Number of triples per timestep for {dataset_name}')
+    #plt.title(f'Number of triples per timestep for {dataset_name}')
     # save
     # Get the current directory of the script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -301,7 +295,7 @@ for dataset_name in names:
     plt.scatter(range(ts_all.num_timesteps), n_nodes_list, s=0.2)
     plt.xlabel('timestep')
     plt.ylabel('number of nodes')
-    plt.title(f'Number of nodes per timestep for {dataset_name}')
+    #plt.title(f'Number of nodes per timestep for {dataset_name}')
     save_path = (os.path.join(figs_dir,f"num_nodes_per_ts_{dataset_name}.png"))
     plt.savefig(save_path, bbox_inches='tight')
     plt.close('all')

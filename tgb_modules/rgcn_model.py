@@ -3,7 +3,7 @@ https://github.com/nec-research/CEN/blob/main/src/model.py
 """
 
 import torch.nn as nn
-import torch
+
 
 class BaseRGCN(nn.Module):
     def __init__(self, num_nodes, h_dim, out_dim, num_rels, num_bases=-1, num_basis=-1,

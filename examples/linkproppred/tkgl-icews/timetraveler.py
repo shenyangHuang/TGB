@@ -112,7 +112,7 @@ def main(args):
 
     #######################Create DataLoader#################################
     # set hyperparameters
-    args.dataset = 'tkgl-yago'
+    args.dataset = 'tkgl-icews'
 
     SEED = args.seed  # set the random seed for consistency
     set_random_seed(SEED)

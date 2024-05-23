@@ -1,33 +1,23 @@
-import numpy as np
 
+## imports
+import numpy as np
 import sys
 import os
 import os.path as osp
 from pathlib import Path
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
-import json
-
-## imports
-
-
+import matplotlib.pyplot as plt
 import numpy as np
-import seasonal
-
 import pandas as pd
-from datetime import datetime
+
 #internal imports 
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb.utils.utils import  reformat_ts, get_original_ts
-import tgb.utils.dataset_utils as du
-
-import networkx as nx
-import matplotlib.pyplot as plt
-
-
+from tgb_modules.tkg_utils import  reformat_ts
+import tgb.datasets.dataset_scripts.dataset_utils as du
 
 # specify params
-names = ['tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' , 'tkgl-wikidata'] #'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = [ 'tkgl-wikidata'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 colortgb = '#60ab84'
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
@@ -233,7 +223,7 @@ for dataset_name in names:
         plt.figure(figsize=(8, 8))
         plt.pie(plot_names.values(), labels=plot_names.keys(), autopct='%1.f%%', startangle=140, 
         colors=repeated_colors)
-        plt.title(f'Pie Chart of Top {k} Relations and "Others"')
+        #plt.title(f'Pie Chart of Top {k} Relations and "Others"')
         plt.axis('equal')  
         save_path = (os.path.join(figs_dir, f"rel_pie_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
@@ -243,7 +233,7 @@ for dataset_name in names:
         plt.bar(rels_occurences.keys(), rels_occurences.values(), color=colortgb)
         plt.xlabel('Relation')
         plt.ylabel('Number of Triples')
-        plt.title('Number of Triples per Relation')
+        #plt.title('Number of Triples per Relation')
         save_path = (os.path.join(figs_dir, f"rel_tripperrel_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 
@@ -260,7 +250,7 @@ for dataset_name in names:
         plt.errorbar(statistics_dict_prominent.keys(), maxs,  yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
         plt.xlabel('Relation')
         plt.ylabel('Mean Number of Occurences of [subject, object]') 
-        plt.title('Mean Number of Occurences of [subject, object] per Relation')
+        #plt.title('Mean Number of Occurences of [subject, object] per Relation')
         plt.legend()
         #plt.yscale('log')
         save_path = (os.path.join(figs_dir, f"rel_mean_occurences_{dataset_name}.png"))
@@ -271,7 +261,7 @@ for dataset_name in names:
         plt.bar(['Low Occurence', 'High Occurence'], [len(low_occurences), len(high_occurences)], color=colortgb)
         plt.xlabel('Occurence Category')
         plt.ylabel('Number of Relations')
-        plt.title('Number of Relations in Low and High Occurence Categories')
+        #plt.title('Number of Relations in Low and High Occurence Categories')
         save_path = (os.path.join(figs_dir, f"rel_occurence_categories_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 
@@ -280,7 +270,7 @@ for dataset_name in names:
         plt.bar(['Low Occurence', 'High Occurence'], [sum([num_oc for num_oc in low_occurences.values()]), sum([num_oc for num_oc in high_occurences.values()]),], color=colortgb)
         plt.xlabel('Occurence Category')
         plt.ylabel('Number of Triples')
-        plt.title('Number of Triples in Low and High Occurence Categories')
+        #plt.title('Number of Triples in Low and High Occurence Categories')
         save_path = (os.path.join(figs_dir, f"rel_occurence_triples_categories_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
 

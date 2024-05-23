@@ -16,16 +16,14 @@ import argparse
 import numpy as np
 import json
 from joblib import Parallel, delayed
-
-
 import itertools
 
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb_modules.tlogic_learn_modules import Temporal_Walk, Rule_Learner, store_edges
 import tgb_modules.tlogic_apply_modules as ra
-from tgb.utils.utils import set_random_seed,  save_results,  reformat_ts, get_inv_relation_id, create_scores_array
-
+from tgb.utils.utils import set_random_seed,  save_results
+from tgb_modules.tkg_utils import reformat_ts, get_inv_relation_id, create_scores_array
 
 def learn_rules(i, num_relations):
     """
@@ -322,7 +320,7 @@ else:
 end_train =  timeit.default_timer()
 
 ## 2. Apply rules
-start_test =  timeit.default_timer()
+
 rules_dict = json.load(open(output_dir + rule_filename))
 rules_dict = {int(k): v for k, v in rules_dict.items()}
 
@@ -355,6 +353,7 @@ for i in range(num_processes):
 end_valid =  timeit.default_timer()
 
 # compute test mrr
+start_test =  timeit.default_timer()
 print('Computing test MRR')
 start =  timeit.default_timer()
 num_queries = len(test_data) // num_processes

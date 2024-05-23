@@ -29,8 +29,8 @@ from tgb_modules.timetraveler_policygradient import PG
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.linkproppred.evaluate import Evaluator
 from tgb_modules.timetraveler_trainertester import Trainer, Tester, getRelEntCooccurrence
-from tgb.utils.utils import set_random_seed, get_args_timetraveler, save_results, reformat_ts, get_model_config_timetraveler
-
+from tgb.utils.utils import set_random_seed,save_results 
+from tgb_modules.tkg_utils import  get_args_timetraveler, reformat_ts, get_model_config_timetraveler
 
 class QuadruplesDataset(Dataset):
     def __init__(self, examples):
