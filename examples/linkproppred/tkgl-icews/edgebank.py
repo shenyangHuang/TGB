@@ -155,6 +155,20 @@ Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
 
 # ==================================================== Test
+# loading the test negative samples
+dataset.load_test_ns()
+
+# testing ...
+start_test = timeit.default_timer()
+perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
+end_test = timeit.default_timer()
+
+print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
+print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+test_time = timeit.default_timer() - start_test
+print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
+
+# ==================================================== Test
 # loading the validation negative samples
 dataset.load_val_ns()
 
@@ -171,19 +185,6 @@ print(f"\tval: Elapsed Time (s): {val_time: .4f}")
 
 
 
-# ==================================================== Test
-# loading the test negative samples
-dataset.load_test_ns()
-
-# testing ...
-start_test = timeit.default_timer()
-perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
-end_test = timeit.default_timer()
-
-print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
-print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-test_time = timeit.default_timer() - start_test
-print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
 save_results({'model': MODEL_NAME,
               'memory_mode': MEMORY_MODE,
