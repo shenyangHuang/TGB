@@ -72,7 +72,8 @@ def learn_rules(i, num_relations):
 
     return rl.rules_dict
 
-def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edges, all_quads, args, split_mode):
+def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edges, all_quads, args, split_mode, 
+                log_per_rel=False, num_rels=0):
     """
     Apply rules (multiprocessing possible).
 
@@ -84,7 +85,9 @@ def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edg
         hits_list (list): hits list (hits@10 per sample)
         perf_list (list): performance list (mrr per sample)
     """
-
+    perf_per_rel = {}
+    for rel in range(num_rels):
+            perf_per_rel[rel] = []
     print("Start process", i, "...")
     all_candidates = [dict() for _ in range(len(args))]
     no_cands_counter = 0
@@ -207,9 +210,20 @@ def apply_rules(i, num_queries, rules_dict, neg_sampler, data, window, learn_edg
         predictions = evaluator.eval(input_dict)
         perf_list[index] = predictions['mrr']
         hits_list[index] = predictions['hits@10']
+        if split_mode == "test":
+            if log_per_rel:
+                perf_per_rel[test_query[1]].append(perf_list[index]) #test_query[1] is the relation index
+
+    if split_mode == "test":
+        if log_per_rel:   
+            for rel in range(num_rels):
+                if len(perf_per_rel[rel]) > 0:
+                    perf_per_rel[rel] = float(np.mean(perf_per_rel[rel]))
+                else:
+                    perf_per_rel.pop(rel)       
                
 
-    return perf_list, hits_list
+    return perf_list, hits_list, perf_per_rel
 
 
 ## args
@@ -229,6 +243,8 @@ def get_args():
     parser.add_argument('--run_nr', type=int, help='Run Number', default=1)
     parser.add_argument('--learn_rules_flag', type=bool, help='Do we want to learn the rules', default=True)
     parser.add_argument('--rule_filename', type=str, help='if rules not learned: where are they stored', default='0_r[3]_n100_exp_s1_rules.json')
+    parser.add_argument('--log_per_rel', type=bool, help='Do we want to log mrr per relation', default=False)
+    parser.add_argument('--compute_valid_mrr', type=bool, help='Do we want to compute mrr for valid set', default=True)
     parsed = vars(parser.parse_args())
     return parsed
 
@@ -244,6 +260,7 @@ transition_distr = parsed["transition_distr"]
 num_processes = parsed["num_processes"]
 window = parsed["window"]
 top_k = parsed["top_k"]
+log_per_rel = parsed['log_per_rel']
 
 MODEL_NAME = 'TLogic'
 SEED = parsed['seed']  # set the random seed for consistency
@@ -251,6 +268,7 @@ set_random_seed(SEED)
 
 ## load dataset and prepare it accordingly
 name = parsed["dataset"]
+compute_valid_mrr = parsed["compute_valid_mrr"]
 dataset = LinkPropPredDataset(name=name, root="datasets", preprocess=True)
 DATA = name
 
@@ -334,25 +352,33 @@ score_func = ra.score_12
 args = [[0.1, 0.5]]
 
 # compute valid mrr
-print('Computing valid MRR')
 start_valid =  timeit.default_timer()
-num_queries = len(val_data) // num_processes
+if compute_valid_mrr:
+    print('Computing valid MRR')
 
-output = Parallel(n_jobs=num_processes)(
-    delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, val_data, window, learn_edges, 
-                         all_quads, args, split_mode='val') for i in range(num_processes))
-end =  timeit.default_timer()
+    num_queries = len(val_data) // num_processes
 
-perf_list_val = []
-hits_list_val = []
+    output = Parallel(n_jobs=num_processes)(
+        delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, val_data, window, learn_edges, 
+                            all_quads, args, split_mode='val') for i in range(num_processes))
+    end =  timeit.default_timer()
 
-for i in range(num_processes):
-    perf_list_val.extend(output[i][0])
-    hits_list_val.extend(output[i][1])
+    perf_list_val = []
+    hits_list_val = []
+
+    for i in range(num_processes):
+        perf_list_val.extend(output[i][0])
+        hits_list_val.extend(output[i][1])
+else:
+    perf_list_val = [0]
+    hits_list_val = [0]
+    
 
 end_valid =  timeit.default_timer()
 
 # compute test mrr
+if log_per_rel ==True:
+    num_processes = 1 #otherwise logging per rel does not work for our implementation
 start_test =  timeit.default_timer()
 print('Computing test MRR')
 start =  timeit.default_timer()
@@ -360,15 +386,19 @@ num_queries = len(test_data) // num_processes
 
 output = Parallel(n_jobs=num_processes)(
     delayed(apply_rules)(i, num_queries,rules_dict, neg_sampler, test_data, window, learn_edges, 
-                         all_quads, args, split_mode='test') for i in range(num_processes))
+                         all_quads, args, split_mode='test', log_per_rel=log_per_rel, num_rels=num_rels) for i in range(num_processes))
 end =  timeit.default_timer()
 
 perf_list_all = []
 hits_list_all = []
 
+
 for i in range(num_processes):
     perf_list_all.extend(output[i][0])
     hits_list_all.extend(output[i][1])
+if log_per_rel == True:
+    perf_per_rel = output[0][2]
+
 
 total_time = round(end - start, 6)
 total_valid_time = round(end_valid - start_valid, 6)
@@ -393,9 +423,13 @@ if not osp.exists(results_path):
     os.mkdir(results_path)
     print('INFO: Create directory {}'.format(results_path))
 Path(results_path).mkdir(parents=True, exist_ok=True)
+
+if log_per_rel == True:
+    results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results_per_rel.json'
+    with open(results_filename, 'w') as json_file:
+        json.dump(perf_per_rel, json_file)
+
 results_filename = f'{results_path}/{MODEL_NAME}_NONE_{DATA}_results.json'
-
-
 metric = dataset.eval_metric
 save_results({'model': MODEL_NAME,
               'train_flag': None,
