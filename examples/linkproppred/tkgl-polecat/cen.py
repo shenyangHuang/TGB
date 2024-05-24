@@ -398,7 +398,7 @@ else:
         # pretrain
         mrr, _, _ = run_experiment(args, trainvalidtest_id=-1)
         # train
-        mrr, args.test_history_len = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
+        mrr, args.test_history_len, _ = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
         # the best history len (for valid mrr)
     else:
         print('directly start testing')
