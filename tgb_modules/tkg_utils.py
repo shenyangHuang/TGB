@@ -109,8 +109,8 @@ def get_args_cen():
                         help="dataset to use")
     parser.add_argument("--test", type=int, default=0,
                         help="1: formal test 2: continual test")
-    parser.add_argument("--trainflag", type=bool, default=True,
-                        help="do we want to train or directly test")
+    parser.add_argument("--validtest",  default=False,
+                        help="load stat from dir and directly valid and test")
     parser.add_argument("--test-only", type=bool, default=False,
                         help="do we want to compute valid mrr or only test")
     parser.add_argument("--run-statistic", action='store_true', default=False,
