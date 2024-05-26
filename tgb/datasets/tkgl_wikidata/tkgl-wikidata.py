@@ -317,6 +317,7 @@ def main():
     # outname = "tkgl-smallpedia_static_edgelist_top10.csv"
     # topk=10
     # subset_static_edges(inputfile, outname, rel_type, topk=topk)
+    
 
 
 

@@ -201,6 +201,9 @@ class THGNegativeEdgeGenerator(object):
                         neg_d_arr = np.random.choice(
                             np.setdiff1d(all_dst, conflict_set), self.num_neg_e, replace=False)
                     filtered_all_dst = neg_d_arr
+
+
+
                 out_dict[key] = filtered_all_dst
             print ("ns samples for ", len(out_dict), " positive edges are generated")
             # save the generated evaluation set to disk

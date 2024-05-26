@@ -53,6 +53,7 @@ def load_edgelist(fname):
     rel_type_dict = {}
     edge_dict = {} # {edge: edge_type}
     node_type_mapping = {}
+    num_edges = 0
     with open(fname, 'r') as f:
         reader = csv.reader(f, delimiter =',')
         first_row = True
@@ -86,6 +87,10 @@ def load_edgelist(fname):
             if ts not in edge_dict:
                 edge_dict[ts] = {}
             edge_dict[ts][(node_dict[head], node_dict[tail], rel_type_dict[relation_type])] = 1
+            num_edges += 1
+    print ("there are {} nodes".format(len(node_dict)))
+    print ("there are {} edges".format(num_edges))
+
     return node_dict, node_type_dict, edge_dict, rel_type_dict, node_type_mapping
 
 
@@ -167,7 +172,7 @@ def main():
     # write2csv(outname, total_edge_dict)
 
 
-    fname = "all_edgelist.csv"
+    fname = "thgl-github_edges.csv" #"all_edgelist.csv"
     node_dict, node_type_dict, edge_dict, edge_type_dict, node_type_mapping = load_edgelist(fname)
     write2edgelist (edge_dict, "thgl-github_edgelist.csv")
     writeNodeType(node_type_dict, "thgl-github_nodetype.csv")
