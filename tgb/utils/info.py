@@ -42,6 +42,7 @@ DATA_URL_DICT = {
     "thgl-myket": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-myket.zip",
     "thgl-github": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-github.zip",
     "thgl-forum": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-forum.zip",
+    "thgl-software": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-software.zip",
 }
 
 
@@ -66,6 +67,7 @@ DATA_VERSION_DICT = {
     "thgl-myket": 1,
     "thgl-github": 1,
     "thgl-forum": 1,
+    "thgl-software": 1,
 }
 
 
@@ -85,6 +87,7 @@ DATA_EVAL_METRIC_DICT = {
     "thgl-myket": "mrr",
     "thgl-github": "mrr",
     "thgl-forum": "mrr",
+    "thgl-software": "mrr",
     "tgbn-trade": "ndcg",
     "tgbn-genre": "ndcg",
     "tgbn-reddit": "ndcg",
@@ -107,6 +110,7 @@ DATA_NS_STRATEGY_DICT = {
     "thgl-myket": "node-type-filtered",
     "thgl-github": "node-type-filtered",
     "thgl-forum": "node-type-filtered",
+    "thgl-software": "node-type-filtered",
 }
 
 
