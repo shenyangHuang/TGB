@@ -172,7 +172,7 @@ def main():
     # write2csv(outname, total_edge_dict)
 
 
-    fname = "thgl-github_edges.csv" #"all_edgelist.csv"
+    fname = "github_01_2024_subset.csv" #"thgl-github_edges.csv" #"all_edgelist.csv" 
     node_dict, node_type_dict, edge_dict, edge_type_dict, node_type_mapping = load_edgelist(fname)
     write2edgelist (edge_dict, "thgl-github_edgelist.csv")
     writeNodeType(node_type_dict, "thgl-github_nodetype.csv")
