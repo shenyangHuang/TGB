@@ -1,7 +1,7 @@
 import csv
 
 
-def load_edgelist(file_path):
+def load_edgelist(file_path, freq_threshold=5):
     """
     ts, head, tail, relation_type
     1704085200,/user/34452971,/pr/1660752740,U_SO_C_P
@@ -47,27 +47,31 @@ def load_edgelist(file_path):
     print ("there are ", num_nodes, " nodes")
     print ("there are ", num_rels, " relations")
 
+    node_freq5 = 0
     node_freq10 = 0
     node_freq100 = 0
     node_freq1000 = 0
-    node_freq_dict = {}
+    low_freq_dict = {}
     for k, v in node_dict.items():
+        if v <= freq_threshold:
+            low_freq_dict[k] = 1
+            node_freq5 += 1
         if v >= 10:
             node_freq10 += 1
         if v >= 100:
             node_freq100 += 1
-            node_freq_dict[k] = 1
         if v >= 1000:
             node_freq1000 += 1
+    print ("there are ", node_freq5, " nodes with frequency <= ", freq_threshold, " (inclusive)")
     print ("there are ", node_freq10, " nodes with frequency >= 10")
     print ("there are ", node_freq100, " nodes with frequency >= 100")
     print ("there are ", node_freq1000, " nodes with frequency >= 1000")
     # return node_freq10_dict
-    return node_freq_dict
+    return low_freq_dict
 
 
 
-def subset_by_node(node_dict, file_path):
+def subset_by_node(file_path, low_freq_dict):
     first_row = True
     edge_dict = {}
     with open(file_path, 'r') as f:
@@ -80,13 +84,18 @@ def subset_by_node(node_dict, file_path):
             head = row[1]
             tail = row[2]
             relation_type = row[3]
-            if (head in node_dict) or (tail in node_dict):
-                if ts not in edge_dict:
-                    edge_dict[ts] = {}
-                if (head,tail,relation_type) not in edge_dict[ts]:
-                    edge_dict[ts][(head,tail,relation_type)] = 1
-                else:
-                    edge_dict[ts][(head,tail,relation_type)] += 1
+
+            #! remove any edges that belongs any node with degree one
+            if (head in low_freq_dict) or (tail in low_freq_dict):
+                continue
+
+            # if (head in node_dict) or (tail in node_dict):
+            if ts not in edge_dict:
+                edge_dict[ts] = {}
+            if (head,tail,relation_type) not in edge_dict[ts]:
+                edge_dict[ts][(head,tail,relation_type)] = 1
+            else:
+                edge_dict[ts][(head,tail,relation_type)] += 1
     return edge_dict
 
 
@@ -135,18 +144,16 @@ def combine_edgelist(file_paths, outname):
 
 
 def main():
+    file_path = "github_01_2024.csv"
+    freq_threshold = 5
+    low_freq_dict = load_edgelist(file_path, freq_threshold=freq_threshold)
+    edge_dict = subset_by_node(file_path, low_freq_dict=low_freq_dict)
+    outname = "github_01_2024_subset.csv"
+    write2csv(outname, edge_dict)
 
-
-
-    # file_path = "github_03_2024.csv"
-    # node_dict = load_edgelist(file_path)
-    # edge_dict = subset_by_node(node_dict, file_path)
-    # outname = "github_03_2024_subset.csv"
-    # write2csv(outname, edge_dict)
-
-    file_paths = ["github_01_2024_subset.csv", "github_02_2024_subset.csv", "github_03_2024_subset.csv"]
-    outname = "thgl-github_edges.csv"
-    combine_edgelist(file_paths, outname)
+    # file_paths = ["github_01_2024_subset.csv", "github_02_2024_subset.csv", "github_03_2024_subset.csv"]
+    # outname = "thgl-github_edges.csv"
+    # combine_edgelist(file_paths, outname)
 
 
 
