@@ -30,6 +30,7 @@ software/
 *$py.class
 saved_models/
 dump/
+saved_results/
 
 # C extensions
 *.so
