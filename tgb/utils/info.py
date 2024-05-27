@@ -42,7 +42,7 @@ DATA_URL_DICT = {
     "thgl-myket": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-myket.zip",
     "thgl-github": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-github.zip",
     "thgl-forum": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-forum.zip",
-    "thgl-software": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-software.zip",
+    "thgl-software": "https://object-arbutus.cloud.computecanada.ca/tgb/thgl-software.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/thgl-software_ns_random.zip"
 }
 
 

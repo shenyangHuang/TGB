@@ -116,6 +116,16 @@ def write2csv(outname: str,
 #                 writer.writerow(row)
 
 
+def writeEdgeTypeMapping(edge_type_dict, outname):
+    r"""
+    write the edge type mapping to a file
+    """
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['edge_id', 'type'])
+        for key in edge_type_dict:
+            writer.writerow([key, edge_type_dict[key]])
+
 
 def main():
 
@@ -144,6 +154,7 @@ def main():
     print ("total number of days", num_days)
     print ("there are", len(edge_type_dict), "unique edge types")
     print ("there are", len(node_dict), "unique nodes")
+    writeEdgeTypeMapping(edge_type_dict, "tkgl-polecat_edgemapping.csv")
 
 
 
