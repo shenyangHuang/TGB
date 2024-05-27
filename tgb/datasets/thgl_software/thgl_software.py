@@ -151,33 +151,13 @@ def write2edgelist(out_dict, outname):
 
 
 def main():
-    # """
-    # concatenate edgelists
-    # """
-    # total_lines = 0
-    # total_edge_dict = {} 
-    # #1. find all files with .txt in the folder
-    # for file in glob.glob("*.txt"):
-    #     # outname = file[7:11] + "_edgelist.csv"
-    #     print ("processing", file)
-    #     edge_dict, num_lines = load_csv_raw(file)
-    #     total_lines += num_lines
-    #     print ("-----------------------------------")
-    #     print ("file, ", file)
-    #     print ("number of lines, ", num_lines)
-    #     print ("number of ts, ", len(edge_dict))
-    #     print ("-----------------------------------")
-    #     total_edge_dict.update(edge_dict)
-    # outname = "all_edgelist.csv"
-    # write2csv(outname, total_edge_dict)
 
-
-    fname = "thgl-github_edges.csv" #"all_edgelist.csv"
+    fname = "software_edgelist.csv" #"all_edgelist.csv"
     node_dict, node_type_dict, edge_dict, edge_type_dict, node_type_mapping = load_edgelist(fname)
-    write2edgelist (edge_dict, "thgl-github_edgelist.csv")
-    writeNodeType(node_type_dict, "thgl-github_nodetype.csv")
-    writeEdgeTypeMapping(edge_type_dict, "thgl-github_edgemapping.csv")
-    writeNodeTypeMapping(node_type_mapping, "thgl-github_nodemapping.csv")
+    write2edgelist (edge_dict, "thgl-software_edgelist.csv")
+    writeNodeType(node_type_dict, "thgl-software_nodetype.csv")
+    writeEdgeTypeMapping(edge_type_dict, "thgl-software_edgemapping.csv")
+    writeNodeTypeMapping(node_type_mapping, "thgl-software_nodemapping.csv")
     
 
 

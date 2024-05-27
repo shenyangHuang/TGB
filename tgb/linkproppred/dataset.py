@@ -324,6 +324,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             elif self.name == "thgl-forum":
                 df, edge_feat, node_ids = csv_to_forum_data(self.meta_dict["fname"])
+            elif self.name == "thgl-software":
+                df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             else:
                 raise ValueError(f"Dataset {self.name} not found.")
 
