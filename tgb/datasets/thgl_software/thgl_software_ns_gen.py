@@ -11,7 +11,7 @@ def main():
 
     # setting the required parameters
     num_neg_e_per_pos = 1000 
-    neg_sample_strategy = "node-type-filtered"
+    neg_sample_strategy = "node-type-filtered" #"random"
     rnd_seed = 42
 
 

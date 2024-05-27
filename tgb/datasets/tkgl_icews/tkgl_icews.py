@@ -71,6 +71,19 @@ def write2csv(outname, out_dict):
                     max_edge_type_id += 1
                 row = [date, node_dict[head], node_dict[tail], edge_type_dict[relation_type]]
                 writer.writerow(row)
+    return node_dict, edge_type_dict
+
+
+def writeEdgeTypeMapping(edge_type_dict, outname):
+    r"""
+    write the edge type mapping to a file
+    """
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['edge_id', 'type'])
+        for key in edge_type_dict:
+            writer.writerow([key, edge_type_dict[key]])
+
 
 
 
@@ -90,11 +103,11 @@ def main():
         print ("number of days, ", len(edge_dict))
         print ("-----------------------------------")
         total_edge_dict.update(edge_dict)
-    
-    outname = "tkgl-icews_edgelist.csv"
+    outname = "tkgl-icews_edgelist_tiny.csv"
     print ("total number of lines", total_lines)
     print ("total number of days", len(total_edge_dict))    
-    write2csv(outname, total_edge_dict)
+    node_dict, edge_type_dict = write2csv(outname, total_edge_dict)
+    writeEdgeTypeMapping(edge_type_dict, "tkgl-icews_edgemapping.csv")
 
 
 
