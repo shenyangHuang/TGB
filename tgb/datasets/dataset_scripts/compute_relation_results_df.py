@@ -16,8 +16,8 @@ import tgb.datasets.dataset_scripts.dataset_utils as du
 
 
 # specify params
-names = [ 'tkgl-icews', 'tkgl-polecat'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
-methods = [ 'regcn'] #'recurrency'
+names = [ 'tkgl-icews', 'tkgl-polecat', 'tkgl-smallpedia'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+methods = ['recurrency', 'regcn', 'cen'] #'recurrency'
 colortgb = '#60ab84'
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
@@ -33,9 +33,20 @@ k=10 # how many slices in the cake +1
 plots_flag = True
 
 model_names = {'recurrency': {'tkgl-polecat': ['saved_models/RecurrencyBaseline', 1],
-                              'tkgl-icews': ['saved_models/RecurrencyBaseline', 500]},
+                              'tkgl-icews': ['saved_models/RecurrencyBaseline', 500],
+                              'tkgl-smallpedia': ['saved_models/RecurrencyBaseline', 1]},
                'regcn': {'tkgl-polecat': 'saved_results/REGCN_tkgl-polecat_results_per_rel.json',
-                         'tkgl-icews': 'saved_results/REGCN_tkgl-icews_results_per_rel.json'}}
+                         'tkgl-icews': 'saved_results/REGCN_tkgl-icews_results_per_rel.json',
+                         'tkgl-smallpedia': 'saved_results/REGCN_tkgl-smallpedia_results_per_rel.json'},
+                'cen': {'tkgl-polecat': 'saved_results/CEN_tkgl-polecat_results_per_rel.json',
+                        'tkgl-icews': 'saved_results/CEN_tkgl-icews_results_per_rel.json',
+                        'tkgl-smallpedia': 'saved_results/CEN_tkgl-smallpedia_results_per_rel.json'}, 
+                'tlogic': {'tkgl-smallpedia': 'saved_results/TLogic_tkgl-smallpedia_results_per_rel.json'}
+                }
+
+def inverse_rel(rel_id, max_id):
+    inverse_rel = rel_id + max_id + 1
+    return inverse_rel
 # run through each datasest
 for dataset_name in names:
     # read dataframe with the stats for this dataset from csv
@@ -75,6 +86,12 @@ for dataset_name in names:
             results_filename = f'{results_dict}/{name}'
             with open(results_filename, 'r') as json_file:
                 mrr_per_rel = json.load(json_file)
+        num_rels = len(list(set(stats_df['relation'])))
+        max_id = max(list(set(stats_df['relation'])))
+        assert num_rels == max_id+1
+
+
+
 
 
         # else we can just load the results from the json file
@@ -83,17 +100,20 @@ for dataset_name in names:
         # for each entry in the stats dataframe: append a column for each method with the mean value of the relation_mrr
         # if the column is not present, add it
         # if the column is present, append the value
-        if method in stats_df.columns:
-            print('Column already present')
-        else:
+        # if method in stats_df.columns:
+        #     print('Column already present')
+        # else:
             # each line of the original dataframe has a relation id
-            for rel in stats_df['relation']:
-                if str(rel) in mrr_per_rel:
-                    stats_df.loc[stats_df['relation'] == rel, method] = mrr_per_rel[str(rel)]
-                elif rel in mrr_per_rel:
-                    stats_df.loc[stats_df['relation'] == rel, method] = mrr_per_rel[rel]
-                else:
-                    stats_df.loc[stats_df['relation'] == rel, method] = 'N/A'
+        for rel in stats_df['relation']:
+            if str(rel) in mrr_per_rel:
+                stats_df.loc[stats_df['relation'] == rel, method+'_tail'] = mrr_per_rel[str(rel)]
+                stats_df.loc[stats_df['relation'] == rel, method+'_head'] = mrr_per_rel[str(inverse_rel(rel, max_id))]
+            elif rel in mrr_per_rel:
+                stats_df.loc[stats_df['relation'] == rel, method+'_tail'] = mrr_per_rel[rel]
+                stats_df.loc[stats_df['relation'] == rel, method+'_head'] = mrr_per_rel[inverse_rel(rel, max_id)]
+            else:
+                stats_df.loc[stats_df['relation'] == rel, method+'_tail'] = 'N/A'
+                stats_df.loc[stats_df['relation'] == rel, method+'_head'] = 'N/A'
         # save the dataframe with the new columns
         stats_df.to_csv(os.path.join(stats_dir, f"relation_statistics_{dataset_name}.csv"), index=False)
 

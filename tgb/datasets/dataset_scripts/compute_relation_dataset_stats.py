@@ -17,7 +17,7 @@ from tgb_modules.tkg_utils import  reformat_ts
 import tgb.datasets.dataset_scripts.dataset_utils as du
 
 # specify params
-names = [ 'tkgl-wikidata'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = [ 'tkgl-smallpedia'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 colortgb = '#60ab84'
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
@@ -279,3 +279,5 @@ for dataset_name in names:
         plt.bar(mean_per_rel.keys(), mean_per_rel.values(), color=colortgb)
         save_path = (os.path.join(figs_dir, f"rel_conperrel_{dataset_name}.png"))
         plt.savefig(save_path, bbox_inches='tight')
+
+print('done')

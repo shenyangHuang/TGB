@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 
 
-names = ['tkgl-smallpedia'] #'tkgl-polecat', 'thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = ['thgl-software'] #'tkgl-smallpedia','tkgl-polecat',   'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata', 'thgl-myket','tkgl-yago',]
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -176,24 +176,27 @@ for dataset_name in names:
     print(f"std for average number of nodes per ts is {np.std(n_nodes_list)}")
     print(f"min/max number of nodes per ts is {np.min(n_nodes_list), np.max(n_nodes_list)}")
     colortgb = '#60ab84'
-    bars_list = [20, 50, 100]
+    fontsize =12
+    labelsize=12
+    bars_list = [20]
     for num_bars in bars_list:
         if num_bars < 100:
-            capsize=1.5
-            capthick=1.5
-            elinewidth=1.5
+            capsize=2
+            capthick=2
+            elinewidth=2
         else:
             capsize=1 
             capthick=1
             elinewidth=1
         ts_discretized_mean, ts_discretized_sum, ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices = du.discretize_values(n_edges_list, num_bars)
         plt.figure()
-        # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='mean value', color =colortgb)
-        plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+        plt.tick_params(axis='both', which='major', labelsize=labelsize)
+        # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='Mean Value', color =colortgb)
+        plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
         plt.scatter(mid_indices, ts_discretized_min, label ='min value')
         plt.scatter(mid_indices, ts_discretized_max, label ='max value')
-        plt.xlabel('Timestep (bins)')
-        plt.ylabel('Number of Edges')
+        plt.xlabel('Timestep', fontsize=fontsize)
+        plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         modified_dataset_name = dataset_name.replace('-', '_')
@@ -210,15 +213,16 @@ for dataset_name in names:
         plt.savefig(save_path, bbox_inches='tight')
 
         plt.figure()
+        plt.tick_params(axis='both', which='major', labelsize=labelsize)
         mins = np.array(ts_discretized_min)
         maxs = np.array(ts_discretized_max)
         means = np.array(ts_discretized_mean)
         # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean', color =colortgb)
-        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
-        plt.scatter(mid_indices, ts_discretized_mean, label ='mean value', color=colortgb)
+        plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb, linewidth=2)
+        #plt.scatter(mid_indices, ts_discretized_mean, label ='Mean Value', color=colortgb)
         plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
-        plt.xlabel('Timestep (bins)')
-        plt.ylabel('Number of Edges')
+        plt.xlabel('Timestep', fontsize=fontsize)
+        plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         plt.show()
@@ -228,14 +232,15 @@ for dataset_name in names:
         plt.savefig(save_path2, bbox_inches='tight')
 
         plt.figure()
+        plt.tick_params(axis='both', which='major', labelsize=labelsize)
         mins = np.array(ts_discretized_min)
         maxs = np.array(ts_discretized_max)
         means = np.array(ts_discretized_mean)
         plt.bar(mid_indices, ts_discretized_sum, width=(len(n_edges_list) // num_bars), label='Sum', color =colortgb)
-        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
+        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
         # plt.errorbar(mid_indices, sums, yerr=[mins, maxs], fmt='none', alpha=0.9, color='grey',capsize=1.5, capthick=1.5, elinewidth=2, label='Min-Max Range')
-        plt.xlabel('Timestep (bins)')
-        plt.ylabel('Number of Edges')
+        plt.xlabel('Timestep', fontsize=fontsize)
+        plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         plt.show()
@@ -246,18 +251,19 @@ for dataset_name in names:
 
         try:
             plt.figure()
+            plt.tick_params(axis='both', which='major', labelsize=labelsize)
             mins = np.array(ts_discretized_min)
             maxs = np.array(ts_discretized_max)
             means = np.array(ts_discretized_mean)
             # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label='Mean', color =colortgb)
-            # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='mean value', color=colortgb)
-            plt.scatter(mid_indices, ts_discretized_mean, label ='mean value', color=colortgb)
+            plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
+            #plt.scatter(mid_indices, ts_discretized_mean, label ='Mean Value', color=colortgb)
             plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
-            plt.xlabel('Timestep (bins)')
-            plt.ylabel('Number of Edges')
+            plt.xlabel('Timestep', fontsize=fontsize)
+            plt.ylabel('Number of Edges', fontsize=fontsize)
             #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
             plt.yscale('log')
-            plt.legend()
+            plt.legend(fontsize=fontsize)
             plt.show()
             save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2log.png"))
             plt.savefig(save_path2, bbox_inches='tight')
@@ -268,9 +274,10 @@ for dataset_name in names:
         plt.close('all')
         
     plt.figure()
+    plt.tick_params(axis='both', which='major', labelsize=labelsize)
     plt.scatter(range(ts_all.num_timesteps), n_edges_list, s=0.2)
-    plt.xlabel('timestep')
-    plt.ylabel('number of triples')
+    plt.xlabel('Timestep', fontsize=fontsize)
+    plt.ylabel('number of triples', fontsize=fontsize)
     #plt.title(f'Number of triples per timestep for {dataset_name}')
     # save
     # Get the current directory of the script
@@ -293,8 +300,8 @@ for dataset_name in names:
 
     plt.figure()
     plt.scatter(range(ts_all.num_timesteps), n_nodes_list, s=0.2)
-    plt.xlabel('timestep')
-    plt.ylabel('number of nodes')
+    plt.xlabel('Timestep', fontsize=fontsize)
+    plt.ylabel('number of nodes', fontsize=fontsize)
     #plt.title(f'Number of nodes per timestep for {dataset_name}')
     save_path = (os.path.join(figs_dir,f"num_nodes_per_ts_{dataset_name}.png"))
     plt.savefig(save_path, bbox_inches='tight')
