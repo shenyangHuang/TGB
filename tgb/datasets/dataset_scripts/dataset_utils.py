@@ -439,7 +439,13 @@ def read_dict_compute_mrr_per_rel(perrel_results_path, model_name, dataset_name,
             # Extract the key (the first part)
             key = int(parts[0])
             # Extract the values (the rest of the parts), remove square brackets
-            values = [float(value.strip('[]')) for value in parts[1:]]
+            values = []
+            for value in parts[1:]:
+                if value == '[]':
+                    print(f"Rel {key} has empty list as value")
+                    
+                else:
+                    values.append(float(value.strip('[]')))
             # Add the key-value pair to the dictionary
             if key in results_per_rel_dict.keys():
                 print(f"Key {key} already exists in the dictionary!!! might have duplicate entries in results csv - skipping")

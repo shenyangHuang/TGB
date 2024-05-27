@@ -255,6 +255,7 @@ parsed = get_args()
 dataset = parsed["dataset"]
 rule_lengths = parsed["rule_lengths"]
 rule_lengths = [rule_lengths] if (type(rule_lengths) == int) else rule_lengths
+print('rule_lengths', rule_lengths)
 num_walks = parsed["num_walks"]
 transition_distr = parsed["transition_distr"]
 num_processes = parsed["num_processes"]
