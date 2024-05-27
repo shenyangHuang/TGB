@@ -1,4 +1,7 @@
 import time
+import sys
+sys.path.insert(0, '/home/mila/j/julia.gastinger/TGB2')
+sys.path.insert(0,'/../../../')
 from tgb.linkproppred.tkg_negative_generator import TKGNegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 

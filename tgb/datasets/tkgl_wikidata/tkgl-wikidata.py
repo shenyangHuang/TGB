@@ -149,8 +149,48 @@ def extract_subset(fname, outname, start_year=2000, end_year=2024):
     return node_dict
 
 
+def extract_subset_nodeid(fname, outname, start_year=2000, end_year=2024, max_id=1000000):
+    node_dict = {}
+    first_row = True
+    rel_type = {}
+    r"""
+    ts,head,tail,relation_type
+    0,Q331755,Q1294765,P39
+    0,Q116233388,Q2566630,P2348
+    """
+    with open(outname, 'w') as f:
+        writer = csv.writer(f, delimiter =',')
+        writer.writerow(['ts', 'head', 'tail', 'relation_type'])
+        with open(fname, 'r') as f:
+            reader = csv.reader(f, delimiter =',')
+            for row in reader: 
+                if first_row:
+                    first_row = False
+                    continue
+                ts = int(row[0])
+                head = row[1]
+                head_id = int(head[1:])
+                tail = row[2]
+                tail_id = int(tail[1:])
+                if (head_id > max_id or tail_id > max_id):
+                    continue
+                relation_type = row[3]
+                if (ts >= start_year and ts <= end_year):
+                    if head not in node_dict:
+                        node_dict[head] = 1
+                    if tail not in node_dict:
+                        node_dict[tail] = 1
+                    row = [ts, head, tail, relation_type]
+                    if (relation_type not in rel_type):
+                        rel_type[relation_type] = 1
+                    writer.writerow(row)
+    print ("there are ",len(rel_type), " relation types")
+    return node_dict
 
-def extract_static_subset(fname, outname, node_dict):
+
+
+
+def extract_static_subset(fname, outname, node_dict, max_id=1000000):
     r"""
     extract static edges based a given node dict
     """
@@ -172,9 +212,13 @@ def extract_static_subset(fname, outname, node_dict):
                     first_row = False
                     continue
                 head = row[0]
+                head_id = int(head[1:])
                 tail = row[1]
+                tail_id = int(tail[1:])
                 relation_type = row[2]
-                if (head in node_dict) and (tail in node_dict): #need to check
+                if (head_id > max_id or tail_id > max_id):
+                    continue
+                if (head in node_dict) or (tail in node_dict): #need to check
                     row = [head, tail, relation_type]
                     writer.writerow(row)
                     if (relation_type not in rel_type):
@@ -191,6 +235,7 @@ def extract_static_subset(fname, outname, node_dict):
 
 
 
+#! not used, filter by top edgetypes 
 def subset_static_edges(fname, outname, rel_type, topk=10):
     #* select edges based on frequency
     import operator
@@ -205,8 +250,6 @@ def subset_static_edges(fname, outname, rel_type, topk=10):
     first_row = True
 
     # rel_kept = {"P17":1, "P27":1, "P495":1, "P19": 1}
-
-
     with open(outname, 'w') as f:
         writer = csv.writer(f, delimiter =',')
         writer.writerow(['head', 'tail', 'relation_type'])
@@ -258,20 +301,23 @@ def main():
     inputfile = "tkgl-wikidata_edgelist.csv"
     outname = "tkgl-smallpedia_edgelist.csv"
     # start_year = 2015
-    start_year=1700
-    end_year=1800
-    node_dict = extract_subset(inputfile, outname, start_year=start_year, end_year=end_year)
+    start_year=1900#1700
+    end_year=2024#1800
+    max_id=1000000
+    # node_dict = extract_subset(inputfile, outname, start_year=start_year, end_year=end_year)
+    node_dict = extract_subset_nodeid(inputfile, outname, start_year=start_year, end_year=end_year, max_id=max_id)
     print ("there are ",len(node_dict), " nodes")
 
     inputfile = "tkgl-wikidata_static_edgelist.csv"
     outname = "tkgl-smallpedia_static_edgelist.csv"
-    rel_type = extract_static_subset(inputfile, outname, node_dict)
+    rel_type = extract_static_subset(inputfile, outname, node_dict, max_id=max_id)
 
-
+    #! not used
     # inputfile = "tkgl-smallpedia_static_edgelist.csv"
     # outname = "tkgl-smallpedia_static_edgelist_top10.csv"
     # topk=10
     # subset_static_edges(inputfile, outname, rel_type, topk=topk)
+    
 
 
 

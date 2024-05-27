@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
+
 from typing import Optional, Dict, Any, Tuple
 import os
 import os.path as osp
@@ -162,6 +165,7 @@ class LinkPropPredDataset(object):
                 last_dst_id=self.max_dst_idx,
             )
 
+
     def _version_check(self) -> None:
         r"""Implement Version checks for dataset files
         updates the file names based on the current version number
@@ -320,6 +324,8 @@ class LinkPropPredDataset(object):
                 df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             elif self.name == "thgl-forum":
                 df, edge_feat, node_ids = csv_to_forum_data(self.meta_dict["fname"])
+            elif self.name == "thgl-software":
+                df, edge_feat, node_ids = csv_to_thg_data(self.meta_dict["fname"])
             else:
                 raise ValueError(f"Dataset {self.name} not found.")
 
@@ -378,7 +384,7 @@ class LinkPropPredDataset(object):
         self._full_data = full_data
 
         if ("yago" in self.name):
-            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.097, test_ratio=0.099)
+            _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.1, test_ratio=0.10) #99) #val_ratio=0.097, test_ratio=0.099)
         else:
             _train_mask, _val_mask, _test_mask = self.generate_splits(full_data, val_ratio=0.15, test_ratio=0.15)
         self._train_mask = _train_mask

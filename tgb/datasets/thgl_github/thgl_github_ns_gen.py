@@ -10,7 +10,7 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 1000
+    num_neg_e_per_pos = 20 #1000
     neg_sample_strategy = "node-type-filtered"
     rnd_seed = 42
 

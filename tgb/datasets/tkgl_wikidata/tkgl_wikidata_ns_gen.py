@@ -1,4 +1,10 @@
 import time
+import sys
+import os
+import os.path as osp
+from pathlib import Path
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb.linkproppred.tkg_negative_generator import TKGNegativeEdgeGenerator
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 
@@ -10,7 +16,7 @@ def main():
     print("*** Negative Sample Generation ***")
 
     # setting the required parameters
-    num_neg_e_per_pos = 10000 #10000
+    num_neg_e_per_pos = 1000 #10000
     neg_sample_strategy = "dst-time-filtered" #"time-filtered"
     rnd_seed = 42
 

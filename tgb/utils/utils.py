@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 from torch_geometric.data import TemporalData
 import pandas as pd
+import torch
 
 
 def add_inverse_quadruples(df: pd.DataFrame) -> pd.DataFrame:
@@ -140,6 +141,8 @@ def get_args():
     return args, sys.argv
 
 
+
+
 def save_results(new_results: dict, filename: str):
     r"""
     save (new) results into a json file
@@ -160,3 +163,20 @@ def save_results(new_results: dict, filename: str):
         # dump the results
         with open(filename, 'w') as json_file:
             json.dump(new_results, json_file, indent=4)
+
+
+def split_by_time(data):
+    """
+    https://github.com/Lee-zix/CEN/blob/main/rgcn/utils.py
+    create list where each entry has an entry with all triples for this timestep
+    """
+    timesteps = list(set(data[:,3]))
+    timesteps.sort()
+    snapshot_list = [None] * len(timesteps)
+
+    for index, ts in enumerate(timesteps):
+        mask = np.where(data[:, 3] == ts)[0]
+        snapshot_list[index] = data[mask,:3]
+
+    return snapshot_list
+
