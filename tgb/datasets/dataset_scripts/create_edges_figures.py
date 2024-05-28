@@ -6,6 +6,7 @@ import os.path as osp
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
 import json
+import csv 
 
 ## imports
 import matplotlib.pyplot as plt
@@ -18,7 +19,18 @@ import tgb.datasets.dataset_scripts.dataset_utils as du
 
 
 # specify params
-names = [ 'tkgl-polecat', 'tkgl-icews',  'tkgl-smallpedia', 'tkgl-wikidata', 'thgl-myket','tkgl-yago', 'thgl-github', 'thgl-forum']
+names = [ 'tkgl-polecat'] #, 'tkgl-icews',  'tkgl-smallpedia', 'tkgl-wikidata', 'thgl-myket','tkgl-yago', 'thgl-github', 'thgl-forum', 'thgl-software']
+granularity ={}
+granularity['tkgl-polecat'] = 'days'
+granularity['tkgl-icews'] = 'days'
+granularity['tkgl-smallpedia'] = 'years'
+granularity['tkgl-wikidata'] = 'years'
+granularity['tkgl-yago'] = 'years'
+granularity['thgl-myket'] = 'sec.'
+granularity['thgl-github'] = 'sec.'
+granularity['thgl-software'] = 'sec.'
+granularity['thgl-forum'] = 'sec.'
+
 methods = ['recurrency', 'regcn', 'cen'] #'recurrency'
 colortgb = '#60ab84'
 colortgb2 = '#eeb641'
@@ -26,19 +38,35 @@ colortgb3 = '#dd613a'
 #colortgb4 ='#bce9ef'
 #colortgb5 ='#d6e9d9'
 
+
 fontsize =12
 labelsize=12
 for dataset_name in names:    
+
     modified_dataset_name = dataset_name.replace('-', '_')
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Navigate one folder up
     parent_dir = os.path.dirname(current_dir)
     figs_dir = os.path.join( parent_dir, modified_dataset_name, 'figs')
+    data_dir =  os.path.join(parent_dir, modified_dataset_name)
     save_path = (os.path.join(figs_dir,f"numedges_{dataset_name}.json")) 
+    stats_path = (os.path.join(data_dir,f"dataset_stats.csv"))
+
 
     n_edgesnodes_list_all = json.load(open(save_path)) 
     n_edges_list = n_edgesnodes_list_all['num_edges']
     bars_list = [20]
+
+
+    # Read the CSV file
+    with open(stats_path, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if row[0] == 'first_ts_string':
+                start_date = row[1]
+            elif row[0] == 'last_ts_string':
+                end_date = row[1]
+
     for num_bars in bars_list:
         if num_bars < 100:
             capsize=2
@@ -55,7 +83,7 @@ for dataset_name in names:
         plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
         plt.scatter(mid_indices, ts_discretized_min, label ='min value')
         plt.scatter(mid_indices, ts_discretized_max, label ='max value')
-        plt.xlabel('Timestep', fontsize=fontsize)
+        plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
         plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
@@ -77,7 +105,8 @@ for dataset_name in names:
         plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb, linewidth=2)
         #plt.scatter(mid_indices, ts_discretized_mean, label ='Mean Value', color=colortgb)
         plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
-        plt.xlabel('Timestep', fontsize=fontsize)
+    
+        plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
         plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
@@ -95,7 +124,7 @@ for dataset_name in names:
         plt.bar(mid_indices, ts_discretized_sum, width=(len(n_edges_list) // num_bars), label='Sum', color =colortgb)
         # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
         # plt.errorbar(mid_indices, sums, yerr=[mins, maxs], fmt='none', alpha=0.9, color='grey',capsize=1.5, capthick=1.5, elinewidth=2, label='Min-Max Range')
-        plt.xlabel('Timestep', fontsize=fontsize)
+        plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
         plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
@@ -115,7 +144,7 @@ for dataset_name in names:
             plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
             #plt.scatter(mid_indices, ts_discretized_mean, label ='Mean Value', color=colortgb)
             plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
-            plt.xlabel('Timestep', fontsize=fontsize)
+            plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
             plt.ylabel('Number of Edges', fontsize=fontsize)
             #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
             plt.yscale('log')
@@ -132,7 +161,7 @@ for dataset_name in names:
     # plt.figure()
     # plt.tick_params(axis='both', which='major', labelsize=labelsize)
     # plt.scatter(range(ts_all.num_timesteps), n_edges_list, s=0.2)
-    # plt.xlabel('Timestep', fontsize=fontsize)
+    # plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
     # plt.ylabel('number of triples', fontsize=fontsize)
     # #plt.title(f'Number of triples per timestep for {dataset_name}')
     # # save
@@ -156,7 +185,7 @@ for dataset_name in names:
 
     # plt.figure()
     # plt.scatter(range(ts_all.num_timesteps), n_nodes_list, s=0.2)
-    # plt.xlabel('Timestep', fontsize=fontsize)
+    # plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
     # plt.ylabel('number of nodes', fontsize=fontsize)
     # #plt.title(f'Number of nodes per timestep for {dataset_name}')
     # save_path = (os.path.join(figs_dir,f"num_nodes_per_ts_{dataset_name}.png"))

@@ -301,7 +301,7 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
                          mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
-                         seasonal_value, collision_trainval, collision_valtest):
+                         seasonal_value, collision_trainval, collision_valtest,first_ts_string, last_ts_string):
     if  'tkgl' in dataset_name:
         num_train_quads = int(num_train_quads/2)
         num_val_quads = int(num_val_quads/2)
@@ -337,7 +337,9 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
         "max_node_per_ts": max_node_per_ts,
         "seasonal_value": seasonal_value,
         "collision_trainval": collision_trainval,
-        "collision_valtest": collision_valtest        
+        "collision_valtest": collision_valtest,
+        "first_ts_string": first_ts_string,
+        "last_ts_string": last_ts_string
         # "train_nodes": train_nodes
     }
 
@@ -502,6 +504,8 @@ def set_plot_names(top_k, sorted_dict, dataset_name, rel_id2type_dict):
     # Create a new dictionary with the top k key-value pairs and the sum of the remaining values as "others"
     plot_names = {**plot_names, 'others': others_value}
     return plot_names
+
+
 
 
 import requests

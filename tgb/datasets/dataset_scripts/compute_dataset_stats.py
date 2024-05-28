@@ -18,10 +18,10 @@ import tgb.datasets.dataset_scripts.dataset_utils as du
 import networkx as nx
 import matplotlib.pyplot as plt
 
+from datetime import datetime
 
 
-
-names = ['thgl-software'] #'tkgl-smallpedia','tkgl-polecat',   'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata', 'thgl-myket','tkgl-yago',]
+names = ['tkgl-polecat', 'tkgl-smallpedia','tkgl-polecat',  'thgl-software', 'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata', 'thgl-myket','tkgl-yago']
 for dataset_name in names:
     dataset = LinkPropPredDataset(name=dataset_name, root="datasets", preprocess=True)
 
@@ -54,6 +54,22 @@ for dataset_name in names:
     if len(collision_valtest) > 0:
         print("!!!!!!!!!Collision between val and test set!!!!!!!!!")
     print(subjects.shape)
+
+    first_ts = timestamps_orig[0]
+    last_ts = timestamps_orig[-1]
+
+    if 'wikidata' in dataset_name or 'smallpedia' in dataset_name or 'yago' in dataset_name:
+        first_ts_string = str(first_ts)
+        last_ts_string = str(last_ts)
+    elif 'thgl' in dataset_name:
+        first_ts_string = datetime.utcfromtimestamp(first_ts).strftime('%Y-%m-%d %H:%M:%S')
+        last_ts_string = datetime.utcfromtimestamp(last_ts).strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        first_ts_string = datetime.utcfromtimestamp(first_ts).strftime('%Y-%m-%d')
+        last_ts_string = datetime.utcfromtimestamp(last_ts).strftime('%Y-%m-%d')
+
+    print(dataset_name, "first timestamp:", first_ts_string, "last timestamp:", last_ts_string)
+    
 
     # compute number of quads in train/val/test set
     num_train_quads = train_data.shape[0]
@@ -315,4 +331,4 @@ for dataset_name in names:
                         direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                         np.mean(n_edges_list), np.std(n_edges_list), np.min(n_edges_list), np.max(n_edges_list),
                         np.mean(n_nodes_list), np.std(n_nodes_list), np.min(n_nodes_list), np.max(n_nodes_list),
-                        seasonal_value, collision_trainval, collision_valtest)
+                        seasonal_value, collision_trainval, collision_valtest, first_ts_string, last_ts_string)
