@@ -15,7 +15,7 @@ import os.path as osp
 from pathlib import Path
 from tgb.utils.utils import save_results
 
-DATA = "thgl-myket"
+DATA = "thgl-github"
 
 
 MODEL_NAME = 'STHN'
@@ -124,10 +124,10 @@ def load_model(args):
     }
     if args.model == 'sthn':
         if args.predict_class:
-            from modules.sthn import Multiclass_Interface as STHN_Interface
+            from tgb_modules.sthn import Multiclass_Interface as STHN_Interface
         else:
-            from modules.sthn import STHN_Interface
-        from modules.sthn import link_pred_train
+            from tgb_modules.sthn import STHN_Interface
+        from tgb_modules.sthn import link_pred_train
 
         mixer_configs = {
             'per_graph_size'  : args.max_edges,
@@ -322,7 +322,8 @@ def test(data, test_mask, model, neg_sampler, split_mode):
 args = get_args()
 
 args.use_graph_structure = True
-args.ignore_node_feats = True # we only use graph structure
+args.use_onehot_node_feats = False
+args.ignore_node_feats = False # we only use graph structure
 args.use_type_feats = True # type encoding
 args.use_cached_subgraph = True
 
