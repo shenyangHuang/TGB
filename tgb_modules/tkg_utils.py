@@ -2,7 +2,7 @@
 from itertools import groupby
 from operator import itemgetter
 from collections import defaultdict
-import dgl
+# import dgl
 import sys
 import argparse
 import torch
