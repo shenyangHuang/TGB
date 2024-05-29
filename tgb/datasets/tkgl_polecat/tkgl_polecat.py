@@ -3,6 +3,8 @@ import datetime
 import glob, os
 
 
+
+
 def load_csv_raw(fname):
     r"""
     load from the raw data and retrieve, timestamp, head, tail, relation 
