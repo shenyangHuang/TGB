@@ -15,17 +15,17 @@ import stats_figures.dataset_utils as du
 
 
 # specify params
-names = [ 'tkgl-polecat', 'tkgl-icews',  'tkgl-smallpedia', 'tkgl-wikidata', 'thgl-myket', 'thgl-github', 'thgl-forum', 'thgl-software']
+names = ['thgl-github', 'tkgl-polecat', 'tkgl-icews',  'tkgl-smallpedia', 'tkgl-wikidata', 'thgl-myket',  'thgl-forum', 'thgl-software']
 granularity ={} #for labels
 granularity['tkgl-polecat'] = 'days'
 granularity['tkgl-icews'] = 'days'
 granularity['tkgl-smallpedia'] = 'years'
 granularity['tkgl-wikidata'] = 'years'
 granularity['tkgl-yago'] = 'years'
-granularity['thgl-myket'] = 'sec.'
-granularity['thgl-github'] = 'sec.'
-granularity['thgl-software'] = 'sec.'
-granularity['thgl-forum'] = 'sec.'
+granularity['thgl-myket'] = 's.'
+granularity['thgl-github'] = 's.'
+granularity['thgl-software'] = 's.'
+granularity['thgl-forum'] = 's.'
 
 # colors from tgb logo
 colortgb = '#60ab84'
@@ -74,23 +74,8 @@ for dataset_name in names:
             capthick=1
             elinewidth=1
         ts_discretized_mean, ts_discretized_sum, ts_discretized_min, ts_discretized_max, start_indices, end_indices, mid_indices = du.discretize_values(n_edges_list, num_bars)
-        # different version of the figures
-        # plt.figure()
-        # plt.tick_params(axis='both', which='major', labelsize=labelsize)
-        # # plt.bar(mid_indices, ts_discretized_mean, width=(len(n_edges_list) // num_bars), label ='Mean Value', color =colortgb)
-        # plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb)
-        # plt.scatter(mid_indices, ts_discretized_min, label ='min value')
-        # plt.scatter(mid_indices, ts_discretized_max, label ='max value')
-        # plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
-        # plt.ylabel('Number of Edges', fontsize=fontsize)
-        # plt.legend()
-        # #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
-        # save_path = (os.path.join(figs_dir, f"num_edges_discretized_{num_bars}_{dataset_name}.png"))
-        # plt.savefig(save_path, bbox_inches='tight')
-        # save_path = (os.path.join(figs_dir, f"num_edges_discretized_{num_bars}_{dataset_name}.pdf"))
-        # plt.savefig(save_path, bbox_inches='tight')
-
         
+        # line chart
         plt.figure()
         plt.tick_params(axis='both', which='major', labelsize=labelsize)
         mins = np.array(ts_discretized_min)
@@ -100,9 +85,10 @@ for dataset_name in names:
         plt.step(mid_indices, ts_discretized_mean, where='mid', linestyle='-', label ='Mean Value', color=colortgb, linewidth=2)
         #plt.scatter(mid_indices, ts_discretized_mean, label ='Mean Value', color=colortgb)
         plt.errorbar(mid_indices, maxs, yerr=[maxs-mins, maxs-maxs], fmt='none', alpha=0.9, color='grey',capsize=capsize, capthick=capthick, elinewidth=elinewidth, label='Min-Max Range')
-        plt.xlabel(f'Timestep [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
+        plt.xlabel(f'Ts. [{granularity[dataset_name]}] from {start_date} to {end_date}', fontsize=fontsize)
         plt.ylabel('Number of Edges', fontsize=fontsize)
         plt.legend()
+        plt.tight_layout()
         #plt.title(dataset_name+ ' - Number of Edges aggregated across multiple timesteps')
         plt.show()
         save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2.png"))
@@ -110,6 +96,7 @@ for dataset_name in names:
         save_path2 = (os.path.join(figs_dir,f"num_edges_discretized_{num_bars}_{dataset_name}2.pdf"))
         plt.savefig(save_path2, bbox_inches='tight')
 
+        # bar chart
         plt.figure()
         plt.tick_params(axis='both', which='major', labelsize=labelsize)
         mins = np.array(ts_discretized_min)
@@ -130,6 +117,7 @@ for dataset_name in names:
 
 
         try:
+            # try log scale
             plt.figure()
             plt.tick_params(axis='both', which='major', labelsize=labelsize)
             mins = np.array(ts_discretized_min)

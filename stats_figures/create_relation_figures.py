@@ -17,13 +17,16 @@ import stats_figures.dataset_utils as du
 
 
 # specify params
+# which datasets
 names = [ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia','tkgl-polecat'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+# which methods for the mrr_per_rel figures
 methods = ['recurrency', 'regcn', 'cen'] #'recurrency'
 colortgb = '#60ab84' #tgb logo colors
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
 head_tail_flag = False # if true, the head and tail of the relation are shown in the plot, otherwise just the mean across both directions
 
+# pie chart colors
 colors = [colortgb,colortgb2,colortgb3]  # from tgb logo
 colors2= ['#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#fde0ef', '#f7f7f7', '#e6f5d0', '#b8e186', '#7fbc41', '#4d9221', '#276419']
 # from https://colorbrewer2.org/#type=diverging&scheme=PiYG&n=11 color blind friendly 
@@ -43,6 +46,7 @@ i = 0
 plot_values_list = []
 plot_names_multi_line_list =[]
 for dataset_name in names:
+    print('dataset_name:', dataset_name)
     # some directory stuff
     modified_dataset_name = dataset_name.replace('-', '_')
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +63,7 @@ for dataset_name in names:
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
 
-    ### A pie charts #plot top k relations accordung to the number of occurences plus a slice for "others"
+    ### A) pie charts #plot top k relations accordung to the number of occurences plus a slice for "others"
     plot_names = list(stats_df['rel_string_word'].iloc[:k]) 
     plot_values = list(stats_df['number_total_occurences'].iloc[:k])
     all_others = np.sum(stats_df['number_total_occurences'].iloc[k:]) #slice for "others" (sum of all other relations occurences)
@@ -107,7 +111,7 @@ for dataset_name in names:
     if dataset_name == 'tkgl-wikidata': #then we do not want to plot the mrr for the relations
         continue
 
-    ### B plot the mrr for each relation for each method, different color for different number of occurences or for different recurrency degree
+    ### B) plot the mrr for each relation for each method, different color for different number of occurences or for different recurrency degree
     
     # prepare the dataframe: only take the top ten relations according to number of occurences and sort by recurrency degree
     # we use selected_df_sorted to plot the relations in the order of recurrency degree
@@ -195,8 +199,7 @@ for dataset_name in names:
     plt.savefig(save_path, bbox_inches='tight')
     save_path = (os.path.join(figs_dir, f"rel_mrrperrel_recdeg_{dataset_name}.pdf"))
     plt.savefig(save_path, bbox_inches='tight')
-    print('saved')
-
+    print('saved in ', save_path)
 
     # version 2) colors are the number of occurences
     plt.figure()
@@ -220,7 +223,8 @@ for dataset_name in names:
     save_path = (os.path.join(figs_dir, f"rel_mrrperrel_occ_{dataset_name}.png"))
     plt.savefig(save_path, bbox_inches='tight')
     
-    ### now we plot all sorts of correlation matrix. I specify different columns for the different plots    
+
+    ### C) plot all sorts of correlation matrix. I specify different columns for the different plots    
     df = stats_df[['recurrency_degree', 'direct_recurrency-degree', 'recurrency_tail', 'recurrency_head', 'regcn_tail', 'regcn_head', 'cen_tail', 'cen_head']]
     corrmat= df.corr()
     f = plt.figure(figsize=(19, 15))
