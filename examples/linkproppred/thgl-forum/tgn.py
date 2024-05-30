@@ -220,7 +220,7 @@ MODEL_NAME = 'TGN'
 # ==========
 
 # set the device
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # data loading
@@ -242,7 +242,7 @@ tail = data.dst
 edge_type = data.edge_type #relation
 edge_type_dim = len(torch.unique(edge_type))
 
-embed_edge_type = torch.nn.Embedding(edge_type_dim, 128).to(device)
+embed_edge_type = torch.nn.Embedding(edge_type_dim, 64).to(device)
 with torch.no_grad():
     edge_type_embeddings = embed_edge_type(edge_type)
 
