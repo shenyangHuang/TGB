@@ -13,10 +13,13 @@ import math
 import os
 import os.path as osp
 from pathlib import Path
-from tgb.utils.utils import save_results
+from tgb.utils.utils import set_random_seed, save_results
+
+
+# Start...
+start_overall = timeit.default_timer()
 
 DATA = "thgl-github"
-
 
 MODEL_NAME = 'STHN'
 
@@ -77,7 +80,7 @@ def get_args():
     parser.add_argument('--data', type=str, default='movie')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=600)
-    parser.add_argument('--epochs', type=int, default=300)
+    parser.add_argument('--epochs', type=int, default=2)
     parser.add_argument('--max_edges', type=int, default=50)
     parser.add_argument('--num_edgeType', type=int, default=0, help='num of edgeType')
     parser.add_argument('--lr', type=float, default=0.0005)
@@ -112,6 +115,7 @@ def get_args():
     parser.add_argument('--use_cached_subgraph', action='store_true')
     
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
+    parser.add_argument('--num_run', type=int, help='Number of iteration runs', default=5)
     return parser.parse_args()
 
 
@@ -308,15 +312,16 @@ def test(data, test_mask, model, neg_sampler, split_mode):
         # print(ind, [l for l in inputs], pred.shape)
 
         input_dict = {
-            "y_pred_pos": np.array([pred[0]]),
-            "y_pred_neg": np.array(pred[1:]),
+            "y_pred_pos": np.array([pred.cpu()[0]]),
+            "y_pred_neg": np.array(pred.cpu()[1:]),
             "eval_metric": [metric],
         }
         perf_list.append(evaluator.eval(input_dict)[metric])
 
-    perf_metrics = float(np.mean(perf_list))
+    perf_metrics_mean = float(np.mean(perf_list))
+    perf_metrics_std = float(np.std(perf_list))
 
-    return perf_metrics
+    return perf_metrics_mean, perf_metrics_std, perf_list
 
 
 args = get_args()
@@ -333,6 +338,7 @@ args.device = f"cuda:{args.device}" if torch.cuda.is_available() else "cpu"
 args.device = torch.device(args.device)
 SEED = args.seed
 BATCH_SIZE = args.batch_size
+NUM_RUNS = args.num_run
 set_seed(SEED)
 
 
@@ -345,41 +351,93 @@ node_feats, edge_feats, g, df, args = load_all_data(args)
 model, args, link_pred_train = load_model(args)
 
 ###################################################
-# Link prediction
-print('Train link prediction task from scratch ...')
-model = link_pred_train(model.to(args.device), args, g, df, node_feats, edge_feats)
 
-dataset.load_val_ns()
-
-# testing ...
-start_val = timeit.default_timer()
-perf_metric_test = test(data, test_mask, model, neg_sampler, split_mode='val')
-end_val = timeit.default_timer()
-
-print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-print(f"\tval: {metric}: {perf_metric_test: .4f}")
-val_time = timeit.default_timer() - start_val
-print(f"\tval: Elapsed Time (s): {val_time: .4f}")
+print("==========================================================")
+print(f"=================*** {MODEL_NAME}: LinkPropPred: {DATA} ***=============")
+print("==========================================================")
 
 
-dataset.load_test_ns()
+# for saving the results...
+results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
+if not osp.exists(results_path):
+    os.mkdir(results_path)
+    print('INFO: Create directory {}'.format(results_path))
+Path(results_path).mkdir(parents=True, exist_ok=True)
+results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results.json'
 
-# testing ...
-start_test = timeit.default_timer()
-perf_metric_test = test(data, test_mask, model, neg_sampler, split_mode='test')
-end_test = timeit.default_timer()
 
-print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-test_time = timeit.default_timer() - start_test
-print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
-save_results({'model': MODEL_NAME,
-            'data': DATA,
-            'run': 1,
-            'seed': SEED,
-            metric: perf_metric_test,
-            'test_time': test_time,
-            'tot_train_val_time': 'NA'
-            }, 
+for run_idx in range(NUM_RUNS):
+    print('-------------------------------------------------------------------------------')
+    print(f"INFO: >>>>> Run: {run_idx} <<<<<")
+    start_run = timeit.default_timer()
+
+    # set the seed for deterministic results...
+    torch.manual_seed(run_idx + SEED)
+    set_random_seed(run_idx + SEED)
+
+    # define an early stopper
+    save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
+    save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
+    # early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
+    #                                 tolerance=TOLERANCE, patience=PATIENCE)
+
+    # ==================================================== Train & Validation
+    # loading the validation negative samples
+
+    # Link prediction
+    start_val = timeit.default_timer()
+    print('Train link prediction task from scratch ...')
+    model = link_pred_train(model.to(args.device), args, g, df, node_feats, edge_feats)
+
+    dataset.load_val_ns()
+
+    # Validation ...
+    
+    perf_metrics_val_mean, perf_metrics_val_std, perf_list_val = test(data.to(args.device), test_mask, model.to(args.device), neg_sampler, split_mode='val')
+    end_val = timeit.default_timer()
+
+    print(f"INFO: val: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+    print(f"\tval: {metric}: {perf_metrics_val_mean: .4f} ± {perf_metrics_val_std: .4f}")
+    val_time = timeit.default_timer() - start_val
+    print(f"\tval: Elapsed Time (s): {val_time: .4f}")
+
+
+    dataset.load_test_ns()
+
+    # testing ...
+    start_test = timeit.default_timer()
+    perf_metrics_test_mean, perf_metrics_test_std, perf_list_test = test(data.to(args.device), test_mask, model.to(args.device), neg_sampler, split_mode='test')
+    end_test = timeit.default_timer()
+
+    print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+    print(f"\tTest: {metric}: {perf_metrics_test_mean: .4f} ± {perf_metrics_test_std: .4f}")
+    test_time = timeit.default_timer() - start_test
+    print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
+
+    save_results({'model': MODEL_NAME,
+                  'data': DATA,
+                  'run': run_idx,
+                  'seed': SEED,
+                  f'val {metric}': f'{perf_metrics_val_mean: .4f} ± {perf_metrics_val_std: .4f}' ,
+                  f'test {metric}': f'{perf_metrics_test_mean: .4f} ± {perf_metrics_test_std: .4f}' ,
+                  'test_time': test_time,
+                  'tot_train_val_time': val_time
+                  }, 
     results_filename)
+
+    print(f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
+    print('-------------------------------------------------------------------------------')
+
+print(f"Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}")
+print("==============================================================")
+
+# save_results({'model': MODEL_NAME,
+#             'data': DATA,
+#             'run': 1,
+#             'seed': SEED,
+#             metric: perf_metric_test,
+#             'test_time': test_time,
+#             'tot_train_val_time': 'NA'
+#             }, 
+#     results_filename)
