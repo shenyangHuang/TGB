@@ -4,7 +4,7 @@ import sys
 import os
 import os.path as osp
 
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(tgb_modules_path)
 import json
 
@@ -294,7 +294,7 @@ def estimate_seasons(train_data):
     return Nbseason
 
 
-# create a dictionary with all the stats and save to json and csv
+
 def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num_val_quads, num_test_quads, num_all_quads,
                          num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_timesteps,
                          test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
@@ -302,6 +302,8 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
                          mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
                          seasonal_value, collision_trainval, collision_valtest,first_ts_string, last_ts_string):
+    """
+    Create a dictionary with the statistics of the dataset and save it as a csv file."""
     if  'tkgl' in dataset_name:
         num_train_quads = int(num_train_quads/2)
         num_val_quads = int(num_val_quads/2)
@@ -349,15 +351,10 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
     # Get the current directory of the script
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Navigate one folder up
-    parent_dir = os.path.dirname(current_dir)
-
     # Save stats_dict as CSV
-    modified_dataset_name = dataset_name.replace('-', '_')
-    save_path = (os.path.join(parent_dir, modified_dataset_name, "dataset_stats.csv"))
+    save_path = (os.path.join(current_dir, dataset_name, "dataset_stats.csv"))
     df.to_csv(save_path)
-
-    print("Stats saved to csv and json in folder: ", save_path)
+    print("Stats saved to csv  in folder: ", save_path)
 
 def num_nodes_not_in_train(train_data, test_data):
     """ Calculate the number of nodes in the test set that are not in the train set.
