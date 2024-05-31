@@ -27,6 +27,7 @@ from tgb.linkproppred.dataset import LinkPropPredDataset
 
 def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, mode, split_mode):
     """
+    Test the model
     :param model: model used to test
     :param history_list:    all input history snap shot list, not include output label train list or valid list
     :param test_list:   test triple snap shot list
@@ -101,7 +102,14 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
 
 def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, dropout=None, n_bases=None):
     '''
-    trainvalidtest_id: -1: pretrainig, 0: curriculum training (to find best test history len), 1: test on valid set, 2: test on test set
+    Run experiment for CEN model
+    :param args: arguments for the model
+    :param trainvalidtest_id: -1: pretrainig, 0: curriculum training (to find best test history len), 1: test on valid set, 2: test on test set
+    :param n_hidden: number of hidden units
+    :param n_layers: number of layers
+    :param dropout: dropout rate
+    :param n_bases: number of bases
+    return: mrr, perf_per_rel: mean reciprocal rank and performance per relation
     '''
     # 1) load configuration for grid search the best configuration
     if n_hidden:
