@@ -19,7 +19,7 @@ import stats_figures.dataset_utils as du
 
 
 # specify params
-names = [ 'tkgl-polecat'] #'tkgl-icews', 'tkgl-polecat', 'tkgl-smallpedia'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = [ 'tkgl-polecat', 'tkgl-icews', 'tkgl-polecat', 'tkgl-smallpedia'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 methods = ['recurrency', 'regcn', 'cen'] #'recurrency'
 
 # this is where the results per relation are stored
