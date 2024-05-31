@@ -19,6 +19,8 @@ from tgb_modules.tkg_utils import create_scores_array
 @ray.remote
 def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
+    """
+    Apply baselines psi and xi (multiprocessing possible). See baseline_predict for more details."""
 
     return baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha,  evaluator,first_test_ts, neg_sampler, split_mode)
@@ -27,10 +29,9 @@ def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict
 def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
     """
-    Apply baselines psi and xi (multiprocessing possible).
+    Apply baselines psi and xi and compute scores and mrr per test or valid query (multiprocessing possible).
 
     Parameters:
-        i (int): process number
         num_queries (int): minimum number of queries for each process
         test_data (np.array): test quadruples (only used in single-step prediction, depending on window specified);
             including inverse quadruples for subject prediction
@@ -44,17 +45,14 @@ def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_n
         score_func_psi (method): method to use for computing time decay for psi
         num_nodes (int): number of nodes in the dataset
         num_rels (int): number of relations in the dataset
-        baselinexi_flag (boolean): True: use baselinexi, False: do not use baselinexi
-        baselinepsi_flag (boolean): True: use baselinepsi, False: do not use baselinepsi
         lambda_psi (float): parameter for time decay function for baselinepsi. 0: no decay, >1 very steep decay
         alpha (float): parameter, weight to combine the scores from psi and xi. alpha*scores_psi + (1-alpha)*scores_xi
+        evaluator (method): method to compute mrr and hits
+        first_test_ts (int): timestamp of the first test query
+        neg_sampler (NegSampler): negative sampler
+        split_mode (str): 'test' or 'valid'
     Returns:
-        logging_dict (dict): dict with one entry per test query (one per direction) key: string that desribes the query, 
-        with xxx before the requested node, 
-        values: list with two entries: [[tensor with one score per node], [np array with query_quadruple]]
-        example: '14_0_xxx1_336': [tensor([1.8019e+01, ...9592e-05]), array([ 14,   0,   1...ype=int32)]
-        scores_dict_eval (dict): dict  with one entry per test query (one per direction) key: str(test_qery), value: 
-        tensor with scores, one score per node. example: [14, 0, 1, 336]':tensor([1.8019e+01,5.1101e+02,..., 0.0000e+0])
+        performance_list and hits_list (one entry per query)
     """
     num_this_queries = len(test_data)
     cur_ts = test_data[0][3]

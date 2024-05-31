@@ -2,7 +2,7 @@
 import dgl
 import torch
 import numpy as np
-
+from collections import defaultdict
 
 def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu, mode='dyn'):
     """
@@ -46,3 +46,30 @@ def build_sub_graph(num_nodes, num_rels, triples, use_cuda, gpu, mode='dyn'):
         g = g.to(gpu)
         g.r_to_e = torch.from_numpy(np.array(r_to_e))
     return g
+
+
+def r2e(triplets, num_rels):
+    """ get the mapping from relation to entities helper function for build_sub_graph()
+    returns: 
+    uniq_r: set of unique relations
+    r_len: list of tuples, where each tuple is the start and end index of entities for a relation
+    e_idx: indices of entities"""
+    src, rel, dst = triplets.transpose()
+    # get all relations
+    uniq_r = np.unique(rel)
+    # uniq_r = np.concatenate((uniq_r, uniq_r+num_rels)) #we already have the inverse triples
+    # generate r2e
+    r_to_e = defaultdict(set)
+    for j, (src, rel, dst) in enumerate(triplets):
+        r_to_e[rel].add(src)
+        r_to_e[rel].add(dst)
+        r_to_e[rel+num_rels].add(src)
+        r_to_e[rel+num_rels].add(dst)
+    r_len = []
+    e_idx = []
+    idx = 0
+    for r in uniq_r:
+        r_len.append((idx,idx+len(r_to_e[r])))
+        e_idx.extend(list(r_to_e[r]))
+        idx += len(r_to_e[r])
+    return uniq_r, r_len, e_idx
