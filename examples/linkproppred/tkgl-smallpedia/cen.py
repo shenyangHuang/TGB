@@ -20,7 +20,8 @@ tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.append(tgb_modules_path)
 from tgb_modules.rrgcn import RecurrentRGCNCEN
 from tgb.utils.utils import set_random_seed, split_by_time,  save_results
-from tgb_modules.tkg_utils import get_args_cen, build_sub_graph, reformat_ts
+from tgb_modules.tkg_utils import get_args_cen, reformat_ts
+from tgb_modules.tkg_utils_dgl import build_sub_graph
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 
@@ -351,7 +352,7 @@ DATA=args.dataset
 MODEL_NAME = 'CEN'
 
 print("logging mrrs per relation: ", args.log_per_rel)
-print("do train? do only test no validation?: ", args.trainflag, args.test_only)
+print("do test and valid? do only test no validation?: ", args.validtest, args.test_only)
 
 # load data
 dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
@@ -393,22 +394,24 @@ if args.grid_search:
 else:
     
     start_train = timeit.default_timer()
-    if args.trainflag:
+    if args.validtest:
+        print('directly start testing')
+        if args.test_history_len_2 != args.test_history_len:
+            args.test_history_len = args.test_history_len_2 # hyperparameter value as given in original paper 
+    else:
         print('running pretrain and train')
         # pretrain
         mrr, _, _ = run_experiment(args, trainvalidtest_id=-1)
         # train
-        mrr, args.test_history_len = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
-        # the best history len (for valid mrr)
-    else:
-        print('directly start testing')
-        if args.test_history_len_2 != args.test_history_len:
-            args.test_history_len = args.test_history_len_2 # hyperparameter value as given in original paper 
+        mrr, args.test_history_len, _ = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
+        # the best history len (for valid mrr)       
         
     if args.test_only == False:
         print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
         # test on val set
         val_mrr, _, _ = run_experiment(args, trainvalidtest_id=1)
+    else:
+        val_mrr = 0
 
     # test on test set
     start_test = timeit.default_timer()
