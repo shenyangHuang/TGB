@@ -99,7 +99,7 @@ class NodePropPredDataset(object):
         if preprocess:
             self.pre_process()
 
-        self.label_ts_idx = 0  # index for which node lables to return now
+        self.label_ts_idx = 0  # index for which node labels to return now
 
     def _version_check(self) -> None:
         r"""Implement Version checks for dataset files

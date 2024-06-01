@@ -1,5 +1,5 @@
 """
-implement moving average as baseline for the node prop pred task
+implement exponential moving average for the node prop pred task
 """
 
 import os
@@ -13,7 +13,7 @@ from torch_geometric.loader import TemporalDataLoader
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
-from modules.heuristics import MovingAverage
+from modules.heuristics import CumulativeMovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
 
@@ -27,7 +27,7 @@ data = dataset.get_TemporalData()
 data = data.to(device)
 
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes, window=window)
+forecaster = CumulativeMovingAverage(num_classes)
 evaluator = Evaluator(name=name)
 
 
@@ -72,9 +72,10 @@ def test_n_upate(loader):
 
             for i in range(0, label_srcs.shape[0]):
                 node_id = label_srcs[i]
+                node_time = label_ts[i]
                 pred_vec = forecaster.query_dict(node_id)
                 preds.append(pred_vec)
-                forecaster.update_dict(node_id, labels[i])
+                forecaster.update_dict(node_id, node_time, labels[i])
 
             np_pred = np.stack(preds, axis=0)
             np_true = labels
@@ -102,7 +103,7 @@ start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)
 print(
-    'Moving average on Training takes--- %s seconds ---'
+    'Cumulative moving average on Training takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -110,7 +111,7 @@ start_time = timeit.default_timer()
 val_dict = test_n_upate(val_loader)
 print(val_dict)
 print(
-    'Moving average on validation takes--- %s seconds ---'
+    'Cumulative moving average on validation takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -119,6 +120,6 @@ start_time = timeit.default_timer()
 test_dict = test_n_upate(test_loader)
 print(test_dict)
 print(
-    'Moving average on Test takes--- %s seconds ---' % (timeit.default_timer() - start_time)
+    'Cumulative moving average on Test takes--- %s seconds ---' % (timeit.default_timer() - start_time)
 )
 dataset.reset_label_time()

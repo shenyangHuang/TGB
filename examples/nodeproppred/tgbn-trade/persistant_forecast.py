@@ -3,6 +3,13 @@ implement persistant forecast as baseline for the node prop pred task
 simply predict last seen label for the node
 """
 
+import os
+dir_name = os.path.dirname(os.path.realpath(__file__))
+three_folders_back = os.path.normpath(os.path.join(dir_name, os.pardir, os.pardir, os.pardir))
+import sys
+sys.path.append(three_folders_back)
+three_folders_back = os.path.normpath(os.path.join(dir_name, os.pardir, os.pardir, os.pardir))
+import sys
 import timeit
 import numpy as np
 from torch_geometric.loader import TemporalDataLoader
@@ -13,10 +20,10 @@ from modules.heuristics import PersistantForecaster
 from tgb.nodeproppred.evaluate import Evaluator
 
 
-device = "cpu"
+device = 'cpu'
 
-name = "tgbn-trade"
-dataset = PyGNodePropPredDataset(name=name, root="datasets")
+name = 'tgbn-trade'
+dataset = PyGNodePropPredDataset(name=name, root='datasets')
 num_classes = dataset.num_classes
 data = dataset.get_TemporalData()
 data = data.to(device)
@@ -75,9 +82,9 @@ def test_n_upate(loader):
             np_true = labels
 
             input_dict = {
-                "y_true": np_true,
-                "y_pred": np_pred,
-                "eval_metric": [eval_metric],
+                'y_true': np_true,
+                'y_pred': np_pred,
+                'eval_metric': [eval_metric],
             }
             result_dict = evaluator.eval(input_dict)
             score = result_dict[eval_metric]
@@ -97,7 +104,7 @@ start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)
 print(
-    "Persistant forecast on Training takes--- %s seconds ---"
+    'Persistant forecast on Training takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -105,7 +112,7 @@ start_time = timeit.default_timer()
 val_dict = test_n_upate(val_loader)
 print(val_dict)
 print(
-    "Persistant forecast on validation takes--- %s seconds ---"
+    'Persistant forecast on validation takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -114,6 +121,6 @@ start_time = timeit.default_timer()
 test_dict = test_n_upate(test_loader)
 print(test_dict)
 print(
-    "Persistant forecast on Test takes--- %s seconds ---" % (timeit.default_timer() - start_time)
+    'Persistant forecast on Test takes--- %s seconds ---' % (timeit.default_timer() - start_time)
 )
 dataset.reset_label_time()

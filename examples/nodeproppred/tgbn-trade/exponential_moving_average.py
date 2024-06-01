@@ -1,5 +1,5 @@
 """
-implement moving average as baseline for the node prop pred task
+implement exponential moving average for the node prop pred task
 """
 
 import os
@@ -13,7 +13,7 @@ from torch_geometric.loader import TemporalDataLoader
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
-from modules.heuristics import MovingAverage
+from modules.heuristics import ExponentialMovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
 
@@ -27,7 +27,7 @@ data = dataset.get_TemporalData()
 data = data.to(device)
 
 eval_metric = dataset.eval_metric
-forecaster = MovingAverage(num_classes, window=window)
+forecaster = ExponentialMovingAverage(num_classes, alpha=0.6)
 evaluator = Evaluator(name=name)
 
 
@@ -102,7 +102,7 @@ start_time = timeit.default_timer()
 metric_dict = test_n_upate(train_loader)
 print(metric_dict)
 print(
-    'Moving average on Training takes--- %s seconds ---'
+    'Exponential moving average on Training takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -110,7 +110,7 @@ start_time = timeit.default_timer()
 val_dict = test_n_upate(val_loader)
 print(val_dict)
 print(
-    'Moving average on validation takes--- %s seconds ---'
+    'Exponential moving average on validation takes--- %s seconds ---'
     % (timeit.default_timer() - start_time)
 )
 
@@ -119,6 +119,7 @@ start_time = timeit.default_timer()
 test_dict = test_n_upate(test_loader)
 print(test_dict)
 print(
-    'Moving average on Test takes--- %s seconds ---' % (timeit.default_timer() - start_time)
+    'Exponential moving average on Test takes--- %s seconds ---' % (timeit.default_timer() - start_time)
 )
 dataset.reset_label_time()
+	
