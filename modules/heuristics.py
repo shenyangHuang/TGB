@@ -46,3 +46,27 @@ class MovingAverage:
             return self.dict[node_id]
         else:
             return np.zeros(self.num_class)
+        
+class ExponentialMovingAverage:
+    def __init__(self, num_class, alpha=0.1):
+        self.dict = {}
+        self.num_class = num_class
+        self.alpha = alpha
+
+    def update_dict(self, node_id, label):
+        if node_id in self.dict:
+            self.dict[node_id] = self.alpha * label + (1 - self.alpha) * self.dict[node_id]
+        else:
+            self.dict[node_id] = label
+
+    def query_dict(self, node_id):
+        r"""
+        Parameters:
+            node_id: the node to query
+        Returns:
+            returns the last seen label of the node if it exists, if not return zero vector
+        """
+        if node_id in self.dict:
+            return self.dict[node_id]
+        else:
+            return np.zeros(self.num_class)
