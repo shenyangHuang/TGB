@@ -1,4 +1,5 @@
 !requirements*.txt
+get_croissant.py
 #dataset
 *.xz
 *.dict
