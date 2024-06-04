@@ -103,13 +103,29 @@ def load_pkl(fname: str) -> Any:
         return pickle.load(handle)
 
 
-def set_random_seed(seed: int):
+# def set_random_seed(seed: int):
+#     r"""
+#     setting random seed for reproducibility
+#     """
+#     np.random.seed(seed)
+#     random.seed(seed)
+#     os.environ["PYTHONHASHSEED"] = str(seed)
+
+def set_random_seed(random_seed: int):
     r"""
-    setting random seed for reproducibility
+    set random seed for reproducibility
+    Args:
+        random_seed (int): random seed
     """
-    np.random.seed(seed)
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    print(f'INFO: fixed random seed: {random_seed}')
+
 
 
 def find_nearest(array, value):

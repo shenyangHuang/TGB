@@ -204,12 +204,12 @@ BATCH_SIZE = args.bs
 K_VALUE = args.k_value  
 NUM_EPOCH = args.num_epoch
 SEED = args.seed
-MEM_DIM = args.mem_dim
-TIME_DIM = args.time_dim
-EMB_DIM = args.emb_dim
+MEM_DIM = 16 #args.mem_dim
+TIME_DIM = 16 #args.time_dim
+EMB_DIM = 16 #args.emb_dim
 TOLERANCE = args.tolerance
 PATIENCE = args.patience
-NUM_RUNS = args.num_run
+NUM_RUNS = 1 #args.num_run
 NUM_NEIGHBORS = 10
 USE_EDGE_TYPE = True
 USE_NODE_TYPE = True
@@ -220,8 +220,12 @@ MODEL_NAME = 'TGN'
 # ==========
 
 # set the device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 
+
+torch.manual_seed(SEED)
+set_random_seed(SEED)
 
 # data loading
 dataset = PyGLinkPropPredDataset(name=DATA, root="datasets")
@@ -242,7 +246,7 @@ tail = data.dst
 edge_type = data.edge_type #relation
 edge_type_dim = len(torch.unique(edge_type))
 
-embed_edge_type = torch.nn.Embedding(edge_type_dim, 128).to(device)
+embed_edge_type = torch.nn.Embedding(edge_type_dim, EMB_DIM).to(device)
 with torch.no_grad():
     edge_type_embeddings = embed_edge_type(edge_type)
 
