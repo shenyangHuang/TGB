@@ -1,5 +1,7 @@
 !requirements*.txt
 #dataset
+stats_figures/
+figs/
 *.xz
 *.dict
 *.tab
