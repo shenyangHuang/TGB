@@ -1,3 +1,7 @@
+"""
+python -u tgn.py --seed 1 --mem_dim 16 --time_dim 16 --emb_dim 16 --num_epoch 5 | tee tgn_s1_github_output.txt
+"""
+
 import numpy as np
 from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 from tgb.linkproppred.evaluate import Evaluator
