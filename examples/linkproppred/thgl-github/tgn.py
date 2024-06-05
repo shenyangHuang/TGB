@@ -324,6 +324,10 @@ print("==========================================================")
 evaluator = Evaluator(name=DATA)
 neg_sampler = dataset.negative_sampler
 
+best_test = 0
+best_val = 0
+best_epoch = 0
+
 # for saving the results...
 results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
 if not osp.exists(results_path):
@@ -341,11 +345,11 @@ for run_idx in range(NUM_RUNS):
     torch.manual_seed(run_idx + SEED)
     set_random_seed(run_idx + SEED)
 
-    # define an early stopper
-    save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
-    save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
-    early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
-                                    tolerance=TOLERANCE, patience=PATIENCE)
+    # # define an early stopper
+    # save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
+    # save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
+    # early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
+    #                                 tolerance=TOLERANCE, patience=PATIENCE)
 
     # ==================================================== Train & Validation
     # loading the validation negative samples
@@ -368,52 +372,50 @@ for run_idx in range(NUM_RUNS):
         print(f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
         val_perf_list.append(perf_metric_val)
 
-        # check for early stopping
-        if early_stopper.step_check(perf_metric_val, model):
-            break
+        # # check for early stopping
+        # if early_stopper.step_check(perf_metric_val, model):
+        #     break
 
-    train_val_time = timeit.default_timer() - start_train_val
-    print(f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
+        train_val_time = timeit.default_timer() - start_train_val
+        print(f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
 
-    # ==================================================== Test
-    # first, load the best model
-    early_stopper.load_checkpoint(model)
+        # # ==================================================== Test
+        # # first, load the best model
+        # early_stopper.load_checkpoint(model)
 
-    # loading the test negative samples
-    dataset.load_test_ns()
+        # loading the test negative samples
+        dataset.load_test_ns()
 
-    # final testing
-    start_test = timeit.default_timer()
-    perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
+        # final testing
+        start_test = timeit.default_timer()
+        perf_metric_test = test(test_loader, neg_sampler, split_mode="test")
 
-    print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-    print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-    test_time = timeit.default_timer() - start_test
-    print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
+        print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+        print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+        test_time = timeit.default_timer() - start_test
+        print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
-    save_results({'model': MODEL_NAME,
-                  'data': DATA,
-                  'run': run_idx,
-                  'seed': SEED,
-                  f'val {metric}': val_perf_list,
-                  f'test {metric}': perf_metric_test,
-                  'test_time': test_time,
-                  'tot_train_val_time': train_val_time
-                  }, 
-    results_filename)
+        # save_results({'model': MODEL_NAME,
+        #             'data': DATA,
+        #             'run': run_idx,
+        #             'seed': SEED,
+        #             f'val {metric}': val_perf_list,
+        #             f'test {metric}': perf_metric_test,
+        #             'test_time': test_time,
+        #             'tot_train_val_time': train_val_time
+        #             }, 
+        # results_filename)
+        if (perf_metric_val > best_val):
+            best_val = perf_metric_val
+            best_epoch = epoch
+            best_test = perf_metric_test
 
-    print(f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
-    print('-------------------------------------------------------------------------------')
+        print(f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
+        print('-------------------------------------------------------------------------------')
 
-print(f"Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}")
-print("==============================================================")
+    print ("INFO: Best Epoch: ", best_epoch)
+    print ("INFO: Best Validation Performance: ", best_val)
+    print ("INFO: Best Test Performance: ", best_test)
 
-# #* load numpy arrays instead
-# from tgb.linkproppred.dataset import LinkPropPredDataset
-
-# # data loading
-# dataset = LinkPropPredDataset(name=DATA, root="datasets", preprocess=True)
-# data = dataset.full_data  
-# metric = dataset.eval_metric
-# sources = dataset.full_data['sources']
-# print ("finished loading numpy arrays")
+    print(f"Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}")
+    print("==============================================================")
