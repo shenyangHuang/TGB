@@ -19,6 +19,8 @@ from tgb_modules.tkg_utils import create_scores_array
 @ray.remote
 def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
+    """
+    Apply baselines psi and xi (multiprocessing possible). See baseline_predict for more details."""
 
     return baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha,  evaluator,first_test_ts, neg_sampler, split_mode)
@@ -27,10 +29,9 @@ def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict
 def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
                 num_rels, lmbda_psi, alpha, evaluator,first_test_ts, neg_sampler, split_mode='test'):
     """
-    Apply baselines psi and xi (multiprocessing possible).
+    Apply baselines psi and xi and compute scores and mrr per test or valid query (multiprocessing possible).
 
     Parameters:
-        i (int): process number
         num_queries (int): minimum number of queries for each process
         test_data (np.array): test quadruples (only used in single-step prediction, depending on window specified);
             including inverse quadruples for subject prediction
@@ -44,17 +45,14 @@ def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_n
         score_func_psi (method): method to use for computing time decay for psi
         num_nodes (int): number of nodes in the dataset
         num_rels (int): number of relations in the dataset
-        baselinexi_flag (boolean): True: use baselinexi, False: do not use baselinexi
-        baselinepsi_flag (boolean): True: use baselinepsi, False: do not use baselinepsi
         lambda_psi (float): parameter for time decay function for baselinepsi. 0: no decay, >1 very steep decay
         alpha (float): parameter, weight to combine the scores from psi and xi. alpha*scores_psi + (1-alpha)*scores_xi
+        evaluator (method): method to compute mrr and hits
+        first_test_ts (int): timestamp of the first test query
+        neg_sampler (NegSampler): negative sampler
+        split_mode (str): 'test' or 'valid'
     Returns:
-        logging_dict (dict): dict with one entry per test query (one per direction) key: string that desribes the query, 
-        with xxx before the requested node, 
-        values: list with two entries: [[tensor with one score per node], [np array with query_quadruple]]
-        example: '14_0_xxx1_336': [tensor([1.8019e+01, ...9592e-05]), array([ 14,   0,   1...ype=int32)]
-        scores_dict_eval (dict): dict  with one entry per test query (one per direction) key: str(test_qery), value: 
-        tensor with scores, one score per node. example: [14, 0, 1, 336]':tensor([1.8019e+01,5.1101e+02,..., 0.0000e+0])
+        performance_list and hits_list (one entry per query)
     """
     num_this_queries = len(test_data)
     cur_ts = test_data[0][3]
@@ -104,12 +102,8 @@ def baseline_predict(num_queries, test_data, all_data, window, basis_dict, num_n
                                 # Find quadruples that match the rule (starting from the test query subject)
                                 # Find edges whose subject match the query subject and the relation matches
                                 # the relation in the rule body. np array with [[sub, obj, ts]]
-            if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                     
-                if len(neg_sample_el) < num_nodes-2:
-                    cands_subset = neg_sample_el + pos_sample_el
-                else:
-                    cands_subset = []
-                cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t, cands_subset)
+            if 0 not in [len(x) for x in walk_edges]: # if we found at least one potential rule                        
+                cands_dict_psi = get_candidates_psi(walk_edges[0][:,1:3], cur_ts, cands_dict, lmbda_psi, sum_delta_t)
                 if len(cands_dict_psi)>0:                
                     # predictions_psi = create_scores_tensor(cands_dict_psi, num_nodes)
                     predictions_psi = create_scores_array(cands_dict_psi, num_nodes)
@@ -240,7 +234,7 @@ def quads_per_rel(quads):
         edges[rel] = quads[quads[:, 1] == rel]
     return edges
 
-def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t,cands_subset):
+def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t):
     """
     Get answer candidates from the walks that follow the rule.
     Add the confidence of the rule that leads to these candidates.
@@ -257,12 +251,8 @@ def get_candidates_psi(rule_walks, test_query_ts, cands_dict,lmbda, sum_delta_t,
         cands_dict (dict): keys: candidates, values: score for the candidates  """
 
     cands = set(rule_walks[:,0]) 
-    if len(cands_subset) > 0:
-        cands_subset = set(cands_subset)
-        cands_of_interest = cands.intersection(cands_subset)
-    else:
-        cands_of_interest = cands
-    for cand in cands_of_interest:
+
+    for cand in cands:
         cands_walks = rule_walks[rule_walks[:,0] == cand] 
         score = score_psi(cands_walks, test_query_ts, lmbda, sum_delta_t).astype(np.float64)
         cands_dict[cand] = score
@@ -356,4 +346,3 @@ def update_delta_t(min_ts, max_ts, cur_ts, lmbda):
     delta_all = score_delta(timesteps, now, lmbda)
     delta_all = np.sum(delta_all)
     return delta_all
-

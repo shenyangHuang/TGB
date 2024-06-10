@@ -103,13 +103,29 @@ def load_pkl(fname: str) -> Any:
         return pickle.load(handle)
 
 
-def set_random_seed(seed: int):
+# def set_random_seed(seed: int):
+#     r"""
+#     setting random seed for reproducibility
+#     """
+#     np.random.seed(seed)
+#     random.seed(seed)
+#     os.environ["PYTHONHASHSEED"] = str(seed)
+
+def set_random_seed(random_seed: int):
     r"""
-    setting random seed for reproducibility
+    set random seed for reproducibility
+    Args:
+        random_seed (int): random seed
     """
-    np.random.seed(seed)
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    print(f'INFO: fixed random seed: {random_seed}')
+
 
 
 def find_nearest(array, value):
@@ -124,14 +140,14 @@ def get_args():
     parser.add_argument('--lr', type=float, help='Learning rate', default=1e-4)
     parser.add_argument('--bs', type=int, help='Batch size', default=200)
     parser.add_argument('--k_value', type=int, help='k_value for computing ranking metrics', default=10)
-    parser.add_argument('--num_epoch', type=int, help='Number of epochs', default=50)
+    parser.add_argument('--num_epoch', type=int, help='Number of epochs', default=30)
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
     parser.add_argument('--mem_dim', type=int, help='Memory dimension', default=100)
     parser.add_argument('--time_dim', type=int, help='Time dimension', default=100)
     parser.add_argument('--emb_dim', type=int, help='Embedding dimension', default=100)
     parser.add_argument('--tolerance', type=float, help='Early stopper tolerance', default=1e-6)
     parser.add_argument('--patience', type=float, help='Early stopper patience', default=5)
-    parser.add_argument('--num_run', type=int, help='Number of iteration runs', default=1)
+    parser.add_argument('--num_run', type=int, help='Number of iteration runs', default=5)
 
     try:
         args = parser.parse_args()

@@ -19,7 +19,7 @@ from tgb.utils.utils import set_random_seed, save_results
 # Start...
 start_overall = timeit.default_timer()
 
-DATA = "thgl-myket"
+DATA = "thgl-github"
 
 MODEL_NAME = 'STHN'
 

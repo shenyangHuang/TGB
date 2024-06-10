@@ -4,7 +4,7 @@ import sys
 import os
 import os.path as osp
 
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(tgb_modules_path)
 import json
 
@@ -294,14 +294,16 @@ def estimate_seasons(train_data):
     return Nbseason
 
 
-# create a dictionary with all the stats and save to json and csv
+
 def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num_val_quads, num_test_quads, num_all_quads,
                          num_train_timesteps, num_val_timesteps, num_test_timesteps, num_all_timesteps,
                          test_ind_nodes, test_ind_nodes_perc, val_ind_nodes, val_ind_nodes_perc, 
                          direct_recurrency_degree, recurrency_degree, consecutiveness_degree,
                          mean_edge_per_ts, std_edge_per_ts, min_edge_per_ts, max_edge_per_ts,
                          mean_node_per_ts, std_node_per_ts, min_node_per_ts, max_node_per_ts,
-                         seasonal_value, collision_trainval, collision_valtest):
+                         seasonal_value, collision_trainval, collision_valtest,first_ts_string, last_ts_string):
+    """
+    Create a dictionary with the statistics of the dataset and save it as a csv file."""
     if  'tkgl' in dataset_name:
         num_train_quads = int(num_train_quads/2)
         num_val_quads = int(num_val_quads/2)
@@ -337,7 +339,9 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
         "max_node_per_ts": max_node_per_ts,
         "seasonal_value": seasonal_value,
         "collision_trainval": collision_trainval,
-        "collision_valtest": collision_valtest        
+        "collision_valtest": collision_valtest,
+        "first_ts_string": first_ts_string,
+        "last_ts_string": last_ts_string
         # "train_nodes": train_nodes
     }
 
@@ -347,15 +351,10 @@ def create_dict_and_save(dataset_name, num_rels, num_nodes, num_train_quads, num
     # Get the current directory of the script
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Navigate one folder up
-    parent_dir = os.path.dirname(current_dir)
-
     # Save stats_dict as CSV
-    modified_dataset_name = dataset_name.replace('-', '_')
-    save_path = (os.path.join(parent_dir, modified_dataset_name, "dataset_stats.csv"))
+    save_path = (os.path.join(current_dir, dataset_name, "dataset_stats.csv"))
     df.to_csv(save_path)
-
-    print("Stats saved to csv and json in folder: ", save_path)
+    print("Stats saved to csv  in folder: ", save_path)
 
 def num_nodes_not_in_train(train_data, test_data):
     """ Calculate the number of nodes in the test set that are not in the train set.
@@ -439,7 +438,13 @@ def read_dict_compute_mrr_per_rel(perrel_results_path, model_name, dataset_name,
             # Extract the key (the first part)
             key = int(parts[0])
             # Extract the values (the rest of the parts), remove square brackets
-            values = [float(value.strip('[]')) for value in parts[1:]]
+            values = []
+            for value in parts[1:]:
+                if value == '[]':
+                    print(f"Rel {key} has empty list as value")
+                    
+                else:
+                    values.append(float(value.strip('[]')))
             # Add the key-value pair to the dictionary
             if key in results_per_rel_dict.keys():
                 print(f"Key {key} already exists in the dictionary!!! might have duplicate entries in results csv - skipping")
@@ -496,6 +501,8 @@ def set_plot_names(top_k, sorted_dict, dataset_name, rel_id2type_dict):
     # Create a new dictionary with the top k key-value pairs and the sum of the remaining values as "others"
     plot_names = {**plot_names, 'others': others_value}
     return plot_names
+
+
 
 
 import requests

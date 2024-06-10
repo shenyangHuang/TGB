@@ -33,6 +33,8 @@ from tgb.utils.utils import set_random_seed,save_results
 from tgb_modules.tkg_utils import  get_args_timetraveler, reformat_ts, get_model_config_timetraveler
 
 class QuadruplesDataset(Dataset):
+    """ this is an internal way how Timetraveler represents the data
+    """
     def __init__(self, examples):
         """
         examples: a list of quadruples.
@@ -72,6 +74,9 @@ def set_logger(save_path):
     logging.getLogger('').addHandler(console)
 
 def preprocess_data(args, config, timestamps, save_path, all_quads):
+    """
+    Preprocess the data and save the state-action space (pickle dump)
+    """
     # parser = argparse.ArgumentParser(description='Data preprocess', usage='preprocess_data.py [<args>] [-h | --help]')
     # parser.add_argument('--data_dir', default='data/ICEWS14', type=str, help='Path to data.')
 
@@ -95,8 +100,9 @@ def log_metrics(mode, step, metrics):
         logging.info('%s %s at epoch %d: %f' % (mode, metric, step, metrics[metric]))
 
 def main(args):
+    """
+    Main function to train and test the TimeTraveler model"""
 
-    # TODO: preprocessing and dirichlet param estimation steps! 
     start_overall = timeit.default_timer()
     #######################Set Logger#################################
     
@@ -147,7 +153,6 @@ def main(args):
     dataset.load_val_ns()
     dataset.load_test_ns()
 
-
     train_dataloader = DataLoader(
         train_data,
         batch_size=args.batch_size,
@@ -180,8 +185,6 @@ def main(args):
 
     # creat the environment
     state_actions_path = os.path.join(save_path, args.state_actions_path)
-
-
 
 
     ######################preprocessing###########################

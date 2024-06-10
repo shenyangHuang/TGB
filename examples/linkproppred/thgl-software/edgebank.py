@@ -81,7 +81,7 @@ def test(data, test_mask, neg_sampler, split_mode):
 
 def get_args():
     parser = argparse.ArgumentParser('*** TGB: EdgeBank ***')
-    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='tkgl-smallpedia')
+    parser.add_argument('-d', '--data', type=str, help='Dataset name', default='thgl-software')
     parser.add_argument('--bs', type=int, help='Batch size', default=200)
     parser.add_argument('--k_value', type=int, help='k_value for computing ranking metrics', default=10)
     parser.add_argument('--seed', type=int, help='Random seed', default=1)
@@ -154,7 +154,7 @@ if not osp.exists(results_path):
 Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
 
-# ==================================================== Valid
+# ==================================================== Test
 # loading the validation negative samples
 dataset.load_val_ns()
 
