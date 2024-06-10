@@ -1,8 +1,12 @@
 ### How to compute stats and figures
-for each of them, you can specify the datasets of interest in the list at the beginning.
-same applies to methods of interest, if it is about correlation of methods results and stats.
+
+You run each of the scripts running 'python stats_figures/nameofthescript.py'
+Each of them computes the stats or creates the figures automatically for all datasets. If you want to only focus on some subset of datasets you need to specify that in the list
+'names = [ 'tkgl-polecat', ... ]' at the beginning of each script.
+The same applies to methods of interest, if it is about correlation of methods results and stats.
 
 For *creating the figures* you only need to run 2. and 5., provided that you have previously stored all stats in the respective dataset subfolder.
+
 
 ## 1. compute_dataset_stats.py
 - loads datasets and computes all stats that we put in paper table and writes it in stats_figures/dataset_name/dataset_stats.csv 
