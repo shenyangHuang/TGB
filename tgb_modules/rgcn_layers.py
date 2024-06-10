@@ -11,6 +11,9 @@ import torch.nn.functional as F
 class RGCNLayer(nn.Module):
     def __init__(self, in_feat, out_feat, bias=None, activation=None,
                  self_loop=False, skip_connect=False, dropout=0.0, layer_norm=False):
+        """ init of the RGCN layer class
+        from https://github.com/Lee-zix/CEN/blob/main/rgcn/layers.py
+        """
         super(RGCNLayer, self).__init__()
         self.bias = bias
         self.activation = activation

@@ -28,6 +28,7 @@ import json
 
 def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_name, static_graph, mode, split_mode):
     """
+    Test the model on either test or validation set
     :param model: model used to test
     :param history_list:    all input history snap shot list, not include output label train list or valid list
     :param test_list:   test triple snap shot list
@@ -75,7 +76,7 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
         pos_samples_batch = test_triples_input[:,2]
 
         _, perf_list = model.predict(history_glist, num_rels, static_graph, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
-                                    evaluator, METRIC)  # TODO:  num_rels, static_graph different!
+                                    evaluator, METRIC)  
 
         perf_list_all.extend(perf_list)
         if split_mode == "test":
@@ -100,6 +101,15 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
 
 
 def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=None):
+    """
+    Run the experiment with the given configuration
+    :param args: arguments
+    :param n_hidden: hidden dimension
+    :param n_layers: number of layers
+    :param dropout: dropout rate
+    :param n_bases: number of bases
+    :return: mrr, perf_per_rel  (mean reciprocal rank, performance per relation)
+    """
     # load configuration for grid search the best configuration
     if n_hidden:
         args.n_hidden = n_hidden
@@ -120,19 +130,10 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
     perf_per_rel = {}
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
 
-
-    # if args.add_static_graph:
-    #     static_triples = np.array(_read_triplets_as_list("../data/" + args.dataset + "/e-w-graph.txt", {}, {}, load_time=False))
-    #     num_static_rels = len(np.unique(static_triples[:, 1]))
-    #     num_words = len(np.unique(static_triples[:, 2]))
-    #     static_triples[:, 2] = static_triples[:, 2] + num_nodes 
-    #     static_node_id = torch.from_numpy(np.arange(num_words + data.num_nodes)).view(-1, 1).long().cuda(args.gpu) \
-    #         if use_cuda else torch.from_numpy(np.arange(num_words + data.num_nodes)).view(-1, 1).long()
-    # else:
     num_static_rels, num_words, static_triples, static_graph = 0, 0, [], None
 
     # create stat
-    model = RecurrentRGCNREGCN(args.decoder, #TODO: this has slightly different args than CEN
+    model = RecurrentRGCNREGCN(args.decoder,
                           args.encoder,
                         num_nodes,
                         int(num_rels/2),
@@ -165,9 +166,6 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
     if use_cuda:
         torch.cuda.set_device(args.gpu)
         model.cuda()
-
-    # if args.add_static_graph: # TODO: what to do about this part: 
-    #     static_graph = build_sub_graph(len(static_node_id), num_static_rels, static_triples, use_cuda, args.gpu)
 
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
@@ -248,16 +246,6 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                     best_mrr = mrr
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
-        # mrr = test(model, 
-        #         train_list+valid_list,
-        #         test_list, 
-        #         num_rels, 
-        #         num_nodes, 
-        #         use_cuda,
-        #         model_state_file, 
-        #         static_graph, 
-        #         mode="test", split_mode='test')
-
         return best_mrr, perf_per_rel
 # ==================
 # ==================
@@ -311,20 +299,20 @@ neg_sampler = dataset.negative_sampler
 dataset.load_val_ns()
 dataset.load_test_ns()
 
+## run training and testing
 val_mrr, test_mrr = 0, 0
 if args.grid_search:
-    print("TODO: implement hyperparameter grid search")
+    print("hyperparameter grid search not implemented. Exiting.")
 # single run
 else:
-    #TODO: differentiate between train, valid, test
     start_train = timeit.default_timer()
-    if args.test == False:
+    if args.test == False: #if they are true: directly test on a previously trained and stored model
         print('start training')
-        val_mrr, perf_per_rel = run_experiment(args)
+        val_mrr, perf_per_rel = run_experiment(args) # do training
     start_test = timeit.default_timer()
     args.test = True
     print('start testing')
-    test_mrr, perf_per_rel = run_experiment(args)
+    test_mrr, perf_per_rel = run_experiment(args) # do testing
 
 
 test_time = timeit.default_timer() - start_test

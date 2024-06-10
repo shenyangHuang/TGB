@@ -154,7 +154,7 @@ if not osp.exists(results_path):
 Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
 
-# ==================================================== Test
+# ==================================================== Valid
 # loading the validation negative samples
 dataset.load_val_ns()
 

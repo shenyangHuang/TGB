@@ -73,6 +73,9 @@ class ConvTransE(torch.nn.Module):
         self.fc = torch.nn.Linear(embedding_dim * channels, embedding_dim)
 
     def forward(self, embedding, emb_rel, triplets, partial_embeding=None, samples_of_interest_emb=None):
+        """ forward for ConvsTransE decoder that computes scores for given triples of question
+        return: score_list: list of scores for each triple in the batch
+        """
         score_list = []
         batch_size = len(triplets)
         if self.model_name == 'CEN': #CEN
@@ -90,6 +93,9 @@ class ConvTransE(torch.nn.Module):
 
 
     def forward_inner(self, embedding, emb_rel, triplets, idx=0, partial_embeding=None, samples_of_interest_emb=None):
+        """ forward for ConvsTransE decoder that computes scores for given triples of question for each graph in the history of test graphs
+        return: x: list of scores for each triple in the batch
+        """
         batch_size = len(triplets)
         e1_embedded_all = F.tanh(embedding)
         e1_embedded = e1_embedded_all[triplets[:, 0]].unsqueeze(1)

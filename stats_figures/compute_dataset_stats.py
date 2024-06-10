@@ -28,7 +28,7 @@ import stats_figures.dataset_utils as du
 
 
 # specify all datasets
-names = ['thgl-myket'] #, 'tkgl-smallpedia','tkgl-polecat',  'thgl-software', 'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata', 'thgl-myket','tkgl-yago']
+names = ['thgl-myket', 'tkgl-smallpedia','tkgl-polecat',  'thgl-software', 'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata', 'thgl-myket','tkgl-yago']
 for dataset_name in names:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Navigate one folder up

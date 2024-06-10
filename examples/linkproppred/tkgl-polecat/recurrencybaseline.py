@@ -33,6 +33,11 @@ from tgb_modules.tkg_utils import create_basis_dict, group_by, reformat_ts
 
 def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
             perf_list_all, hits_list_all, window, neg_sampler, split_mode):
+    """ create predictions for each relation on test or valid set and compute mrr
+    :return  perf_list_all: list of mrrs for each test query
+    :return hits_list_all: list of hits for each test query
+    """
+
     first_ts = data_c_rel[0][3]
     ## use this if you wanna use ray:
     num_queries = len(data_c_rel) // num_processes
@@ -78,7 +83,7 @@ def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
 
 ## test
 def test(best_config, all_relations,test_data_prel, all_data_prel, neg_sampler, num_processes, window, split_mode='test'):  
-    """ create predictions for each relation on test or valid set and compute mrr
+    """ create predictions by loopoing through all relations on test or valid set and compute mrr
     :return  perf_list_all: list of mrrs for each test query
     :return hits_list_all: list of hits for each test query
     """       
@@ -121,6 +126,10 @@ def test(best_config, all_relations,test_data_prel, all_data_prel, neg_sampler, 
     return perf_list_all, hits_list_all
 
 def read_dict_compute_mrr(split_mode='test'):
+    """ read the results per relation  from a precreated file and compute mrr
+    :return  mrr_per_rel: dictionary of mrrs for each relation
+    :return all_mrrs: list of mrrs for all relations
+    """
     csv_file = f'{perrel_results_path}/{MODEL_NAME}_NONE_{DATA}_results_{SEED}'+split_mode+'.csv'
     # Initialize an empty dictionary to store the data
     results_per_rel_dict = {}
@@ -153,7 +162,9 @@ def read_dict_compute_mrr(split_mode='test'):
 
 ## train
 def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_processes, window):
-    """ optional, find best values for lambda and alpha
+    """ optional, find best values for lambda and alpha by looping through all relations and testing an a fixed set of params
+    based on validation mrr
+    :return best_config: dictionary of best params for each relation
     """
     best_config= {}
     best_mrr = 0
@@ -243,6 +254,7 @@ def train(params_dict, rels,val_data_prel, trainval_data_prel, neg_sampler, num_
 
 ## args
 def get_args(): 
+    """parse all arguments for the script"""
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", "-d", default="tkgl-polecat", type=str) 
     parser.add_argument("--window", "-w", default=0, type=int) # set to e.g. 200 if only the most recent 200 timesteps should be considered. set to -2 if multistep

@@ -17,8 +17,7 @@ from tgb_modules.tkg_utils import reformat_ts
 import stats_figures.dataset_utils as du
 
 # specify params
-names = ['thgl-myket']  #'thgl-software', 'thgl-github', 'thgl-forum'
-#'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = [ 'tkgl-polecat','tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 colortgb = '#60ab84' #tgb logo colrs
 colortgb2 = '#eeb641'
 colortgb3 = '#dd613a'
