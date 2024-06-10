@@ -18,7 +18,8 @@ import stats_figures.dataset_utils as du
 
 # specify params
 # which datasets
-names = [ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia','tkgl-polecat'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
+names = ['thgl-software']#['tkgl-smallpedia','tkgl-polecat', 'tkgl-icews']#[ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia', 'thgl-software'] #['thgl-software']#
+# names = [ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia','tkgl-polecat'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 # which methods for the mrr_per_rel figures
 methods = ['recurrency', 'regcn', 'cen'] #'recurrency'
 colortgb = '#60ab84' #tgb logo colors
@@ -28,7 +29,9 @@ head_tail_flag = False # if true, the head and tail of the relation are shown in
 
 # pie chart colors
 colors = [colortgb,colortgb2,colortgb3]  # from tgb logo
-colors2= ['#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#fde0ef', '#f7f7f7', '#e6f5d0', '#b8e186', '#7fbc41', '#4d9221', '#276419']
+colors2= ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6', '#6a3d9a', '#ffff99'] #from https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=11
+
+# colors2= ['#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#fde0ef', '#f7f7f7', '#e6f5d0', '#b8e186', '#7fbc41', '#4d9221', '#276419']
 # from https://colorbrewer2.org/#type=diverging&scheme=PiYG&n=11 color blind friendly 
 
 capsize=1.5
@@ -36,6 +39,7 @@ capthick=1.5
 elinewidth=1.5
 occ_threshold = 5
 k=10 # how many slices in the cake +1
+# k = 14
 plots_flag = True
 ylimdict = {'tkgl-polecat': 0.25, 'tkgl-icews':0.6, 'tkgl-smallpedia': 1.01} # for the mrr charts the upper mrr limit
 
@@ -92,7 +96,7 @@ for dataset_name in names:
     wedges, texts, autotexts =plt.pie(plot_values,autopct=lambda pct: f"{pct:.0f}%" if pct > 1.5 else '', startangle=140, colors=colors2, labeldistance=2.2) #repeated_colors)
     # Increase the font size of the percentage values
     for autotext in autotexts:
-        autotext.set_fontsize(15)
+        autotext.set_fontsize(20) #15
     plt.axis('equal')  
     # Move the percentage labels further outside
     for autotext, wedge in zip(autotexts, wedges):
@@ -102,6 +106,7 @@ for dataset_name in names:
         distance = 0.85  # Adjust this value to move the labels further or closer to the center
         autotext.set_position((x * distance, y * distance))
     # Set the labels for each pie slice
+    # plt.legend(wedges, plot_names_multi_line, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=14)
     plt.legend(wedges, plot_names_multi_line, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=14)
     save_path = (os.path.join(figs_dir, f"rel_pie_{dataset_name}.png"))
     plt.savefig(save_path, bbox_inches='tight')

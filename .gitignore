@@ -1,5 +1,7 @@
 !requirements*.txt
 #dataset
+stats_figures/
+figs/
 *.xz
 *.dict
 *.tab
@@ -30,6 +32,7 @@ software/
 *$py.class
 saved_models/
 dump/
+saved_results/
 
 # C extensions
 *.so

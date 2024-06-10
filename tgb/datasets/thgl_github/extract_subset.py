@@ -205,14 +205,14 @@ def combine_edgelist(file_paths, outname):
 
 
 def main():
-    file_path = "github_01_2024.csv"
+    file_path = "github_03_2024.csv"
     freq_threshold = 2
     low_freq_dict, node_type_dict = load_edgelist(file_path, freq_threshold=freq_threshold)
 
     remove_node_type_dict = {'issue_comment':1, 'pr_review_comment':1} #{'issue_comment':1, 'pr_review_comment':1, 'issue':1} 
     edge_dict = subset_by_node_type(file_path, remove_node_type_dict, low_freq_dict=low_freq_dict)
     # edge_dict = subset_by_node(file_path, low_freq_dict=low_freq_dict)
-    outname = "github_01_2024_subset.csv"
+    outname = "github_03_2024_subset.csv"
     write2csv(outname, edge_dict)
 
     # file_paths = ["github_01_2024_subset.csv", "github_02_2024_subset.csv", "github_03_2024_subset.csv"]
