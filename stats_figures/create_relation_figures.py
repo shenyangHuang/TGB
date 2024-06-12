@@ -18,7 +18,7 @@ import stats_figures.dataset_utils as du
 
 # specify params
 # which datasets
-names = ['thgl-software']#['tkgl-smallpedia','tkgl-polecat', 'tkgl-icews']#[ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia', 'thgl-software'] #['thgl-software']#
+names = ['tkgl-wikidata']#['tkgl-smallpedia','tkgl-polecat', 'tkgl-icews']#[ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia', 'thgl-software'] #['thgl-software']#
 # names = [ 'tkgl-polecat', 'tkgl-icews', 'tkgl-wikidata', 'tkgl-smallpedia','tkgl-polecat'] #'tkgl-polecat','tkgl-smallpedia',  'tkgl-yago',  'tkgl-icews' ,'tkgl-smallpedia','thgl-myket','tkgl-yago',  'tkgl-icews','thgl-github', 'thgl-forum', 'tkgl-wikidata']
 # which methods for the mrr_per_rel figures
 methods = ['recurrency', 'regcn', 'cen'] #'recurrency'

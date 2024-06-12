@@ -108,8 +108,8 @@ class Evaluator(object):
 
         else:
             y_pred_pos = y_pred_pos.reshape(-1, 1)
-            optimistic_rank = (y_pred_neg >= y_pred_pos).sum(axis=1)
-            pessimistic_rank = (y_pred_neg > y_pred_pos).sum(axis=1)
+            optimistic_rank = (y_pred_neg > y_pred_pos).sum(axis=1)
+            pessimistic_rank = (y_pred_neg >= y_pred_pos).sum(axis=1)
             ranking_list = 0.5 * (optimistic_rank + pessimistic_rank) + 1
             hitsK_list = (ranking_list <= k_value).astype(np.float32)
             mrr_list = 1./ranking_list.astype(np.float32)
