@@ -26,7 +26,7 @@ class THGNegativeEdgeSampler(object):
         r"""
         Negative Edge Sampler
             Loads and query the negative batches based on the positive batches provided.
-        constructor for the negative edge sampler class
+            constructor for the negative edge sampler class
 
         Parameters:
             dataset_name: name of the dataset
@@ -124,16 +124,6 @@ class THGNegativeEdgeSampler(object):
                 neg_samples.append(
                         neg_d_arr
                     )
-
-                # conflict_set, d_node_type = conflict_dict[(pos_t, pos_s, e_type)]
-
-                # all_dst = self.node_type_dict[d_node_type]
-                # # filtered_all_dst = np.delete(all_dst, conflict_set, axis=0)
-                # filtered_all_dst = np.setdiff1d(all_dst, conflict_set)
-                # neg_d_arr = filtered_all_dst
-                # neg_samples.append(
-                #         neg_d_arr
-                #     )
         
         #? can't convert to numpy array due to different lengths of negative samples
         return neg_samples
