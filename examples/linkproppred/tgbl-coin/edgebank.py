@@ -22,7 +22,7 @@ import argparse
 
 # internal imports
 from tgb.linkproppred.evaluate import Evaluator
-from tgb_modules.edgebank_predictor import EdgeBankPredictor
+from modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
 from tgb.linkproppred.dataset import LinkPropPredDataset
 from tgb.utils.utils import save_results

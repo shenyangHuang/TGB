@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from tgb_modules.tlogic_learn_modules import store_edges
+from modules.tlogic_learn_modules import store_edges
 
 
 def filter_rules(rules_dict, min_conf, min_body_supp, rule_lengths):

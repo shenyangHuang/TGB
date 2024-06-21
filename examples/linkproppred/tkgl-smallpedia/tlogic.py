@@ -9,8 +9,8 @@ import sys
 import os
 import os.path as osp
 from pathlib import Path
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(tgb_modules_path)
+modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(modules_path)
 import timeit
 import argparse
 import numpy as np
@@ -20,10 +20,10 @@ import itertools
 
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
-from tgb_modules.tlogic_learn_modules import Temporal_Walk, Rule_Learner, store_edges
-import tgb_modules.tlogic_apply_modules as ra
+from modules.tlogic_learn_modules import Temporal_Walk, Rule_Learner, store_edges
+import modules.tlogic_apply_modules as ra
 from tgb.utils.utils import set_random_seed,  save_results
-from tgb_modules.tkg_utils import reformat_ts, get_inv_relation_id, create_scores_array
+from modules.tkg_utils import reformat_ts, get_inv_relation_id, create_scores_array
 
 def learn_rules(i, num_relations):
     """
