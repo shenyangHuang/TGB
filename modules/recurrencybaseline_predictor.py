@@ -14,7 +14,7 @@ Julia Gastinger, Christian Meilicke, Federico Errica, Timo Sztyler, Anett Schuel
 import numpy as np
 from collections import Counter
 import ray
-from tgb_modules.tkg_utils import create_scores_array
+from modules.tkg_utils import create_scores_array
 
 @ray.remote
 def baseline_predict_remote(num_queries, test_data, all_data, window, basis_dict, num_nodes, 
