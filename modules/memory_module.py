@@ -16,7 +16,7 @@ from torch.nn import GRUCell, RNNCell, Linear
 from torch_geometric.nn.inits import zeros
 from torch_geometric.utils import scatter
 
-from tgb_modules.time_enc import TimeEncoder
+from modules.time_enc import TimeEncoder
 
 
 TGNMessageStoreType = Dict[int, Tuple[Tensor, Tensor, Tensor, Tensor]]

@@ -6,9 +6,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from tgb_modules.rgcn_layers import UnionRGCNLayer, RGCNBlockLayer
-from tgb_modules.rgcn_model import BaseRGCN
-from tgb_modules.decoder import ConvTransE
+from modules.rgcn_layers import UnionRGCNLayer, RGCNBlockLayer
+from modules.rgcn_model import BaseRGCN
+from modules.decoder import ConvTransE
 import numpy as np
 class RGCNCell(BaseRGCN):
     def build_hidden_layer(self, idx):

@@ -11,7 +11,7 @@ import torch
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
-from tgb_modules.heuristics import PersistantForecaster
+from modules.heuristics import PersistantForecaster
 from tgb.nodeproppred.evaluate import Evaluator
 
 

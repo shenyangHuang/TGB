@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 # local imports
 from tgb.nodeproppred.dataset_pyg import PyGNodePropPredDataset
-from tgb_modules.heuristics import MovingAverage
+from modules.heuristics import MovingAverage
 from tgb.nodeproppred.evaluate import Evaluator
 
 window = 7

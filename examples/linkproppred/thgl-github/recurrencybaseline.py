@@ -23,13 +23,13 @@ import os
 import os.path as osp
 import json
 #internal imports 
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(tgb_modules_path)
-from tgb_modules.recurrencybaseline_predictor import baseline_predict, baseline_predict_remote
+modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(modules_path)
+from modules.recurrencybaseline_predictor import baseline_predict, baseline_predict_remote
 from tgb.linkproppred.evaluate import Evaluator
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.utils.utils import set_random_seed,  save_results 
-from tgb_modules.tkg_utils import create_basis_dict, group_by, reformat_ts
+from modules.tkg_utils import create_basis_dict, group_by, reformat_ts
 
 def predict(num_processes,  data_c_rel, all_data_c_rel, alpha, lmbda_psi,
             perf_list_all, hits_list_all, window, neg_sampler, split_mode):

@@ -4,7 +4,7 @@ from tgb.linkproppred.dataset_pyg import PyGLinkPropPredDataset
 from tgb.linkproppred.evaluate import Evaluator
 
 import argparse
-from tgb_modules.sthn import set_seed, pre_compute_subgraphs, get_inputs_for_ind, check_data_leakage
+from modules.sthn import set_seed, pre_compute_subgraphs, get_inputs_for_ind, check_data_leakage
 import torch
 import pandas as pd
 import itertools
@@ -128,10 +128,10 @@ def load_model(args):
     }
     if args.model == 'sthn':
         if args.predict_class:
-            from tgb_modules.sthn import Multiclass_Interface as STHN_Interface
+            from modules.sthn import Multiclass_Interface as STHN_Interface
         else:
-            from tgb_modules.sthn import STHN_Interface
-        from tgb_modules.sthn import link_pred_train
+            from modules.sthn import STHN_Interface
+        from modules.sthn import link_pred_train
 
         mixer_configs = {
             'per_graph_size'  : args.max_edges,
