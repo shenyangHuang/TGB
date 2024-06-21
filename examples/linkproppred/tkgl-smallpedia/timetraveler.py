@@ -19,18 +19,18 @@ import os.path as osp
 from pathlib import Path
 import os
 
-tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(tgb_modules_path)
-from tgb_modules.timetraveler_agent import Agent
-from tgb_modules.timetraveler_environment import Env
-from tgb_modules.timetraveler_dirichlet import Dirichlet, MLE_Dirchlet
-from tgb_modules.timetraveler_episode import Episode
-from tgb_modules.timetraveler_policygradient import PG
+modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(modules_path)
+from modules.timetraveler_agent import Agent
+from modules.timetraveler_environment import Env
+from modules.timetraveler_dirichlet import Dirichlet, MLE_Dirchlet
+from modules.timetraveler_episode import Episode
+from modules.timetraveler_policygradient import PG
 from tgb.linkproppred.dataset import LinkPropPredDataset 
 from tgb.linkproppred.evaluate import Evaluator
-from tgb_modules.timetraveler_trainertester import Trainer, Tester, getRelEntCooccurrence
+from modules.timetraveler_trainertester import Trainer, Tester, getRelEntCooccurrence
 from tgb.utils.utils import set_random_seed,save_results 
-from tgb_modules.tkg_utils import  get_args_timetraveler, reformat_ts, get_model_config_timetraveler
+from modules.tkg_utils import  get_args_timetraveler, reformat_ts, get_model_config_timetraveler
 
 class QuadruplesDataset(Dataset):
     """ this is an internal way how Timetraveler represents the data
