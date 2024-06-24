@@ -9,6 +9,7 @@ Julia Gastinger, Christian Meilicke, Federico Errica, Timo Sztyler, Anett Schuel
   organization={International Joint Conferences on Artificial Intelligence Organization}
 }
 
+python recurrencybaseline.py --seed 1 --num_processes 1 -tr False
 """
 
 ## imports
