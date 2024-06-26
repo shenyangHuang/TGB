@@ -2,12 +2,17 @@
 ![TGB logo](imgs/logo.png)
 
 **Temporal Graph Benchmark for Machine Learning on Temporal Graphs** (NeurIPS 2023 Datasets and Benchmarks Track)
-<h4>
+<h3>
 	<a href="https://arxiv.org/abs/2307.01026"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
 	<a href="https://pypi.org/project/py-tgb/"><img src="https://img.shields.io/pypi/v/py-tgb.svg?color=brightgreen"></a>
 	<a href="https://tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/website-blue"></a>
 	<a href="https://docs.tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/docs-orange"></a>
-</h4> 
+</h3> 
+
+**TGB 2.0: A Benchmark for Learning on Temporal Knowledge Graphs and Heterogeneous Graphs** (preprint)
+<h3>
+  <a href="https://arxiv.org/abs/2406.09639v1"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
+</h3> 
 
 
 Overview of the Temporal Graph Benchmark (TGB) pipeline:
@@ -15,6 +20,7 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 - TGB automatically downloads datasets and processes them into `numpy`, `PyTorch` and `PyG compatible TemporalData` formats. 
 - Novel TG models can be easily evaluated on TGB datasets via reproducible and realistic evaluation protocols. 
 - TGB provides public and online leaderboards to track recent developments in temporal graph learning domain.
+- Now TGB supports temporal homogeneous graphs, temporal knowledge graphs and temporal heterogenenous graph datasets.
 
 ![TGB dataloading and evaluation pipeline](imgs/pipeline.png)
 
@@ -23,6 +29,11 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 **See all version differences and update notes [here](https://tgb.complexdatalab.com/docs/update/)**
 
 ### Announcements
+
+**Excited to announce TGB 2.0, expanding TGB to Temporal Knowledge Graphs and Temporal Heterogeneous Graphs**
+
+See our [preprint here](https://arxiv.org/abs/2307.01026) for details. Please [install locally](https://tgb.complexdatalab.com/docs/home/) first. We welcome your feedback and suggestions. 
+
 
 **Excited to announce TGX, a companion package for analyzing temporal graphs in WSDM 2024 Demo Track**
 
@@ -39,7 +50,7 @@ Thanks to everyone for your help in improving TGB! we will continue to improve T
 Update the fix for `tgbl-flight` where now the unix timestamps are provided directly in the dataset. If you had issues with `tgbl-flight`, please remove `TGB/tgb/datasets/tgbl_flight`and redownload the dataset for a clean install
 
 
-
+<!-- 
 #### version `0.9.1`
 
 Fixed an issue for `tgbl-flight` where the timestamp conversion is incorrect due to time zone differences. If you had issues with `tgbl-flight` before, please update your package. 
@@ -49,7 +60,7 @@ Fixed an issue for `tgbl-flight` where the timestamp conversion is incorrect due
 
 Added the large `tgbn-token` dataset with 72 million edges to the `nodeproppred` dataset. 
 
-Fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be prompted in terminal).
+Fixed errors in `tgbl-coin` and `tgbl-flight` where a small set of edges are not sorted chronologically. Please update your dataset version for them to version 2 (will be prompted in terminal). -->
 
 
 ### Pip Install
