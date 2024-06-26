@@ -29,7 +29,7 @@ class THGNegativeEdgeGenerator(object):
         edge_data: TemporalData = None,
     ) -> None:
         r"""
-        Negative Edge Sampler class
+        Negative Edge Generator class for Temporal Heterogeneous Graphs
         this is a class for generating negative samples for a specific datasets
         the set of the positive samples are provided, the negative samples are generated with specific strategies 
         and are saved for consistent evaluation across different methods
@@ -39,11 +39,10 @@ class THGNegativeEdgeGenerator(object):
             first_node_id: the first node id
             last_node_id: the last node id
             node_type: the node type of each node
-            num_neg_e: number of negative edges being generated per each positive edge
-            strategy: specifies which strategy should be used for generating the negatives
-            rnd_seed: random seed for reproducibility
-            edge_data: the positive edges to generate the negatives for, assuming sorted temporally
-        
+            strategy: the strategy to generate negative samples
+            num_neg_e: number of negative samples to generate
+            rnd_seed: random seed
+            edge_data: the edge data object containing the positive edges
         Returns:
             None
         """
@@ -72,7 +71,6 @@ class THGNegativeEdgeGenerator(object):
                                             node_type: np.ndarray) -> dict:
         r"""
         get the destination node id arrays based on the node type
-
         Parameters:
             first_node_id: the first node id
             last_node_id: the last node id
