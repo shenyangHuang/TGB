@@ -9,11 +9,401 @@ import datetime
 from datetime import date
 
 """
+function to process node type for thg datasets
+"""
+
+def process_node_type(
+    fname: str,
+    node_ids,
+):
+    """
+    1. process the node type into integer
+    3. return a numpy array of node types with index corresponding to node id
+    """
+    node_feat = np.zeros(len(node_ids))
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        # node_id,type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                nid = int(row[0])
+                try:
+                    node_type = int(row[1])
+                except:
+                    raise ValueError(row[1], " is not an integer thus can't be a node type for thg dataset")
+                try:
+                    node_id = node_ids[nid]
+                except:
+                    raise ValueError(nid, " is not a valid node id")
+                node_feat[node_id] = node_type
+    return node_feat
+
+"""
+functions for thgl-forum dataset
+"""
+def csv_to_forum_data(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    used by thgl-forum dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, head, tail, relation type
+    Args:
+        fname: the path to the raw data
+    """
+    feat_size = 2
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    node_ids = {}
+    unique_id = 0
+
+    word_max = 10000
+    score_max = 10000
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                #! ts,src,dst,relation_type,num_words,score
+                ts = int(row[0]) #converted to UNIX timestamp already 
+                src = int(row[1])
+                dst = int(row[2])
+                relation = int(row[3])
+                num_words = int(row[4])
+                score = int(row[5])
+                if src not in node_ids:
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if dst not in node_ids:
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = float(1)
+                edge_type[idx - 1] = relation
+                feat_l[idx - 1] = np.array([num_words/word_max, score/score_max])
+                idx += 1
+    return (
+        pd.DataFrame(
+            {
+                "u": u_list,
+                "i": i_list,
+                "ts": ts_list,
+                "label": label_list,
+                "idx": idx_list,
+                "w": w_list,
+                "edge_type": edge_type,
+            }
+        ),
+        feat_l,
+        node_ids,
+    )
+
+
+
+
+"""
+functions for thg dataset
+"""
+def csv_to_thg_data(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    used by thgl-myket dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, head, tail, relation type
+    Args:
+        fname: the path to the raw data
+    """
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    node_ids = {}
+    unique_id = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                ts = int(row[0]) #converted to UNIX timestamp already 
+                src = int(row[1])
+                dst = int(row[2])
+                relation = int(row[3])
+                if src not in node_ids:
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if dst not in node_ids:
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = float(1)
+                edge_type[idx - 1] = relation
+                idx += 1
+    return (
+        pd.DataFrame(
+            {
+                "u": u_list,
+                "i": i_list,
+                "ts": ts_list,
+                "label": label_list,
+                "idx": idx_list,
+                "w": w_list,
+                "edge_type": edge_type,
+            }
+        ),
+        feat_l,
+        node_ids,
+    )
+
+"""
+functions for tkgl-wikidata dataset
+"""
+def csv_to_wikidata(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    used by tkgl-wikidata and tkgl-smallpedia
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, head, tail, relation type
+    Args:
+        fname: the path to the raw data
+    """
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    node_ids = {}
+    edge_type_ids = {}
+    unique_id = 0
+    et_id = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                ts = int(row[0]) #converted to year already
+                src = row[1]
+                dst = row[2]
+                relation = row[3]
+                if src not in node_ids:
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if dst not in node_ids:
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+                if relation not in edge_type_ids:
+                    edge_type_ids[relation] = et_id
+                    et_id += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = float(1)
+                edge_type[idx - 1] = edge_type_ids[relation]
+                idx += 1
+    return (
+        pd.DataFrame(
+            {
+                "u": u_list,
+                "i": i_list,
+                "ts": ts_list,
+                "label": label_list,
+                "idx": idx_list,
+                "w": w_list,
+                "edge_type": edge_type,
+            }
+        ),
+        feat_l,
+        node_ids,
+    )
+
+
+def csv_to_staticdata(
+    fname: str,
+    node_ids: dict,
+) -> pd.DataFrame:
+    r"""
+    used by tkgl-wikidata and tkgl-smallpedia
+    convert the raw .csv data to pandas dataframe and numpy array for static knowledge edges
+    input .csv file format should be: head, tail, relation type
+    Args:
+        fname: the path to the raw data
+        node_ids: dictionary of node names mapped to integer node ids
+    """
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    edge_type_ids = {}
+    out_dict = {}
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                src = row[0]
+                dst = row[1]
+                relation = row[2]
+                if src not in node_ids:
+                    node_ids[src] = len(node_ids)
+                if dst not in node_ids:
+                    node_ids[dst] = len(node_ids)
+                if relation not in edge_type_ids:
+                    edge_type_ids[relation] = len(edge_type_ids)
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i                
+                edge_type[idx - 1] = edge_type_ids[relation]
+                idx += 1
+
+    out_dict["head"] = u_list
+    out_dict["tail"] = i_list
+    out_dict["edge_type"] = edge_type
+    return out_dict, node_ids
+
+
+
+
+
+
+"""
+functions for tkgl-polecat, tkgl-icews dataset
+"""
+def csv_to_tkg_data(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    used by tkgl-polecat
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, head, tail, relation type
+    Args:
+        fname: the path to the raw data
+    """
+    feat_size = 1
+    num_lines = sum(1 for line in open(fname)) - 1
+    print("number of lines counted", num_lines)
+    u_list = np.zeros(num_lines)
+    i_list = np.zeros(num_lines)
+    ts_list = np.zeros(num_lines)
+    label_list = np.zeros(num_lines)
+    edge_type = np.zeros(num_lines)
+    feat_l = np.zeros((num_lines, feat_size))
+    idx_list = np.zeros(num_lines)
+    w_list = np.zeros(num_lines)
+    node_ids = {}
+    unique_id = 0
+
+    with open(fname, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        idx = 0
+        #timestamp, head, tail, relation type
+        for row in tqdm(csv_reader):
+            if idx == 0:
+                idx += 1
+                continue
+            else:
+                ts = int(row[0]) #converted to UNIX timestamp already 
+                src = int(row[1])
+                dst = int(row[2])
+                relation = int(row[3])
+                if src not in node_ids:
+                    node_ids[src] = unique_id
+                    unique_id += 1
+                if dst not in node_ids:
+                    node_ids[dst] = unique_id
+                    unique_id += 1
+                u = node_ids[src]
+                i = node_ids[dst]
+                u_list[idx - 1] = u
+                i_list[idx - 1] = i
+                ts_list[idx - 1] = ts
+                idx_list[idx - 1] = idx
+                w_list[idx - 1] = float(1)
+                edge_type[idx - 1] = relation
+                idx += 1
+    return (
+        pd.DataFrame(
+            {
+                "u": u_list,
+                "i": i_list,
+                "ts": ts_list,
+                "label": label_list,
+                "idx": idx_list,
+                "w": w_list,
+                "edge_type": edge_type,
+            }
+        ),
+        feat_l,
+        node_ids,
+    )
+
+
+
+
+"""
 functions for wikipedia dataset
 ---------------------------------------
 """
-
-
 def load_edgelist_wiki(fname: str) -> pd.DataFrame:
     """
     loading wikipedia dataset into pandas dataframe
@@ -806,7 +1196,6 @@ def process_node_feat(
                     )
                     node_feat[node_id] = final
     return node_feat
-
 
 """
 functions for un trade

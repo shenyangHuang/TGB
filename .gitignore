@@ -1,5 +1,11 @@
 !requirements*.txt
+get_croissant.py
 #dataset
+stats_figures/
+figs/
+*.xz
+*.dict
+*.tab
 *.npz
 *.xz
 *.parquet
@@ -14,6 +20,9 @@
 *.out
 *.pkl
 *.txt
+*.attr
+*.edge
+store_files/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 raw/
@@ -23,6 +32,8 @@ software/
 *.py[cod]
 *$py.class
 saved_models/
+dump/
+saved_results/
 
 # C extensions
 *.so
