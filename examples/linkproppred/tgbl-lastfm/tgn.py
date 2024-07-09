@@ -183,12 +183,14 @@ def test(loader, neg_sampler, split_mode):
 
 # Start...
 start_overall = timeit.default_timer()
+DATA = "tgbl-lastfm"
+
 
 # ========== set parameters...
 args, _ = get_args()
+args.data = DATA
 print("INFO: Arguments:", args)
 
-DATA = "tgbl-lastfm"
 LR = args.lr
 BATCH_SIZE = args.bs
 K_VALUE = args.k_value  
@@ -230,42 +232,6 @@ test_loader = TemporalDataLoader(test_data, batch_size=BATCH_SIZE)
 # Ensure to only sample actual destination nodes as negatives.
 min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 
-# neighhorhood sampler
-neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
-
-# define the model end-to-end
-memory = TGNMemory(
-    data.num_nodes,
-    data.msg.size(-1),
-    MEM_DIM,
-    TIME_DIM,
-    message_module=IdentityMessage(data.msg.size(-1), MEM_DIM, TIME_DIM),
-    aggregator_module=LastAggregator(),
-).to(device)
-
-gnn = GraphAttentionEmbedding(
-    in_channels=MEM_DIM,
-    out_channels=EMB_DIM,
-    msg_dim=data.msg.size(-1),
-    time_enc=memory.time_enc,
-).to(device)
-
-link_pred = LinkPredictor(in_channels=EMB_DIM).to(device)
-
-model = {'memory': memory,
-         'gnn': gnn,
-         'link_pred': link_pred}
-
-optimizer = torch.optim.Adam(
-    set(model['memory'].parameters()) | set(model['gnn'].parameters()) | set(model['link_pred'].parameters()),
-    lr=LR,
-)
-criterion = torch.nn.BCEWithLogitsLoss()
-
-# Helper vector to map global node indices to local ones.
-assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
-
-
 print("==========================================================")
 print(f"=================*** {MODEL_NAME}: LinkPropPred: {DATA} ***=============")
 print("==========================================================")
@@ -295,6 +261,41 @@ for run_idx in range(NUM_RUNS):
     save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
     early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir, save_model_id=save_model_id, 
                                     tolerance=TOLERANCE, patience=PATIENCE)
+    
+    # neighhorhood sampler
+    neighbor_loader = LastNeighborLoader(data.num_nodes, size=NUM_NEIGHBORS, device=device)
+
+    # define the model end-to-end
+    memory = TGNMemory(
+        data.num_nodes,
+        data.msg.size(-1),
+        MEM_DIM,
+        TIME_DIM,
+        message_module=IdentityMessage(data.msg.size(-1), MEM_DIM, TIME_DIM),
+        aggregator_module=LastAggregator(),
+    ).to(device)
+
+    gnn = GraphAttentionEmbedding(
+        in_channels=MEM_DIM,
+        out_channels=EMB_DIM,
+        msg_dim=data.msg.size(-1),
+        time_enc=memory.time_enc,
+    ).to(device)
+
+    link_pred = LinkPredictor(in_channels=EMB_DIM).to(device)
+
+    model = {'memory': memory,
+            'gnn': gnn,
+            'link_pred': link_pred}
+
+    optimizer = torch.optim.Adam(
+        set(model['memory'].parameters()) | set(model['gnn'].parameters()) | set(model['link_pred'].parameters()),
+        lr=LR,
+    )
+    criterion = torch.nn.BCEWithLogitsLoss()
+
+    # Helper vector to map global node indices to local ones.
+    assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
     # ==================================================== Train & Validation
     # loading the validation negative samples
