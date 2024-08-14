@@ -24,7 +24,7 @@ import argparse
 tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(tgb_modules_path)
 from tgb.linkproppred.evaluate import Evaluator
-from tgb_modules.edgebank_predictor import EdgeBankPredictor
+from modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
 from tgb.linkproppred.dataset import LinkPropPredDataset
 from tgb.utils.utils import save_results
