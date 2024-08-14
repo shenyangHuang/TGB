@@ -346,7 +346,7 @@ save_results({'model': MODEL_NAME,
               f'test {METRIC}': float(test_mrr),
               'test_time': test_time,
               'tot_train_val_time': all_time,
-              'test_hits10': test_hits10
+              'test_hits10': float(test_hits10)
               }, 
     results_filename)
 
