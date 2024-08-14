@@ -131,6 +131,7 @@ class RecurrentRGCNCEN(nn.Module):
 
             if neg_samples_batch != None: # added by tgb team
                 perf_list = []
+                hits_list = []
                 for query_id, query in enumerate(neg_samples_batch): # for each sample separately
                     pos = pos_samples_batch[query_id]
                     neg = torch.tensor(query).to(pos.device)
@@ -147,7 +148,9 @@ class RecurrentRGCNCEN(nn.Module):
                         "y_pred_neg": np.array(scores_b[0,1:].cpu()),
                         "eval_metric": [metric],
                     }
-                    perf_list.append(evaluator.eval(input_dict)[metric])
+                    prediction_perf = evaluator.eval(input_dict)
+                    perf_list.append(prediction_perf[metric])
+                    hits_list.append(prediction_perf['hits@10'])
 
             else:
                 score_list = self.decoder_ob.forward(evolve_embeddings, r_emb, test_triplets, mode="test")
@@ -157,7 +160,7 @@ class RecurrentRGCNCEN(nn.Module):
                 scores = torch.softmax(scores, dim=1)
                 scores = torch.sum(scores, dim=-1)
 
-            return scores, perf_list
+            return scores, perf_list, hits_list
 
     def get_ft_loss(self, glist, triple_list,  use_cuda):
         #"""
@@ -333,6 +336,7 @@ class RecurrentRGCNREGCN(nn.Module):
     def predict(self, test_graph, num_rels, static_graph, test_triplets, use_cuda, neg_samples_batch=None,
                 pos_samples_batch=None, evaluator=None, metric=None):
         perf_list = [None]*len(neg_samples_batch)
+        hits_list = [None]*len(neg_samples_batch)
         with torch.no_grad():
             # inverse_test_triplets = test_triplets[:, [2, 1, 0]]
             # inverse_test_triplets[:, 1] = inverse_test_triplets[:, 1] + num_rels  # 将逆关系换成逆关系的id
@@ -342,6 +346,7 @@ class RecurrentRGCNREGCN(nn.Module):
             embedding = F.normalize(evolve_embs[-1]) if self.layer_norm else evolve_embs[-1]
             if neg_samples_batch != None: # added by tgb team
                 perf_list = []
+                hits_list = []
                 for query_id, query in enumerate(neg_samples_batch): # for each sample separately
                     pos = pos_samples_batch[query_id]
                     neg = torch.tensor(query).to(pos.device)
@@ -354,11 +359,13 @@ class RecurrentRGCNREGCN(nn.Module):
                         "y_pred_neg": np.array(score[0,1:].cpu()),
                         "eval_metric": [metric],
                     }
-                    perf_list.append(evaluator.eval(input_dict)[metric])
+                    prediction_perf = evaluator.eval(input_dict)
+                    perf_list.append(prediction_perf[metric])
+                    hits_list.append(prediction_perf['hits@10'])
             else:
                 score = self.decoder_ob.forward(embedding, r_emb, all_triples, mode="test")
             # score_rel = self.rdecoder.forward(embedding, r_emb, all_triples, mode="test")
-            return score, perf_list
+            return score, perf_list, hits_list
         
     def get_mask_nonzero(self, static_embedding):
         """ Each element of this resulting tensor will be True if the sum of the corresponding row in 
