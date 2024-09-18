@@ -315,11 +315,7 @@ class TKGNegativeEdgeGenerator(object):
                 else:
                     # dst_sampled = rng.choice(max_dst_idx+1, sample_num, replace=False)
                     dst_sampled = np.random.choice(filtered_dst_set, sample_num, replace=False)
-                
 
-                if (dst_sampled.shape[0] > sample_num):
-                    print ("I am the bug that Julia worries about")
-                    print ("dst_sampled shape is ", dst_sampled.shape)
                 out_dict[(pos_t, pos_s, edge_type)] = dst_sampled
             
             print ("negative samples for ", len(out_dict), " positive edges are generated")
