@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, '/home/jgastinger/tgb/TGB2')
-
 from typing import Optional, Dict, Any, Tuple
 import os
 import os.path as osp
@@ -73,8 +70,8 @@ class LinkPropPredDataset(object):
                 f"Dataset {self.name} default evaluation metric not found, it is not supported yet."
             )
 
-
-        root = PROJ_DIR + root
+        if not os.path.isabs(root):
+            root = PROJ_DIR + root
 
         if meta_dict is None:
             self.dir_name = "_".join(name.split("-"))  ## replace hyphen with underline
