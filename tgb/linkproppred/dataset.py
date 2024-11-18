@@ -362,7 +362,12 @@ class LinkPropPredDataset(object):
         edge_idxs = np.array(df["idx"])
         weights = np.array(df["w"])
         edge_label = np.ones(len(df))  # should be 1 for all pos edges
-        self._edge_feat = edge_feat
+        if (self.name == "tgbl-coin") or (self.name == "tgbl-review"):
+            self._edge_feat = weights.reshape(-1,1)
+        elif (self.name == "tgbl-comment"):
+            self._edge_feat = np.concatenate((edge_feat, weights.reshape(-1,1)), axis=1)
+        else:
+            self._edge_feat = edge_feat
         self._node_feat = node_feat
 
         full_data = {
@@ -370,7 +375,7 @@ class LinkPropPredDataset(object):
             "destinations": destinations.astype(int),
             "timestamps": timestamps.astype(int),
             "edge_idxs": edge_idxs,
-            "edge_feat": edge_feat,
+            "edge_feat": self._edge_feat,
             "w": weights,
             "edge_label": edge_label,
         }
