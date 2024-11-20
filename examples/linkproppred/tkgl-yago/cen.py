@@ -62,7 +62,7 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
 
     input_list = [snap for snap in history_list[-history_len:]] 
     perf_list_all = []
-
+    hits_list_all = []
     perf_per_rel = {}
     for rel in range(num_rels):
         perf_per_rel[rel] = []
@@ -76,10 +76,11 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
                                 timesteps_batch, edge_type=test_triples_input[:,1], split_mode=split_mode)
         pos_samples_batch = test_triples_input[:,2]
 
-        _, perf_list = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
+        _, perf_list, hits_list = model.predict(history_glist, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
                                     evaluator, METRIC) 
 
         perf_list_all.extend(perf_list)
+        hits_list_all.extend(hits_list)
         if split_mode == "test":
             if args.log_per_rel:
                 for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
@@ -96,7 +97,8 @@ def test(model, history_len, history_list, test_list, num_rels, num_nodes, use_c
                 else:
                     perf_per_rel.pop(rel)
     mrr = np.mean(perf_list_all) 
-    return mrr, perf_per_rel
+    hits10 = np.mean(hits_list_all)
+    return mrr, perf_per_rel, hits10
 
 
 
@@ -162,18 +164,20 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
     
     if trainvalidtest_id == 1:  # normal test on validation set  Note that mode=test
         if os.path.exists(test_state_file):
-            mrr, _ = test(model, args.test_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+            mrr, _, hits10 = test(model, args.test_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                         test_state_file, "test", split_mode="val")      
         else:
             print('Cannot do testing because model does not exist: ', test_state_file)
             mrr = 0
+            hits10 = 0
     elif trainvalidtest_id == 2: # normal test on test set
         if os.path.exists(test_state_file):
-            mrr, perf_per_rel = test(model, args.test_history_len, train_list+valid_list, test_list, num_rels, num_nodes, use_cuda, 
+            mrr, perf_per_rel, hits10 = test(model, args.test_history_len, train_list+valid_list, test_list, num_rels, num_nodes, use_cuda, 
                         test_state_file, "test", split_mode="test")
         else:
             print('Cannot do testing because model does not exist: ', test_state_file)
             mrr = 0
+            hits10 = 0
     elif trainvalidtest_id == -1:
         print("-------------start pre training model with history length {}----------\n".format(args.start_history_len))
         model_name= f'{MODEL_NAME}_{DATA}_{SEED}_{args.run_nr}_{args.start_history_len}'
@@ -183,6 +187,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             
         best_mrr = 0
         best_epoch = 0
+        best_hits10= 0
 
         ## training loop
         for epoch in range(args.n_epochs):
@@ -225,7 +230,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
             # validation        
             if epoch % args.evaluate_every == 0:
-                mrr, _ = test(model, args.start_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                mrr, _, hits10 = test(model, args.start_history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                                 model_state_file, mode="train", split_mode= "val")
 
                 if mrr< best_mrr:
@@ -234,6 +239,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                 else:
                     best_mrr = mrr
                     best_epoch = epoch
+                    best_hits10 = hits10
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
         
@@ -247,7 +253,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
         model.load_state_dict(init_checkpoint['state_dict'])
         test_history_len = args.start_history_len
 
-        mrr, _ = test(model, 
+        mrr, _, hits10 = test(model, 
                     args.start_history_len,
                     train_list,
                     valid_list, 
@@ -256,7 +262,8 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     use_cuda, 
                     init_state_file,  
                     mode="test", split_mode= "val") 
-        best_mrr_list = [mrr.item()]                                                   
+        best_mrr_list = [mrr.item()]         
+        best_hits_list = [hits10.item()]                                          
         # start knowledge distillation
         ks_idx = 0
         for history_len in range(args.start_history_len+1, args.train_history_len+1, 1):
@@ -277,6 +284,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
             print("\n"+"-"*10+"start knowledge distillation for history length at "+ str(history_len)+"-"*10+"\n")
  
             best_mrr = 0
+            best_hits10 = 0
             best_epoch = 0
             for epoch in range(args.n_epochs):
                 model.train()
@@ -319,7 +327,7 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
 
                 # validation
                 if epoch % args.evaluate_every == 0:
-                    mrr, _ = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+                    mrr, _, hits10 = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                                 model_state_file, mode="train", split_mode= "val")
                     
                     if mrr< best_mrr:
@@ -328,8 +336,9 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                     else:
                         best_mrr = mrr
                         best_epoch = epoch
+                        best_hits10 = hits10
                         torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)  
-            mrr, _ = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
+            mrr, _, hits10 = test(model, history_len, train_list, valid_list, num_rels, num_nodes, use_cuda, 
                         model_state_file, mode="test", split_mode= "val")
             ks_idx += 1
             if mrr.item() < max(best_mrr_list):
@@ -338,8 +347,9 @@ def run_experiment(args, trainvalidtest_id=0, n_hidden=None, n_layers=None, drop
                 break
             else:
                 best_mrr_list.append(mrr.item())
+                best_hits_list.append(hits10.item())
         
-    return mrr, test_history_len, perf_per_rel
+    return mrr, test_history_len, perf_per_rel, hits10
 
 
 
@@ -409,21 +419,22 @@ else:
     else:
         print('running pretrain and train')
         # pretrain
-        mrr, _, _ = run_experiment(args, trainvalidtest_id=-1)
+        mrr, _, _, hits10 = run_experiment(args, trainvalidtest_id=-1)
         # train
-        mrr, args.test_history_len, _ = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
+        mrr, args.test_history_len, _, hits10 = run_experiment(args, trainvalidtest_id=0) # overwrite test_history_len with 
         # the best history len (for valid mrr)       
         
     if args.test_only == False:
         print("running test (on val and test dataset) with test_history_len of: ", args.test_history_len)
         # test on val set
-        val_mrr, _, _ = run_experiment(args, trainvalidtest_id=1)
+        val_mrr, _, _, val_hits10 = run_experiment(args, trainvalidtest_id=1)
     else:
         val_mrr = 0
+        val_hits10 = 0
 
     # test on test set
     start_test = timeit.default_timer()
-    test_mrr, _, perf_per_rel = run_experiment(args, trainvalidtest_id=2)
+    test_mrr, _, perf_per_rel, test_hits10 = run_experiment(args, trainvalidtest_id=2)
 
 test_time = timeit.default_timer() - start_test
 all_time = timeit.default_timer() - start_train
@@ -449,7 +460,8 @@ save_results({'model': MODEL_NAME,
               f'val {METRIC}': float(val_mrr),
               f'test {METRIC}': float(test_mrr),
               'test_time': test_time,
-              'tot_train_val_time': all_time
+              'tot_train_val_time': all_time,
+              'test_hits10': float(test_hits10)
               }, 
     results_filename)
 
