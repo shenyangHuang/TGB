@@ -1118,14 +1118,14 @@ def csv_to_pd_data_ln(
     Args:
         fname: the path to the raw data
     """
-    feat_size = 20
+    feat_size = 19
     num_lines = sum(1 for _ in open(fname)) - 1
     print("number of lines counted", num_lines)
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
     ts_list = np.zeros(num_lines)
     label_list = np.zeros(num_lines, dtype=int)
-    status_list = -1 * np.ones(num_lines)
+    status_list = []
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
@@ -1162,11 +1162,11 @@ def csv_to_pd_data_ln(
                 ts_list[idx - 1] = ts
                 label_list[idx - 1] = int(label_map[row[2]])
                 edge_status = 1 if row[7] == "OPEN" else 0
+                status_list.append(edge_status)
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = float(row[8])
                 feat_l[idx - 1] = np.array(
                     [
-                        edge_status,
                         float(row[5]),
                         float(row[6]),
                         float(row[8]),
@@ -1196,7 +1196,7 @@ def csv_to_pd_data_ln(
                 "i": i_list,
                 "ts": ts_list,
                 "label": label_list,
-                "status": status_list,
+                "status": np.array(status_list),
                 "idx": idx_list,
                 "w": w_list,
             }
