@@ -1167,6 +1167,7 @@ def csv_to_pd_data_ln(
                 w_list[idx - 1] = float(row[8])
                 feat_l[idx - 1] = np.array(
                     [
+                        edge_status,
                         float(row[5]),
                         float(row[6]),
                         float(row[8]),
