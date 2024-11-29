@@ -1118,7 +1118,7 @@ def csv_to_pd_data_ln(
     Args:
         fname: the path to the raw data
     """
-    feat_size = 19
+    feat_size = 20
     num_lines = sum(1 for _ in open(fname)) - 1
     print("number of lines counted", num_lines)
     u_list = np.zeros(num_lines)
