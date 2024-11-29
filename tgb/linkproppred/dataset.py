@@ -379,18 +379,19 @@ class LinkPropPredDataset(object):
         timestamps = np.array(df["ts"])
         edge_idxs = np.array(df["idx"])
         weights = np.array(df["w"])
-        edge_label = np.ones(len(df))  # should be 1 for all pos edges
         self._edge_feat = edge_feat
         self._node_feat = node_feat
 
         full_data = {
             "sources": sources.astype(int),
             "destinations": destinations.astype(int),
-            "timestamps": timestamps.astype(int),
+            "timestamps": timestamps,
             "edge_idxs": edge_idxs,
             "edge_feat": edge_feat,
             "w": weights,
-            "edge_label": edge_label,
+            "edge_label": (
+                np.ones(len(df)) if "label" not in df else np.array(df["label"])
+            ),
         }
 
         # * for tkg and thg
