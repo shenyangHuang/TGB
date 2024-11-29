@@ -1,7 +1,8 @@
-import torch
-from typing import Optional, Optional, Callable
+from typing import Callable, Optional
 
+import torch
 from torch_geometric.data import Dataset, TemporalData
+
 from tgb.linkproppred.dataset import LinkPropPredDataset
 from tgb.linkproppred.negative_sampler import NegativeEdgeSampler
 
@@ -39,11 +40,11 @@ class PyGLinkPropPredDataset(Dataset):
             self._node_feat = None
         else:
             self._node_feat = torch.from_numpy(self._node_feat).float()
-        
+
         self._node_type = self.dataset.node_type
         if self.node_type is not None:
             self._node_type = torch.from_numpy(self.dataset.node_type).long()
-        
+
         self.process_data()
 
         self._ns_sampler = self.dataset.negative_sampler
@@ -65,29 +66,29 @@ class PyGLinkPropPredDataset(Dataset):
             negative_sampler: NegativeEdgeSampler
         """
         return self._ns_sampler
-    
+
     @property
     def num_nodes(self) -> int:
         r"""
-        Returns the total number of unique nodes in the dataset 
+        Returns the total number of unique nodes in the dataset
         Returns:
             num_nodes: int, the number of unique nodes
         """
         return self.dataset.num_nodes
-    
+
     @property
     def num_rels(self) -> int:
         r"""
-        Returns the total number of unique relations in the dataset 
+        Returns the total number of unique relations in the dataset
         Returns:
             num_rels: int, the number of unique relations
         """
         return self.dataset.num_rels
-    
+
     @property
     def num_edges(self) -> int:
         r"""
-        Returns the total number of edges in the dataset 
+        Returns the total number of edges in the dataset
         Returns:
             num_edges: int, the number of edges
         """
@@ -146,7 +147,7 @@ class PyGLinkPropPredDataset(Dataset):
             node_feat: the node features
         """
         return self._node_feat
-    
+
     @property
     def node_type(self) -> torch.Tensor:
         r"""
@@ -182,7 +183,7 @@ class PyGLinkPropPredDataset(Dataset):
             ts: the timestamps of the edges
         """
         return self._ts
-    
+
     @property
     def static_data(self) -> torch.Tensor:
         r"""
@@ -190,16 +191,22 @@ class PyGLinkPropPredDataset(Dataset):
         Returns:
             static_data: the static data of the dataset
         """
-        if (self._static_data is None):
+        if self._static_data is None:
             static_dict = {}
-            static_dict["head"] = torch.from_numpy(self.dataset.static_data["head"]).long()
-            static_dict["tail"] = torch.from_numpy(self.dataset.static_data["tail"]).long()
-            static_dict["edge_type"] = torch.from_numpy(self.dataset.static_data["edge_type"]).long()
+            static_dict["head"] = torch.from_numpy(
+                self.dataset.static_data["head"]
+            ).long()
+            static_dict["tail"] = torch.from_numpy(
+                self.dataset.static_data["tail"]
+            ).long()
+            static_dict["edge_type"] = torch.from_numpy(
+                self.dataset.static_data["edge_type"]
+            ).long()
             self._static_data = static_dict
             return self._static_data
         else:
-            return self._static_data 
-    
+            return self._static_data
+
     @property
     def edge_type(self) -> torch.Tensor:
         r"""
@@ -227,6 +234,15 @@ class PyGLinkPropPredDataset(Dataset):
         """
         return self._edge_label
 
+    @property
+    def edge_status(self) -> torch.Tensor:
+        r"""
+        Returns the edge status of the dataset
+        Returns:
+            edge_status: the status of the edges
+        """
+        return self._edge_status
+
     def process_data(self) -> None:
         r"""
         convert the numpy arrays from dataset to pytorch tensors
@@ -240,7 +256,7 @@ class PyGLinkPropPredDataset(Dataset):
         edge_label = torch.from_numpy(
             self.dataset.full_data["edge_label"]
         )  # this is the label indicating if an edge is a true edge, always 1 for true edges
-
+        # for tgbl_ln, 1 if a channel is a force close, 0 otherwise
 
         # * first check typing for all tensors
         # source tensor must be of type int64
@@ -260,12 +276,19 @@ class PyGLinkPropPredDataset(Dataset):
         if msg.dtype != torch.float32:
             msg = msg.float()
 
-        #* for tkg
-        if ("edge_type" in self.dataset.full_data):
+        # * for tkg
+        if "edge_type" in self.dataset.full_data:
             edge_type = torch.from_numpy(self.dataset.full_data["edge_type"])
             if edge_type.dtype != torch.int64:
                 edge_type = edge_type.long()
             self._edge_type = edge_type
+
+        # * for tgbl_ln
+        if "edge_status" in self.dataset.full_data:
+            edge_status = torch.from_numpy(self.dataset.full_data["edge_status"])
+            if edge_status.dtype != torch.int64:
+                edge_status = edge_status.long()
+            self._edge_status = edge_status
 
         self._src = src
         self._dst = dst
@@ -277,23 +300,20 @@ class PyGLinkPropPredDataset(Dataset):
         """
         return the TemporalData object for the entire dataset
         """
-        if (self._edge_type is not None):
-            data = TemporalData(
-                src=self._src,
-                dst=self._dst,
-                t=self._ts,
-                msg=self._edge_feat,
-                y=self._edge_label,
-                edge_type=self._edge_type
-            )
-        else:
-            data = TemporalData(
-                src=self._src,
-                dst=self._dst,
-                t=self._ts,
-                msg=self._edge_feat,
-                y=self._edge_label,
-            )
+        kwargs = {
+            "src": self._src,
+            "dst": self._dst,
+            "t": self._ts,
+            "msg": self._edge_feat,
+            "y": self._edge_label,
+        }
+
+        if self._edge_type is not None:
+            kwargs["edge_type"] = self._edge_type
+        if self._edge_status is not None:
+            kwargs["edge_status"] = self._edge_status
+
+        data = TemporalData(**kwargs)
         return data
 
     def len(self) -> int:
@@ -306,29 +326,26 @@ class PyGLinkPropPredDataset(Dataset):
 
     def get(self, idx: int) -> TemporalData:
         """
-        construct temporal data object for a single edge
+        Construct a TemporalData object for a single edge.
         Parameters:
-            idx: index of the edge
+            idx: Index of the edge
         Returns:
             data: TemporalData object
         """
-        if (self._edge_type is not None):
-            data = TemporalData(
-                src=self._src[idx],
-                dst=self._dst[idx],
-                t=self._ts[idx],
-                msg=self._edge_feat[idx],
-                y=self._edge_label[idx],
-                edge_type=self._edge_type[idx]
-            )
-        else:
-            data = TemporalData(
-                src=self._src[idx],
-                dst=self._dst[idx],
-                t=self._ts[idx],
-                msg=self._edge_feat[idx],
-                y=self._edge_label[idx],
-            )
+        kwargs = {
+            "src": self._src[idx],
+            "dst": self._dst[idx],
+            "t": self._ts[idx],
+            "msg": self._edge_feat[idx],
+            "y": self._edge_label[idx],
+        }
+
+        if self._edge_type is not None:
+            kwargs["edge_type"] = self._edge_type[idx]
+        if self._edge_status is not None:
+            kwargs["edge_status"] = self._edge_status[idx]
+
+        data = TemporalData(**kwargs)
         return data
 
     def __repr__(self) -> str:
