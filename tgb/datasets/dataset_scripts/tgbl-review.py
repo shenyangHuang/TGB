@@ -134,8 +134,13 @@ def csv_process_review(
     """
     src_ids = {}
     dst_ids = {}
+    # total_ids = {}
+    # nid_ctr = 0
     src_ctr = 0
     dst_ctr = 0
+
+
+
 
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
@@ -161,6 +166,18 @@ def csv_process_review(
                     dst_ids[dst] = dst_ctr
                     dst_ctr += 1
                 w = float(row[3])
+                # if src not in total_ids:
+                #     total_ids[src] = nid_ctr
+                #     nid_ctr += 1
+                # if dst not in total_ids:
+                #     total_ids[dst] = nid_ctr
+                #     nid_ctr += 1
+
+    # print ("there are ", len(src_ids), "source nodes")
+    # print ("there are ", len(dst_ids), "destination nodes")
+    # print ("there are ", len(total_ids), "total unique node by raw ID")
+
+
     
     #! ensure that source and destination nodes are unique and non-overlapping
     src_ctr += 1
