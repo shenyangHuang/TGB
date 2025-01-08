@@ -30,6 +30,9 @@ def main():
     data_splits['val'] = data[val_mask]
     data_splits['test'] = data[test_mask]
 
+    min_src_idx = int(data.src.min())
+    print (f"min_src_idx: {min_src_idx}")
+
     # Ensure to only sample actual destination nodes as negatives.
     min_dst_idx, max_dst_idx = int(data.dst.min()), int(data.dst.max())
 

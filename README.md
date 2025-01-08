@@ -3,20 +3,24 @@
 
 **Temporal Graph Benchmark for Machine Learning on Temporal Graphs** (NeurIPS 2023 Datasets and Benchmarks Track)
 <h3>
+  <a href="https://proceedings.neurips.cc/paper_files/paper/2023/hash/066b98e63313162f6562b35962671288-Abstract-Datasets_and_Benchmarks.html"><img src="https://img.shields.io/badge/Paper-link-important"></a>
 	<a href="https://arxiv.org/abs/2307.01026"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
 	<a href="https://pypi.org/project/py-tgb/"><img src="https://img.shields.io/pypi/v/py-tgb.svg?color=brightgreen"></a>
 	<a href="https://tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/website-blue"></a>
 	<a href="https://docs.tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/docs-orange"></a>
 </h3> 
 
-**TGB 2.0: A Benchmark for Learning on Temporal Knowledge Graphs and Heterogeneous Graphs** (preprint)
+**TGB 2.0: A Benchmark for Learning on Temporal Knowledge Graphs and Heterogeneous Graphs** (NeurIPS 2024 Datasets and Benchmarks Track)
 <h3>
+  <a href="https://openreview.net/forum?id=EADRzNJFn1#discussion"><img src="https://img.shields.io/badge/Paper-link-important"></a>
   <a href="https://arxiv.org/abs/2406.09639v1"><img src="https://img.shields.io/badge/arXiv-pdf-yellowgreen"></a>
+  <a href="https://pypi.org/project/py-tgb/"><img src="https://img.shields.io/pypi/v/py-tgb.svg?color=brightgreen"></a>
+	<a href="https://tgb.complexdatalab.com/"><img src="https://img.shields.io/badge/website-blue"></a>
 </h3> 
 
 
 Overview of the Temporal Graph Benchmark (TGB) pipeline:
-- TGB includes large-scale and realistic datasets from five different domains with both dynamic link prediction and node property prediction tasks.
+- TGB includes large-scale and realistic datasets from 10 different domains with both dynamic link prediction and node property prediction tasks.
 - TGB automatically downloads datasets and processes them into `numpy`, `PyTorch` and `PyG compatible TemporalData` formats. 
 - Novel TG models can be easily evaluated on TGB datasets via reproducible and realistic evaluation protocols. 
 - TGB provides public and online leaderboards to track recent developments in temporal graph learning domain.
@@ -30,24 +34,29 @@ Overview of the Temporal Graph Benchmark (TGB) pipeline:
 
 ### Announcements
 
-**Excited to announce TGB 2.0, expanding TGB to Temporal Knowledge Graphs and Temporal Heterogeneous Graphs**
+**Excited to announce TGB 2.0, has been presented at NeurIPS 2024 Datasets and Benchmarks Track**
 
-See our [preprint here](https://arxiv.org/abs/2307.01026) for details. Please [install locally](https://tgb.complexdatalab.com/docs/home/) first. We welcome your feedback and suggestions. 
+See our [camera ready version](https://openreview.net/forum?id=EADRzNJFn1#discussion) and [arXiv version](https://arxiv.org/abs/2307.01026) for details. Please [install locally](https://tgb.complexdatalab.com/docs/home/) first. We welcome your feedback and suggestions. 
 
 
 **Excited to announce TGX, a companion package for analyzing temporal graphs in WSDM 2024 Demo Track**
 
 TGX supports all TGB datasets and provides numerous temporal graph visualization plots and statistics out of the box. See our paper: [Temporal Graph Analysis with TGX](https://arxiv.org/abs/2402.03651) and [TGX website](https://complexdata-mila.github.io/TGX/).
 
-**Excited to announce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track**
+<!-- **Excited to announce that TGB has been accepted to NeurIPS 2023 Datasets and Benchmarks Track**
 
-Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions. 
+Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions.  -->
 
-**Please update to version `0.9.2`**
+**Please update to version `2.0.0`**
+#### version `2.0.0`
+
+Includes all new datasets from TGB 2.0 including temporal knowledge graphs and temporal heterogeneous graphs. 
+
+<!-- **Please update to version `0.9.2`**
 
 #### version `0.9.2`
 
-Update the fix for `tgbl-flight` where now the unix timestamps are provided directly in the dataset. If you had issues with `tgbl-flight`, please remove `TGB/tgb/datasets/tgbl_flight`and redownload the dataset for a clean install
+Update the fix for `tgbl-flight` where now the unix timestamps are provided directly in the dataset. If you had issues with `tgbl-flight`, please remove `TGB/tgb/datasets/tgbl_flight`and redownload the dataset for a clean install -->
 
 
 <!-- 
@@ -95,7 +104,7 @@ We thank the [OGB](https://ogb.stanford.edu/) team for their support throughout 
 
 ### Citation
 
-If code or data from this repo is useful for your project, please consider citing our paper:
+If code or data from this repo is useful for your project, please consider citing our TGB and TGB 2.0 paper:
 ```
 @article{huang2023temporal,
   title={Temporal graph benchmark for machine learning on temporal graphs},
@@ -104,6 +113,16 @@ If code or data from this repo is useful for your project, please consider citin
   year={2023}
 }
 ```
+
+```
+@article{huang2024tgb2,
+  title={TGB 2.0: A Benchmark for Learning on Temporal Knowledge Graphs and Heterogeneous Graphs},
+  author={Gastinger, Julia and Huang, Shenyang and Galkin, Mikhail and Loghmani, Erfan and Parviz, Ali and Poursafaei, Farimah and Danovitch, Jacob and Rossi, Emanuele and Koutis, Ioannis and Stuckenschmidt, Heiner and      Rabbany, Reihaneh and Rabusseau, Guillaume},
+  journal={Advances in Neural Information Processing Systems},
+  year={2024}
+}
+```
+
 <!-- 
 
 ### Install dependency
