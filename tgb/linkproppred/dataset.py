@@ -1,3 +1,4 @@
+from typing import Optional, Dict, Any, Tuple
 import os
 import os.path as osp
 import zipfile
@@ -379,7 +380,12 @@ class LinkPropPredDataset(object):
         timestamps = np.array(df["ts"])
         edge_idxs = np.array(df["idx"])
         weights = np.array(df["w"])
-        self._edge_feat = edge_feat
+        if (self.name == "tgbl-coin") or (self.name == "tgbl-review"):
+            self._edge_feat = weights.reshape(-1,1)
+        elif (self.name == "tgbl-comment"):
+            self._edge_feat = np.concatenate((edge_feat, weights.reshape(-1,1)), axis=1)
+        else:
+            self._edge_feat = edge_feat
         self._node_feat = node_feat
 
         full_data = {
@@ -387,7 +393,7 @@ class LinkPropPredDataset(object):
             "destinations": destinations.astype(int),
             "timestamps": timestamps,
             "edge_idxs": edge_idxs,
-            "edge_feat": edge_feat,
+            "edge_feat": self._edge_feat,
             "w": weights,
             "edge_label": (
                 np.ones(len(df)) if "label" not in df else np.array(df["label"])

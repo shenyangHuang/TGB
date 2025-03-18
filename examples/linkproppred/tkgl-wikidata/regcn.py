@@ -62,6 +62,7 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
     model.eval()
     input_list = [snap for snap in history_list[-args.test_history_len:]] 
     perf_list_all = []
+    hits_list_all = []
     perf_per_rel = {}
     for rel in range(num_rels):
         perf_per_rel[rel] = []
@@ -75,10 +76,11 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
                                 timesteps_batch, edge_type=test_triples_input[:,1], split_mode=split_mode)
         pos_samples_batch = test_triples_input[:,2]
 
-        _, perf_list = model.predict(history_glist, num_rels, static_graph, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
+        _, perf_list, hits_list = model.predict(history_glist, num_rels, static_graph, test_triples_input, use_cuda, neg_samples_batch, pos_samples_batch, 
                                     evaluator, METRIC)  
 
         perf_list_all.extend(perf_list)
+        hits_list_all.extend(hits_list)
         if split_mode == "test":
             if args.log_per_rel:
                 for score, rel in zip(perf_list, test_triples_input[:,1].tolist()):
@@ -96,7 +98,8 @@ def test(model, history_list, test_list, num_rels, num_nodes, use_cuda, model_na
                 else:
                     perf_per_rel.pop(rel)
     mrr = np.mean(perf_list_all) 
-    return mrr, perf_per_rel
+    hits10 = np.mean(hits_list_all) 
+    return mrr, perf_per_rel, hits10
 
 
 
@@ -120,6 +123,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
     if n_bases:
         args.n_bases = n_bases
     mrr = 0
+    hits10=0
     # 2) set save model path
     save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
     if not osp.exists(save_model_dir):
@@ -171,7 +175,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     if args.test and os.path.exists(model_state_file):
-        mrr, perf_per_rel = test(model, 
+        mrr, perf_per_rel, hits10 = test(model, 
                     train_list+valid_list, 
                     test_list, 
                     num_rels, 
@@ -181,13 +185,14 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                     static_graph, 
                     "test", 
                     "test")
-        return mrr, perf_per_rel
+        return mrr, perf_per_rel, hits10
     elif args.test and not os.path.exists(model_state_file):
         print("--------------{} not exist, Change mode to train and generate stat for testing----------------\n".format(model_state_file))
         return 0, 0
     else:
         print("----------------------------------------start training----------------------------------------\n")
         best_mrr = 0
+        best_hits = 0
         for epoch in range(args.n_epochs):
 
             model.train()
@@ -230,7 +235,7 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
 
             # validation
             if epoch and epoch % args.evaluate_every == 0:
-                mrr,perf_per_rel = test(model, train_list, 
+                mrr,perf_per_rel, hits10 = test(model, train_list, 
                             valid_list, 
                             num_rels, 
                             num_nodes, 
@@ -244,9 +249,10 @@ def run_experiment(args, n_hidden=None, n_layers=None, dropout=None, n_bases=Non
                         break
                 else:
                     best_mrr = mrr
+                    best_hits = hits10
                     torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
-        return best_mrr, perf_per_rel
+        return best_mrr, perf_per_rel, hits10
 # ==================
 # ==================
 # ==================
@@ -301,6 +307,7 @@ dataset.load_test_ns()
 
 ## run training and testing
 val_mrr, test_mrr = 0, 0
+test_hits10 = 0
 if args.grid_search:
     print("hyperparameter grid search not implemented. Exiting.")
 # single run
@@ -308,11 +315,11 @@ else:
     start_train = timeit.default_timer()
     if args.test == False: #if they are true: directly test on a previously trained and stored model
         print('start training')
-        val_mrr, perf_per_rel = run_experiment(args) # do training
+        val_mrr, perf_per_rel, val_hits10 = run_experiment(args) # do training
     start_test = timeit.default_timer()
     args.test = True
     print('start testing')
-    test_mrr, perf_per_rel = run_experiment(args) # do testing
+    test_mrr, perf_per_rel, test_hits10 = run_experiment(args) # do testing
 
 
 test_time = timeit.default_timer() - start_test
@@ -338,7 +345,8 @@ save_results({'model': MODEL_NAME,
               f'val {METRIC}': float(val_mrr),
               f'test {METRIC}': float(test_mrr),
               'test_time': test_time,
-              'tot_train_val_time': all_time
+              'tot_train_val_time': all_time,
+              'test_hits10': float(test_hits10)
               }, 
     results_filename)
 

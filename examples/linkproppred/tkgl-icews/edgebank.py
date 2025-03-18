@@ -21,8 +21,8 @@ import sys
 import argparse
 
 # internal imports
-modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(modules_path)
+tgb_modules_path = osp.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(tgb_modules_path)
 from tgb.linkproppred.evaluate import Evaluator
 from modules.edgebank_predictor import EdgeBankPredictor
 from tgb.utils.utils import set_random_seed
@@ -48,6 +48,7 @@ def test(data, test_mask, neg_sampler, split_mode):
     """
     num_batches = math.ceil(len(data['sources'][test_mask]) / BATCH_SIZE)
     perf_list = []
+    hits_list = []
     for batch_idx in tqdm(range(num_batches)):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = min(start_idx + BATCH_SIZE, len(data['sources'][test_mask]))
@@ -70,14 +71,17 @@ def test(data, test_mask, neg_sampler, split_mode):
                 "y_pred_neg": np.array(y_pred[1:]),
                 "eval_metric": [metric],
             }
-            perf_list.append(evaluator.eval(input_dict)[metric])
+            results = evaluator.eval(input_dict)
+            perf_list.append(results[metric])
+            hits_list.append(results['hits@10'])
             
         # update edgebank memory after each positive batch
         edgebank.update_memory(pos_src, pos_dst, pos_t)
 
     perf_metrics = float(np.mean(perf_list))
+    perf_hits = float(np.mean(hits_list))
 
-    return perf_metrics
+    return perf_metrics, perf_hits
 
 def get_args():
     parser = argparse.ArgumentParser('*** TGB: EdgeBank ***')
@@ -155,26 +159,12 @@ Path(results_path).mkdir(parents=True, exist_ok=True)
 results_filename = f'{results_path}/{MODEL_NAME}_{MEMORY_MODE}_{DATA}_results.json'
 
 # ==================================================== Test
-# loading the test negative samples
-dataset.load_test_ns()
-
-# testing ...
-start_test = timeit.default_timer()
-perf_metric_test = test(data, test_mask, neg_sampler, split_mode='test')
-end_test = timeit.default_timer()
-
-print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
-print(f"\tTest: {metric}: {perf_metric_test: .4f}")
-test_time = timeit.default_timer() - start_test
-print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
-
-# ==================================================== Test
 # loading the validation negative samples
 dataset.load_val_ns()
 
 # testing ...
 start_val = timeit.default_timer()
-perf_metric_val = test(data, val_mask, neg_sampler, split_mode='val')
+perf_metric_val, perf_hits_val = test(data, val_mask, neg_sampler, split_mode='val')
 end_val = timeit.default_timer()
 
 print(f"INFO: val: Evaluation Setting: >>> ONE-VS--ALL <<< ")
@@ -185,6 +175,19 @@ print(f"\tval: Elapsed Time (s): {val_time: .4f}")
 
 
 
+# ==================================================== Test
+# loading the test negative samples
+dataset.load_test_ns()
+
+# testing ...
+start_test = timeit.default_timer()
+perf_metric_test, perf_hits_test = test(data, test_mask, neg_sampler, split_mode='test')
+end_test = timeit.default_timer()
+
+print(f"INFO: Test: Evaluation Setting: >>>  <<< ")
+print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+test_time = timeit.default_timer() - start_test
+print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
 save_results({'model': MODEL_NAME,
               'memory_mode': MEMORY_MODE,
@@ -194,5 +197,7 @@ save_results({'model': MODEL_NAME,
               metric: perf_metric_test,
               'val_mrr': perf_metric_val,
               'test_time': test_time,
-              'tot_train_val_time': test_time+val_time              }, 
+              'tot_train_val_time': test_time+val_time,
+              'hits10': perf_hits_test}, 
     results_filename)
+

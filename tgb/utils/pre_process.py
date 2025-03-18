@@ -886,8 +886,6 @@ def csv_to_pd_data_rc(
 functions for stablecoin
 -------------------------------------------
 """
-
-
 def csv_to_pd_data_sc(
     fname: str,
 ) -> pd.DataFrame:
@@ -968,7 +966,6 @@ def csv_to_pd_data_sc(
         feat_l,
         node_ids,
     )
-
 
 """
 functions for opensky
@@ -1440,11 +1437,4 @@ def reindex(
     return new_df
 
 
-if __name__ == "__main__":
-    # """
-    # clean rows for un trade dataset
-    # """
-    # fname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade.csv"
-    # outname = "/mnt/c/Users/sheny/Desktop/TGB/tgb/datasets/un_trade/un_trade_cleaned.csv"
-    # clean_rows(fname, outname)
-    print("hi")
+    

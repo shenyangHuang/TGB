@@ -256,7 +256,10 @@ class PyGLinkPropPredDataset(Dataset):
         edge_label = torch.from_numpy(
             self.dataset.full_data["edge_label"]
         )  # this is the label indicating if an edge is a true edge, always 1 for true edges
-        # for tgbl_ln, 1 if a channel is a force close, 0 otherwise
+        w = torch.from_numpy(
+            self.dataset.full_data["w"]
+        )
+
 
         # * first check typing for all tensors
         # source tensor must be of type int64
@@ -276,8 +279,12 @@ class PyGLinkPropPredDataset(Dataset):
         if msg.dtype != torch.float32:
             msg = msg.float()
 
-        # * for tkg
-        if "edge_type" in self.dataset.full_data:
+        # weight tensor must be of type float32
+        if w.dtype != torch.float32:
+            w = w.float()
+
+        #* for tkg
+        if ("edge_type" in self.dataset.full_data):
             edge_type = torch.from_numpy(self.dataset.full_data["edge_type"])
             if edge_type.dtype != torch.int64:
                 edge_type = edge_type.long()
@@ -295,6 +302,7 @@ class PyGLinkPropPredDataset(Dataset):
         self._ts = ts
         self._edge_label = edge_label
         self._edge_feat = msg
+        self._w = w
 
     def get_TemporalData(self) -> TemporalData:
         """
