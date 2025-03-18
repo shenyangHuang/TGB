@@ -1118,93 +1118,68 @@ def csv_to_pd_data_ln(
     Args:
         fname: the path to the raw data
     """
-    feat_size = 20
-    num_lines = sum(1 for _ in open(fname)) - 1
-    print("number of lines counted", num_lines)
-    u_list = np.zeros(num_lines)
-    i_list = np.zeros(num_lines)
-    ts_list = np.zeros(num_lines)
-    label_list = np.zeros(num_lines, dtype=int)
-    status_list = []
-    feat_l = np.zeros((num_lines, feat_size))
-    idx_list = np.zeros(num_lines)
-    w_list = np.zeros(num_lines)
-    print("numpy allocated")
-    node_ids = {}
-    unique_id = 0
+    # Define the future time window (7 days in milliseconds)
+    time_window = 15 * 24 * 60 * 60 * 1000
+
+    df = pd.read_csv(fname, true_values=["True"], false_values=["False"])
+    unique_nodes = pd.concat([df["src"], df["dst"]]).unique()
+    node_ids = {node: idx for idx, node in enumerate(unique_nodes)}
+    df["u"] = df["src"].map(node_ids)
+    df["i"] = df["dst"].map(node_ids)
 
     label_map = {"OPEN": 0, "FORCED": 1, "PENALTY": 1, "MUTUAL": 2}
+    # df["label"] = df["closing_info"].map(label_map)
 
-    # src,dst,closing_info,chan_id,gossip_ts,src_implementation,dst_implementation,channel_status,capacity,transaction_vout,src_time_lock,dst_time_lock,src_min_htlc,dst_min_htlc,src_fee_base_msat,dst_fee_base_msat,src_fee_rate_milli_msat,dst_fee_rate_milli_msat,src_disabled,dst_disabled,src_max_htlc_msat,dst_max_htlc_msat,src_last_update,dst_last_update,ts,block_avg_fee_rate,height
-    with open(fname, "r") as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=",")
-        idx = 0
-        for row in tqdm(csv_reader):
-            if idx == 0:
-                idx += 1
-                continue
-            else:
-                ts = float(row[4])
+    df["status"] = (df["channel_status"] == "OPEN").astype(int)
+    df["w"] = df["capacity"].astype(float)
+    df["idx"] = np.arange(1, len(df) + 1)
 
-                src = row[0]
-                dst = row[1]
-
-                if src not in node_ids:
-                    node_ids[src] = unique_id
-                    unique_id += 1
-                if dst not in node_ids:
-                    node_ids[dst] = unique_id
-                    unique_id += 1
-                u = node_ids[src]
-                i = node_ids[dst]
-                u_list[idx - 1] = u
-                i_list[idx - 1] = i
-                ts_list[idx - 1] = ts
-                label_list[idx - 1] = int(label_map[row[2]])
-                edge_status = 1 if row[7] == "OPEN" else 0
-                status_list.append(edge_status)
-                idx_list[idx - 1] = idx
-                w_list[idx - 1] = float(row[8])
-                feat_l[idx - 1] = np.array(
-                    [
-                        edge_status,
-                        float(row[5]),
-                        float(row[6]),
-                        float(row[8]),
-                        float(row[9]),
-                        float(row[10]),
-                        float(row[11]),
-                        float(row[12]),
-                        float(row[13]),
-                        float(row[14]),
-                        float(row[15]),
-                        float(row[16]),
-                        float(row[17]),
-                        float(bool(row[18])),
-                        float(bool(row[19])),
-                        float(row[22]),
-                        float(row[23]),
-                        float(row[24]),
-                        float(row[25]),
-                        float(row[26]),
-                    ]
-                )
-                idx += 1
-    return (
-        pd.DataFrame(
-            {
-                "u": u_list,
-                "i": i_list,
-                "ts": ts_list,
-                "label": label_list,
-                "status": np.array(status_list),
-                "idx": idx_list,
-                "w": w_list,
-            }
-        ),
-        feat_l,
-        node_ids,
+    # Compute the final label from the future:
+    # First, select only the rows that correspond to a closing event.
+    df_closing = df[df["closing_info"] != "OPEN"][["src", "dst", "gossip_ts", "closing_info"]].copy()
+    df_closing = df_closing.sort_values("gossip_ts")
+    # Use merge_asof to join each row with the first future closing event (if any) within the time_window.
+    # Note: merge_asof matches on keys that are >= the left's key. (If needed, you can add a tiny epsilon to ensure strictly >.)
+    df_merged = pd.merge_asof(
+        df,
+        df_closing,
+        on="gossip_ts",
+        by=["src", "dst"],
+        direction="forward",
+        tolerance=time_window,
+        suffixes=("", "_future")
     )
+    # Map the future closing event to a label (if exists); otherwise, default to OPEN (0).
+    df_merged["final_label"] = df_merged["closing_info_future"].map(label_map).fillna(0).astype(int)
+
+    feat_cols = [
+        "status",
+        "src_implementation",
+        "dst_implementation",
+        "capacity",
+        "transaction_vout",
+        "src_time_lock_delta",
+        "dst_time_lock_delta",
+        "src_min_htlc",
+        "dst_min_htlc",
+        "src_fee_base_msat",
+        "dst_fee_base_msat",
+        "src_fee_rate_milli_msat",
+        "dst_fee_rate_milli_msat",
+        "src_disabled",
+        "dst_disabled",
+        "src_last_update",
+        "dst_last_update",
+        "ts",
+        "block_avg_fee_rate",
+        "height",
+    ]
+
+    feat_l = df_merged[feat_cols].astype(float).to_numpy()
+    result_df = df_merged[["u", "i", "gossip_ts", "final_label", "status", "idx", "w"]].rename(
+        columns={"gossip_ts": "ts", "final_label": "label"}
+    )
+    return result_df, feat_l, node_ids
 
 
 def process_node_feat(
