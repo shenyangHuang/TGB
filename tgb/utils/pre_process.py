@@ -1115,8 +1115,8 @@ def csv_to_pd_data_ln(
     Args:
         fname: the path to the raw data
     """
-    # Define the future time window (7 days in milliseconds)
-    time_window = 30 * 24 * 60 * 60 * 1000
+    # Define the future time window (2 months + 1/2 in milliseconds)
+    time_window = 75 * 24 * 60 * 60 * 1000
 
     df = pd.read_csv(fname, true_values=["True"], false_values=["False"])
     unique_nodes = pd.concat([df["src"], df["dst"]]).unique()
