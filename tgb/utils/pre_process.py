@@ -1115,7 +1115,7 @@ def csv_to_pd_data_ln(
     Args:
         fname: the path to the raw data
     """
-    # Define the future time window (2 months + 1/2 in milliseconds)
+    # Define the future time window (5 months in milliseconds)
     time_window = 150 * 24 * 60 * 60 * 1000
 
     df = pd.read_csv(fname, true_values=["True"], false_values=["False"])
