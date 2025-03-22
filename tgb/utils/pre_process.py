@@ -1,16 +1,16 @@
-from typing import Optional, cast, Union, List, overload, Literal
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import os.path as osp
-import time
 import csv
 import datetime
-from datetime import date
+import os.path as osp
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
 
 """
 function to process node type for thg datasets
 """
+
 
 def process_node_type(
     fname: str,
@@ -34,7 +34,10 @@ def process_node_type(
                 try:
                     node_type = int(row[1])
                 except:
-                    raise ValueError(row[1], " is not an integer thus can't be a node type for thg dataset")
+                    raise ValueError(
+                        row[1],
+                        " is not an integer thus can't be a node type for thg dataset",
+                    )
                 try:
                     node_id = node_ids[nid]
                 except:
@@ -42,9 +45,12 @@ def process_node_type(
                 node_feat[node_id] = node_type
     return node_feat
 
+
 """
 functions for thgl-forum dataset
 """
+
+
 def csv_to_forum_data(
     fname: str,
 ) -> pd.DataFrame:
@@ -75,14 +81,14 @@ def csv_to_forum_data(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        #timestamp, head, tail, relation type
+        # timestamp, head, tail, relation type
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
                 continue
             else:
                 #! ts,src,dst,relation_type,num_words,score
-                ts = int(row[0]) #converted to UNIX timestamp already 
+                ts = int(row[0])  # converted to UNIX timestamp already
                 src = int(row[1])
                 dst = int(row[2])
                 relation = int(row[3])
@@ -102,7 +108,7 @@ def csv_to_forum_data(
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = float(1)
                 edge_type[idx - 1] = relation
-                feat_l[idx - 1] = np.array([num_words/word_max, score/score_max])
+                feat_l[idx - 1] = np.array([num_words / word_max, score / score_max])
                 idx += 1
     return (
         pd.DataFrame(
@@ -121,11 +127,11 @@ def csv_to_forum_data(
     )
 
 
-
-
 """
 functions for thg dataset
 """
+
+
 def csv_to_thg_data(
     fname: str,
 ) -> pd.DataFrame:
@@ -153,13 +159,13 @@ def csv_to_thg_data(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        #timestamp, head, tail, relation type
+        # timestamp, head, tail, relation type
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
                 continue
             else:
-                ts = int(row[0]) #converted to UNIX timestamp already 
+                ts = int(row[0])  # converted to UNIX timestamp already
                 src = int(row[1])
                 dst = int(row[2])
                 relation = int(row[3])
@@ -194,9 +200,12 @@ def csv_to_thg_data(
         node_ids,
     )
 
+
 """
 functions for tkgl-wikidata dataset
 """
+
+
 def csv_to_wikidata(
     fname: str,
 ) -> pd.DataFrame:
@@ -226,13 +235,13 @@ def csv_to_wikidata(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        #timestamp, head, tail, relation type
+        # timestamp, head, tail, relation type
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
                 continue
             else:
-                ts = int(row[0]) #converted to year already
+                ts = int(row[0])  # converted to year already
                 src = row[1]
                 dst = row[2]
                 relation = row[3]
@@ -294,7 +303,7 @@ def csv_to_staticdata(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        #timestamp, head, tail, relation type
+        # timestamp, head, tail, relation type
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
@@ -312,7 +321,7 @@ def csv_to_staticdata(
                 u = node_ids[src]
                 i = node_ids[dst]
                 u_list[idx - 1] = u
-                i_list[idx - 1] = i                
+                i_list[idx - 1] = i
                 edge_type[idx - 1] = edge_type_ids[relation]
                 idx += 1
 
@@ -322,13 +331,11 @@ def csv_to_staticdata(
     return out_dict, node_ids
 
 
-
-
-
-
 """
 functions for tkgl-polecat, tkgl-icews dataset
 """
+
+
 def csv_to_tkg_data(
     fname: str,
 ) -> pd.DataFrame:
@@ -356,13 +363,13 @@ def csv_to_tkg_data(
     with open(fname, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         idx = 0
-        #timestamp, head, tail, relation type
+        # timestamp, head, tail, relation type
         for row in tqdm(csv_reader):
             if idx == 0:
                 idx += 1
                 continue
             else:
-                ts = int(row[0]) #converted to UNIX timestamp already 
+                ts = int(row[0])  # converted to UNIX timestamp already
                 src = int(row[1])
                 dst = int(row[2])
                 relation = int(row[3])
@@ -398,12 +405,12 @@ def csv_to_tkg_data(
     )
 
 
-
-
 """
 functions for wikipedia dataset
 ---------------------------------------
 """
+
+
 def load_edgelist_wiki(fname: str) -> pd.DataFrame:
     """
     loading wikipedia dataset into pandas dataframe
@@ -446,7 +453,7 @@ def load_edgelist_trade(fname: str, label_size=255):
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
-    #print("numpy allocated")
+    # print("numpy allocated")
     node_ids = {}  # dictionary for node ids
     node_uid = 0
 
@@ -505,7 +512,7 @@ def load_trade_label_dict(
         raise FileNotFoundError(f"File not found at {fname}")
 
     label_size = len(node_ids)
-    #label_vec = np.zeros(label_size)
+    # label_vec = np.zeros(label_size)
 
     node_label_dict = {}  # {ts: {node_id: label_vec}}
 
@@ -521,10 +528,10 @@ def load_trade_label_dict(
                 v = node_ids[row[2]]
                 weight = float(row[3])
 
-                if (ts not in node_label_dict):
-                    node_label_dict[ts] = {u:np.zeros(label_size)}
+                if ts not in node_label_dict:
+                    node_label_dict[ts] = {u: np.zeros(label_size)}
 
-                if (u not in node_label_dict[ts]):
+                if u not in node_label_dict[ts]:
                     node_label_dict[ts][u] = np.zeros(label_size)
 
                 node_label_dict[ts][u][v] = weight
@@ -536,6 +543,7 @@ def load_trade_label_dict(
 functions for tgbn-token
 ---------------------------------------
 """
+
 
 def load_edgelist_token(
     fname: str,
@@ -552,7 +560,7 @@ def load_edgelist_token(
     """
     feat_size = 2
     num_lines = sum(1 for line in open(fname)) - 1
-    #print("number of lines counted", num_lines)
+    # print("number of lines counted", num_lines)
     print("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
@@ -593,7 +601,7 @@ def load_edgelist_token(
                 ts_list[idx - 1] = ts
                 idx_list[idx - 1] = idx
                 w_list[idx - 1] = w
-                feat_l[idx - 1] = np.array([w,attr])
+                feat_l[idx - 1] = np.array([w, attr])
                 idx += 1
 
         return (
@@ -611,24 +619,6 @@ def load_edgelist_token(
             node_ids,
             rd_dict,
         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 """
@@ -650,9 +640,9 @@ def load_edgelist_sr(
     Returns:
         df: a pandas dataframe containing the edgelist data
     """
-    feat_size = 1 #2
+    feat_size = 1  # 2
     num_lines = sum(1 for line in open(fname)) - 1
-    #print("number of lines counted", num_lines)
+    # print("number of lines counted", num_lines)
     print("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
@@ -678,7 +668,7 @@ def load_edgelist_sr(
                 ts = row[0]
                 src = row[1]
                 subreddit = row[2]
-                #num_words = int(row[3])
+                # num_words = int(row[3])
                 score = int(row[4])
                 if src not in node_ids:
                     node_ids[src] = node_uid
@@ -799,10 +789,10 @@ def load_label_dict(fname: str, node_ids: dict, rd_dict: dict) -> dict:
                 ts = int(row[0])
                 v = int(rd_dict[row[2]])
                 weight = float(row[3])
-                if (ts not in node_label_dict):
-                    node_label_dict[ts] = {u:np.zeros(label_size)}
+                if ts not in node_label_dict:
+                    node_label_dict[ts] = {u: np.zeros(label_size)}
 
-                if (u not in node_label_dict[ts]):
+                if u not in node_label_dict[ts]:
                     node_label_dict[ts][u] = np.zeros(label_size)
 
                 node_label_dict[ts][u][v] = weight
@@ -828,7 +818,7 @@ def csv_to_pd_data_rc(
     """
     feat_size = 2  # 1 for subreddit, 1 for num words
     num_lines = sum(1 for line in open(fname)) - 1
-    #print("number of lines counted", num_lines)
+    # print("number of lines counted", num_lines)
     print("there are ", num_lines, " lines in the raw data")
     u_list = np.zeros(num_lines)
     i_list = np.zeros(num_lines)
@@ -1043,15 +1033,15 @@ def csv_to_pd_data(
             else:
                 ts = row[0]
                 if ts_format is None:
-                    if (ts.isdigit()):
+                    if ts.isdigit():
                         ts_format = True
                     else:
                         ts_format = False
-                
+
                 if ts_format:
-                    ts = float(int(ts)) #unix timestamp already
+                    ts = float(int(ts))  # unix timestamp already
                 else:
-                    #convert to unix timestamp
+                    # convert to unix timestamp
                     TIME_FORMAT = "%Y-%m-%d"
                     date_cur = datetime.datetime.strptime(ts, TIME_FORMAT)
                     ts = float(date_cur.timestamp())
@@ -1060,7 +1050,6 @@ def csv_to_pd_data(
                     # dt = datetime.datetime.combine(date_cur, datetime.datetime.min.time())
                     # dt = dt.replace(tzinfo=datetime.timezone.edt)
                     # ts = float(dt.timestamp())
-
 
                 src = row[1]
                 dst = row[2]
@@ -1114,6 +1103,80 @@ def csv_to_pd_data(
         feat_l,
         node_ids,
     )
+
+
+def csv_to_pd_data_ln(
+    fname: str,
+) -> pd.DataFrame:
+    r"""
+    currently used by tgbl-flight dataset
+    convert the raw .csv data to pandas dataframe and numpy array
+    input .csv file format should be: timestamp, node u, node v, attributes
+    Args:
+        fname: the path to the raw data
+    """
+    # Define the future time window (5 months in milliseconds)
+    time_window = 150 * 24 * 60 * 60 * 1000
+
+    df = pd.read_csv(fname, true_values=["True"], false_values=["False"])
+    unique_nodes = pd.concat([df["src"], df["dst"]]).unique()
+    node_ids = {node: idx for idx, node in enumerate(unique_nodes)}
+    df["u"] = df["src"].map(node_ids)
+    df["i"] = df["dst"].map(node_ids)
+
+    label_map = {"OPEN": 0, "FORCED": 1, "PENALTY": 1, "MUTUAL": 2}
+    # df["label"] = df["closing_info"].map(label_map)
+
+    df["status"] = (df["channel_status"] == "OPEN").astype(int)
+    df["w"] = df["capacity"].astype(float)
+    df["idx"] = np.arange(1, len(df) + 1)
+
+    # Compute the final label from the future:
+    # First, select only the rows that correspond to a closing event.
+    df_closing = df[df["closing_info"] != "OPEN"][["src", "dst", "gossip_ts", "closing_info"]].copy()
+    df_closing = df_closing.sort_values("gossip_ts")
+    # Use merge_asof to join each row with the first future closing event (if any) within the time_window.
+    # Note: merge_asof matches on keys that are >= the left's key. (If needed, you can add a tiny epsilon to ensure strictly >.)
+    df_merged = pd.merge_asof(
+        df,
+        df_closing,
+        on="gossip_ts",
+        by=["src", "dst"],
+        direction="forward",
+        tolerance=time_window,
+        suffixes=("", "_future")
+    )
+    # Map the future closing event to a label (if exists); otherwise, default to OPEN (0).
+    df_merged["final_label"] = df_merged["closing_info_future"].map(label_map).fillna(0).astype(int)
+
+    feat_cols = [
+        "status",
+        "src_implementation",
+        "dst_implementation",
+        "capacity",
+        "transaction_vout",
+        "src_time_lock_delta",
+        "dst_time_lock_delta",
+        "src_min_htlc",
+        "dst_min_htlc",
+        "src_fee_base_msat",
+        "dst_fee_base_msat",
+        "src_fee_rate_milli_msat",
+        "dst_fee_rate_milli_msat",
+        "src_disabled",
+        "dst_disabled",
+        "src_last_update",
+        "dst_last_update",
+        "ts",
+        "block_avg_fee_rate",
+        "height",
+    ]
+
+    feat_l = df_merged[feat_cols].astype(float).to_numpy()
+    result_df = df_merged[["u", "i", "gossip_ts", "final_label", "status", "idx", "w"]].rename(
+        columns={"gossip_ts": "ts", "final_label": "label"}
+    )
+    return result_df, feat_l, node_ids
 
 
 def process_node_feat(
@@ -1194,6 +1257,7 @@ def process_node_feat(
                     node_feat[node_id] = final
     return node_feat
 
+
 """
 functions for un trade
 -------------------------------------------
@@ -1265,7 +1329,7 @@ def load_edgelist_datetime(fname, label_size=514):
     feat_l = np.zeros((num_lines, feat_size))
     idx_list = np.zeros(num_lines)
     w_list = np.zeros(num_lines)
-    #print("numpy allocated")
+    # print("numpy allocated")
     node_ids = {}  # dictionary for node ids
     label_ids = {}  # dictionary for label ids
     node_uid = label_size  # node ids start after the genre nodes
@@ -1341,6 +1405,7 @@ def load_genre_list(fname):
 functions for wikipedia and un_trade
 -------------------------------------------
 """
+
 
 def reindex(
     df: pd.DataFrame,
