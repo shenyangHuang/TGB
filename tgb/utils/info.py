@@ -23,6 +23,8 @@ class BColors:
     UNDERLINE = "\033[4m"
 
 DATA_URL_DICT = {
+    "tgbl-enron": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-enron.zip",
+    "tgbl-uci": "https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-uci.zip",
     "tgbl-wiki":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki-v2.zip", #"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-wiki.zip", #v1
     "tgbl-subreddit":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-subreddit.zip",
     "tgbl-lastfm":"https://object-arbutus.cloud.computecanada.ca/tgb/tgbl-lastfm.zip",
@@ -48,6 +50,8 @@ DATA_URL_DICT = {
 
 
 DATA_VERSION_DICT = {
+    "tgbl-enron": 1,
+    "tgbl-uci": 1,
     "tgbl-wiki": 2,  
     "tgbl-subreddit": 1,
     "tgbl-lastfm": 1,
@@ -72,6 +76,8 @@ DATA_VERSION_DICT = {
 
 
 DATA_EVAL_METRIC_DICT = {
+    "tgbl-enron": "mrr",
+    "tgbl-uci": "mrr",
     "tgbl-wiki": "mrr",
     "tgbl-subreddit": "mrr",
     "tgbl-lastfm": "mrr",
@@ -95,6 +101,8 @@ DATA_EVAL_METRIC_DICT = {
 }
 
 DATA_NS_STRATEGY_DICT = {
+    "tgbl-enron": "hist_rnd",
+    "tgbl-uci": "hist_rnd",
     "tgbl-wiki": "hist_rnd",
     "tgbl-subreddit": "hist_rnd",
     "tgbl-lastfm": "hist_rnd",

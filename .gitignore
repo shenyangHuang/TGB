@@ -22,6 +22,7 @@ figs/
 *.txt
 *.attr
 *.edge
+.DS_Store
 store_files/
 # Byte-compiled / optimized / DLL files
 __pycache__/
