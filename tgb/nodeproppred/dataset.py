@@ -418,6 +418,15 @@ class NodePropPredDataset(object):
             edge_feat: np.ndarray, [E, feat_dim] or None if there is no edge feature
         """
         return self._edge_feat
+    
+    @property
+    def node_label_dict(self) -> Dict[int, Dict[int, Any]]:
+        r"""
+        Returns the node label dictionary of the dataset with {timestamp: {node_id: label_vec}}
+        Returns:
+            label_dict: Dict[int, Dict[int, Any]], the node label dictionary
+        """
+        return self.label_dict
 
     @property
     def full_data(self) -> Dict[str, Any]:
