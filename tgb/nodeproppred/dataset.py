@@ -285,6 +285,7 @@ class NodePropPredDataset(object):
             "edge_idxs": edge_idxs,
             "edge_feat": self._edge_feat,
             "edge_label": edge_label,
+            "node_label_dict": node_label_dict,
         }
         self._full_data = full_data
 
