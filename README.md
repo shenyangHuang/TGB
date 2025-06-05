@@ -47,12 +47,16 @@ TGX supports all TGB datasets and provides numerous temporal graph visualization
 
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions.  -->
 
-**Please update to version `2.0.0`**
+**Please update to version `2.1.0`**
+
+#### version `2.1.0`
+Includes supplementary datasets `tgbl-lastfm` `tgbl-enron` `tgbl-uci` `tgbl-subreddit` for research purposes.
+For more details, see the release notes
+
 #### version `2.0.0`
 
 Includes all new datasets from TGB 2.0 including temporal knowledge graphs and temporal heterogeneous graphs. 
 
-<!-- **Please update to version `0.9.2`**
 
 #### version `0.9.2`
 
