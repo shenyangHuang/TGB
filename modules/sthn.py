@@ -602,7 +602,7 @@ def run(model, optimizer, args, subgraphs, df, node_feats, edge_feats, MLAUROC, 
         
         batch_auroc = MLAUROC.update(pred, edge_label)
         batch_auprc = MLAUPRC.update(pred, edge_label)
-        loss_lst.append(float(loss))
+        loss_lst.append(float(loss.detach()))
 
         pbar.update(1)
     pbar.close()    

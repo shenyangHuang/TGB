@@ -198,7 +198,7 @@ def train():
             num_label_ts += 1
             loss.backward()
             optimizer.step()
-            total_loss += float(loss)
+            total_loss += float(loss.detach())
 
         # Update memory and neighbor loader with ground-truth state.
         process_edges(src, dst, t, msg)
