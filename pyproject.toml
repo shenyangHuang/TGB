@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-tgb"
-version = "2.2.0"
+version = "2.3.0"
 description = "Temporal Graph Benchmark project repo"
 authors = ["shenyang Huang <shenyang.huang@mail.mcgill.ca>", "Julia Gastinger", "Farimah Poursafaei", "Emanuele Rossi <emanuele.rossi1909@gmail.com>", "Jacob Danovitch <jacob.danovitch@mila.quebec>"]
 readme = "README.md"

@@ -47,7 +47,14 @@ TGX supports all TGB datasets and provides numerous temporal graph visualization
 
 Thanks to everyone for your help in improving TGB! we will continue to improve TGB based on your feedback and suggestions.  -->
 
-**Please update to version `2.2.0`**
+**Datasets have migrated to new network storage (Arbutus / Alliance Canada). Download links from versions prior to `2.3.0` are now deprecated and will no longer work — please update to version `2.3.0` or later to continue downloading datasets.**
+
+**Please update to version `2.3.0`**
+
+#### version `2.3.0`
+Datasets migrated to new network storage (Arbutus / Alliance Canada); download links updated in `tgb/utils/info.py`. Download links from versions prior to `2.3.0` are deprecated, please update.
+Added a full unit test suite and CI workflow covering download, preprocessing, negative sampling, evaluation, and info utilities.
+Made `torch`/PyG an optional dependency guarded at import time, so core TGB functionality works without torch installed.
 
 #### version `2.2.0`
 Adding license for TGB software (for dataset license please check TGB website). 
